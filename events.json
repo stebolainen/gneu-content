@@ -1,5 +1,27 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 1,
-  "events": []
+  "generation": 2,
+  "events": [
+    {
+      "id": "cisa-kev:CVE-2025-62593",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-17T17:00:24.7655Z",
+      "updated_at": "2026-08-17T17:00:24.7655Z",
+      "title": "CVE-2025-62593 i Ray tillagd i CISA KEV",
+      "summary": "CISA:s KEV-katalog anger att CVE-2025-62593 i Ray är en kodinjektionssårbarhet som kan möjliggöra fjärrkörning av kod. Utvecklare kan exponeras via Firefox och Safari.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisningar eller sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2025-62593"
+      ],
+      "deadline": "2026-08-20",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    }
+  ]
 }
