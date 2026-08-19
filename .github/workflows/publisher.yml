@@ -1,0 +1,190 @@
+name: autonomous-publisher
+
+on:
+  schedule:
+    # Five-minute cadence, offset from minute 0 to reduce top-of-hour contention.
+    - cron: "2-59/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run the full gate without merging"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: gneu-autonomous-publisher
+  cancel-in-progress: false
+
+jobs:
+  publisher:
+    if: >-
+      ${{
+        vars.AUTOPUBLISH_ENABLED == 'true' ||
+        (github.event_name == 'workflow_dispatch' && inputs.dry_run)
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Checkout trusted control plane
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pick oldest Adam PR
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr="$(
+            gh pr list \
+              --repo "$REPO" \
+              --base published \
+              --state open \
+              --limit 50 \
+              --json number,headRefName,createdAt \
+              --jq '[.[] | select(.headRefName | startswith("adam/"))] | sort_by(.createdAt) | .[0].number // empty'
+          )"
+
+          if [[ -z "$pr" ]]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "NO_PR"
+            exit 0
+          fi
+
+          if [[ ! "$pr" =~ ^[0-9]+$ ]]; then
+            echo "Invalid PR number" >&2
+            exit 1
+          fi
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+          echo "Selected PR #$pr"
+
+      - name: Collect untrusted PR data without checkout
+        if: steps.pick.outputs.found == 'true'
+        id: collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ steps.pick.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gneu-publisher
+
+          gh api "repos/$REPO/pulls/$PR" > /tmp/gneu-publisher/pr.json
+
+          head_sha="$(jq -r '.head.sha' /tmp/gneu-publisher/pr.json)"
+          if [[ ! "$head_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid head SHA" >&2
+            exit 1
+          fi
+
+          base_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
+          if [[ ! "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid base SHA" >&2
+            exit 1
+          fi
+
+          gh api "repos/$REPO/pulls/$PR/files?per_page=100" > /tmp/gneu-publisher/files.json
+          gh api "repos/$REPO/commits/$head_sha/check-runs?per_page=100" > /tmp/gneu-publisher/checks.json
+          gh api "repos/$REPO/compare/$base_sha...$head_sha" > /tmp/gneu-publisher/compare.json
+
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/events.json?ref=$base_sha" \
+            > /tmp/gneu-publisher/base-events.json
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/manifest.json?ref=$base_sha" \
+            > /tmp/gneu-publisher/base-manifest.json
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/events.json?ref=$head_sha" \
+            > /tmp/gneu-publisher/head-events.json
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/manifest.json?ref=$head_sha" \
+            > /tmp/gneu-publisher/head-manifest.json
+
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Trusted publisher gate
+        if: steps.pick.outputs.found == 'true'
+        env:
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ steps.collect.outputs.base_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 publisher_gate.py \
+            --repository "$REPO" \
+            --current-base-sha "$BASE_SHA" \
+            --pr /tmp/gneu-publisher/pr.json \
+            --files /tmp/gneu-publisher/files.json \
+            --checks /tmp/gneu-publisher/checks.json \
+            --compare /tmp/gneu-publisher/compare.json \
+            --base-events /tmp/gneu-publisher/base-events.json \
+            --base-manifest /tmp/gneu-publisher/base-manifest.json \
+            --head-events /tmp/gneu-publisher/head-events.json \
+            --head-manifest /tmp/gneu-publisher/head-manifest.json \
+            --trusted-validator ./validate_content.py \
+            --json-out /tmp/gneu-publisher/decision.json
+
+      - name: Dry-run result
+        if: >-
+          steps.pick.outputs.found == 'true' &&
+          github.event_name == 'workflow_dispatch' &&
+          inputs.dry_run
+        run: |
+          echo "DRY_RUN_PASS"
+          cat /tmp/gneu-publisher/decision.json
+
+      - name: Mint short-lived publisher token
+        id: app-token
+        if: >-
+          steps.pick.outputs.found == 'true' &&
+          vars.AUTOPUBLISH_ENABLED == 'true' &&
+          !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PUBLISHER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PUBLISHER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: gneu-content
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Merge exact validated head
+        if: >-
+          steps.pick.outputs.found == 'true' &&
+          vars.AUTOPUBLISH_ENABLED == 'true' &&
+          !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ steps.pick.outputs.number }}
+          HEAD_SHA: ${{ steps.collect.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR" \
+            --repo "$REPO" \
+            --squash \
+            --delete-branch \
+            --match-head-commit "$HEAD_SHA"
+
+          echo "AUTOPUBLISHED PR #$PR @ $HEAD_SHA"

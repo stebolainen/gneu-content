@@ -31,3 +31,12 @@ På gneu.se sätts därefter:
 ```
 
 Produktionens cron hämtar materialet. Adam har ingen kontakt med Loopia.
+
+## 9.9 Autonomous Publisher Gate
+
+Repositoryts `main` fungerar som kontrollplan för automatisk publicering.
+`publisher_gate.py` och `.github/workflows/publisher.yml` får aldrig ändras av
+Adams normala content-PR:er.
+
+Autopublish är fail-closed och avstängd tills `AUTOPUBLISH_ENABLED=true`.
+Se `docs/publisher-9.9.md`.
