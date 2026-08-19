@@ -40,3 +40,10 @@ Adams normala content-PR:er.
 
 Autopublish är fail-closed och avstängd tills `AUTOPUBLISH_ENABLED=true`.
 Se `docs/publisher-9.9.md`.
+
+## 9.9.1 Economical Hermes watch
+
+`hermes_source_gate.py` är ett deterministiskt pre-run filter för Adams
+`gneu-content-watch`. Polling sker var 20:e minut, men Hermes-agenten väcks bara
+vid förändring i prioriterade källor, efter tre konsekutiva source-fel eller vid
+sex-timmars safety sweep. Se `docs/hermes-watch-9.9.1.md`.
