@@ -47,3 +47,11 @@ Se `docs/publisher-9.9.md`.
 `gneu-content-watch`. Polling sker var 20:e minut, men Hermes-agenten väcks bara
 vid förändring i prioriterade källor, efter tre konsekutiva source-fel eller vid
 sex-timmars safety sweep. Se `docs/hermes-watch-9.9.1.md`.
+
+## 9.9.2 Adam ephemeral auth
+
+9.9.2 keeps the 20-minute economical Hermes source gate and adds a separate
+short-lived GitHub App identity for Adam. The source gate mints repository-
+scoped credentials only when Adam is actually woken, and successful `--ack`
+removes them again. Publisher credentials remain separate. See
+`docs/hermes-watch-9.9.2.md`.

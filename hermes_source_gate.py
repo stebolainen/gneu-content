@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""gneu-content 9.9.1 — deterministic Hermes source gate.
+"""gneu-content 9.9.2 — deterministic Hermes source gate + ephemeral Adam auth.
 
-Designed to run as a Hermes cron pre-run script. It emits exactly one JSON line:
+Hermes pre-run contract:
   {"wakeAgent": false}
 or
   {"wakeAgent": true, "context": {...}}
 
-No model/provider credentials are required. State is private to HERMES_HOME/scripts.
+When the agent is woken, this gate asks the sibling Adam GitHub App helper to
+mint a short-lived repository-scoped token. The token value is never printed.
+A successful --ack promotes pending fingerprints, records the successful cycle
+and removes/revokes the temporary token.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.error
@@ -22,7 +26,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-VERSION = "9.9.1"
+VERSION = "9.9.2"
 FORCE_SWEEP_SECONDS = 6 * 60 * 60
 ERROR_WAKE_THRESHOLD = 3
 MAX_BODY_BYTES = 8 * 1024 * 1024
@@ -88,7 +92,7 @@ def _sha256(data: bytes) -> str:
 
 def fetch_source(source_id: str, url: str, baseline: dict[str, Any] | None) -> dict[str, Any]:
     headers = {
-        "User-Agent": "gneu-content-watch/9.9.1 (+https://gneu.se)",
+        "User-Agent": "gneu-content-watch/9.9.2 (+https://gneu.se)",
         "Accept": "application/json, application/rss+xml, application/atom+xml, application/xml, text/xml, */*;q=0.1",
         "Cache-Control": "no-cache",
     }
@@ -137,6 +141,57 @@ def promote_pending(state: dict[str, Any], now: int) -> int:
     return promoted
 
 
+def _auth_helper() -> Path | None:
+    override = os.getenv("GNEU_ADAM_AUTH_HELPER", "").strip()
+    if override:
+        p = Path(override).expanduser()
+        return p if p.is_file() else None
+    here = Path(__file__).resolve().parent
+    for name in ("gneu-content-adam-auth.py", "hermes_adam_auth.py"):
+        p = here / name
+        if p.is_file():
+            return p
+    return None
+
+
+def prepare_agent_auth() -> dict[str, Any]:
+    helper = _auth_helper()
+    if helper is None:
+        return {"status": "helper_missing"}
+    try:
+        cp = subprocess.run(
+            [sys.executable, str(helper), "mint"],
+            text=True,
+            capture_output=True,
+            timeout=35,
+        )
+    except Exception as exc:
+        return {"status": "error", "detail": f"{type(exc).__name__}: {exc}"[:240]}
+    if cp.returncode != 0:
+        detail = (cp.stderr or cp.stdout or "mint failed").strip().splitlines()[-1:]
+        return {"status": "unavailable", "detail": (detail[0] if detail else "mint failed")[:240]}
+    return {"status": "ready"}
+
+
+def cleanup_agent_auth() -> dict[str, Any]:
+    helper = _auth_helper()
+    if helper is None:
+        return {"status": "helper_missing"}
+    try:
+        cp = subprocess.run(
+            [sys.executable, str(helper), "cleanup"],
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+    except Exception as exc:
+        return {"status": "error", "detail": f"{type(exc).__name__}: {exc}"[:240]}
+    if cp.returncode != 0:
+        detail = (cp.stderr or cp.stdout or "cleanup failed").strip().splitlines()[-1:]
+        return {"status": "cleanup_warning", "detail": (detail[0] if detail else "cleanup failed")[:240]}
+    return {"status": "removed"}
+
+
 def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = None) -> dict[str, Any]:
     now = _now() if now is None else int(now)
     changed: list[str] = []
@@ -181,7 +236,6 @@ def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = Non
                 continue
 
             if snapshot["sha256"] == baseline.get("sha256"):
-                # Header churn alone must never wake the LLM.
                 src["pending"] = None
                 continue
 
@@ -201,20 +255,13 @@ def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = Non
 
     state["last_check_at"] = now
 
-    # Pending changes remain wake-worthy until Adam acknowledges a successful cycle.
     for source_id, src in sources_state.items():
         if isinstance(src, dict) and isinstance(src.get("pending"), dict) and source_id not in changed:
             changed.append(source_id)
 
     last_success = state.get("last_agent_success_at")
-    safety_sweep = (
-        last_success is None
-        or now - int(last_success) >= FORCE_SWEEP_SECONDS
-    )
-
-    # First ever run is a baseline bootstrap, not an expensive agent wake.
+    safety_sweep = last_success is None or now - int(last_success) >= FORCE_SWEEP_SECONDS
     first_bootstrap = bool(bootstrapped) and last_success is None and not changed and not errors
-
     wake = bool(changed or errors or (safety_sweep and not first_bootstrap))
 
     if not wake:
@@ -244,8 +291,9 @@ def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = Non
             "error_sources": errors,
             "instruction": (
                 "Run the normal remote-first gneu-content-watch cycle. "
+                "Before creating any branch, require context.auth.status=ready. "
                 "If the cycle finishes successfully, acknowledge the gate with "
-                "python3 ~/.hermes/scripts/gneu-content-source-gate.py --ack"
+                f"python3 {Path(__file__).resolve()} --ack"
             ),
         },
     }
@@ -253,8 +301,8 @@ def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = Non
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ack", action="store_true", help="promote pending fingerprints after successful agent cycle")
-    parser.add_argument("--state", type=Path, help="override state path (tests/diagnostics)")
+    parser.add_argument("--ack", action="store_true", help="ack successful agent cycle and clean temporary auth")
+    parser.add_argument("--state", type=Path, help="override state path")
     args = parser.parse_args()
 
     path = args.state.expanduser() if args.state else _state_path()
@@ -265,26 +313,29 @@ def main() -> int:
         promoted = promote_pending(state, now)
         state["last_check_at"] = state.get("last_check_at") or now
         save_state(path, state)
+        cleanup = cleanup_agent_auth()
         print(json.dumps({
             "ack": True,
             "promoted": promoted,
             "version": VERSION,
-        }, separators=(",", ":")))
+            "auth_cleanup": cleanup,
+        }, ensure_ascii=False, separators=(",", ":")))
         return 0
 
     try:
         result = run_check(state, now=now)
+        if result.get("wakeAgent") is True:
+            result.setdefault("context", {})["auth"] = prepare_agent_auth()
         save_state(path, state)
-        # Hermes inspects the final stdout line for wakeAgent.
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
         return 0
     except Exception as exc:
-        # Fail open to the agent for an unexpected gate-internal error.
         print(json.dumps({
             "wakeAgent": True,
             "context": {
                 "gate_version": VERSION,
                 "reason": "gate_internal_error",
+                "auth": {"status": "unknown"},
                 "error": f"{type(exc).__name__}: {exc}"[:300],
             },
         }, ensure_ascii=False, separators=(",", ":")))
