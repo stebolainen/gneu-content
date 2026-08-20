@@ -1,5 +1,12 @@
 # gneu-content 9.9.2 — Adam ephemeral GitHub authentication
 
+> **Releasehistorik.** Detta dokument beskriver införandet av 9.9.2. Det är inte
+> den auktoritativa instruktionen för ny installation, cold start eller
+> recovery. Använd [`OPERATING_MODEL.md`](OPERATING_MODEL.md),
+> [`ADMIN_PLAYBOOK.md`](ADMIN_PLAYBOOK.md) och
+> [`ADAM_PLAYBOOK.md`](ADAM_PLAYBOOK.md). Tekniska fakta om 9.9.2-koden nedan
+> bevaras för spårbarhet.
+
 9.9.2 extends the 9.9.1 economical Hermes watch without changing the Publisher
 Gate.
 
@@ -36,7 +43,7 @@ Publisher:
 - remains controlled by the 9.9 Publisher Gate
 - is the only autonomous merge identity
 
-## Runtime files
+## Historiska 9.9.2 runtimefiler
 
 Install into the active Hermes profile:
 
