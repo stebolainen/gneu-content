@@ -148,11 +148,14 @@ Sessionshistorik får återskapas genom dokumenten, inte genom gissning.
 5. provisionera Adam App-secrets utan att exponera dem;
 6. verifiera owner-only mode och ägare;
 7. verifiera den godkända ephemeral credential-adaptern;
-8. återskapa cronjobbet från den normativa Adam-playbooken;
-9. koppla inte den generella `github-auth`-skillen till jobbet;
-10. bootstrapa source-state avsiktligt;
-11. genomför en full researchcykel och ack först efter framgång;
-12. aktivera schemat sist.
+8. dokumentera adapterns exakta invocation i jobbkonfigurationen; auth-helperns
+   tokenfil är inte ensam en komplett Git/PR-integration;
+9. återskapa cronjobbet från den normativa Adam-playbooken och se till att en
+   tom session instrueras att läsa kontrollfiler från aktuell `origin/main`;
+10. koppla inte den generella `github-auth`-skillen till jobbet;
+11. bootstrapa source-state avsiktligt;
+12. genomför en full researchcykel och ack först efter framgång;
+13. aktivera schemat sist.
 
 ### Förlorad source-state
 

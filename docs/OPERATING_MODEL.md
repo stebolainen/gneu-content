@@ -101,6 +101,13 @@ Följande gränser är obligatoriska:
 7. Produktion ska inte lita på en remote payload utan egen validering.
 8. Sessionshistorik är aldrig en säkerhetskontroll eller source of truth.
 
+Publisher Gate ger teknisk separation men inte oberoende redaktionell
+klassificering. Nuvarande validator och gate hämtar inte primärkällorna och kan
+inte avgöra om en text semantiskt är class A, sann eller fullständigt
+källstödd. De kontrollerar den deklarerade klassen, strukturen och övriga
+maskinella invariants. Adams klassning och källtrohet är därför ett kvarvarande
+policy- och agentförtroende inom den autonoma A-vägen.
+
 ## Branch- och PR-modell
 
 ### `main`
@@ -117,6 +124,10 @@ bland annat:
 
 Tekniska ändringar görs från aktuell `origin/main` på `admin/*` och går via PR
 mot `main`. Ingen agent får pusha direkt till `main`.
+
+Adams normativa kontrollinstruktioner ska också läsas från den fetchade,
+betrodda `origin/main`, även när contentarbetet utgår från `origin/published`.
+En kopia av playbooks på `published` får inte antas vara aktuell.
 
 ### `published`
 
@@ -145,9 +156,13 @@ hantering.
 
 ### Förvaltar- och adminbrancher
 
-Förvaltarens redaktionella brancher ska följa separat beslutad
-`forvaltare/*`-modell och PR-flöde. De är inte eligible för autonom Publisher
-Gate.
+Förvaltaren använder `forvaltare/<beskrivning>` från aktuell
+`origin/published` och PR mot `published` för class B, rättelser, uppdateringar
+och annan mänskligt hanterad content. Förvaltarbrancher är aldrig eligible för
+autonom Publisher Gate och ska mergeas endast genom repositoryts skyddade,
+mänskliga PR-process. Om ändringen kräver schema, validator, workflow eller
+annan teknisk fil ska den lämnas över till Admin och en separat `admin/*`-PR
+mot `main`.
 
 Admin använder endast `admin/*` och PR mot `main` för tekniska ändringar.
 
@@ -168,6 +183,12 @@ rensa runtime-token.
 Adam App får inte ha administration eller ruleset-bypass. Den tekniska
 autentiseringsvägen ska dessutom begränsa användningen till Adams tillåtna
 operationer; promptregler är inte ensamma en tillräcklig säkerhetsgräns.
+
+Repositoryts nuvarande auth-helper skapar tokenfilen men innehåller inte en
+fullständig Git/PR credential-adapter. En sådan adapter och dess invocation
+måste provisioneras och dokumenteras i den aktiva Hermes-jobbkonfigurationen
+innan Adams happy path kan aktiveras. Utan den är säkert resultat
+`AUTH_REQUIRED`.
 
 ### Admin App
 
@@ -211,8 +232,10 @@ publiceringsbeslut.
 
 ## Autonom Publisher Gate
 
-Autonom merge är tillåten endast när samtliga kodade invariants passerar. De
-omfattar minst:
+Autonom merge är enligt policy tillåten endast för en verklig class A-kandidat
+med verified confidence. Nuvarande gate kan inte verifiera denna redaktionella
+semantik mot källan; den verifierar deklarerade fält och tekniska invariants.
+De maskinellt kodade kontrollerna omfattar minst:
 
 - öppen, icke-draft PR mot exakt `published`;
 - samma repository, aldrig fork;
@@ -224,7 +247,9 @@ omfattar minst:
 - generation exakt +1 och samma `N` som branchen;
 - tidigare events strukturellt oförändrade;
 - exakt ett appendat event;
-- class A och `confidence: verified`;
+- deklarerad class A och effektiv confidence `verified`; nuvarande kod tolkar
+  ett utelämnat confidencefält som `verified`, även om Adam enligt policy ska
+  skriva fältet explicit;
 - unikt event-id;
 - trusted validator från `main`;
 - merge med exakt head-SHA-låsning.
@@ -297,12 +322,15 @@ Minimikrav före aktivering:
 
 1. aktiv Hermes-profil har rätt, avgränsad Adam-identitet;
 2. workdir är en ren separat klon av rätt repository;
-3. `AGENTS.md`, `ADAM_PLAYBOOK.md` och redaktionell policy kan läsas från
-   aktuell repository-state;
+3. cronprompten instruerar en tom session att fetcha remote och läsa
+   `AGENTS.md`, `ADAM_PLAYBOOK.md`, `FORVALTARE_PLAYBOOK.md` och
+   `OPERATING_MODEL.md` från exakt aktuell `origin/main`, separat från
+   contentbasen `origin/published`;
 4. source gate och auth-helper är verifierade kopior från aktuell `main`;
 5. Adam App är installerad på exakt repository med minsta permissions;
 6. secret directory och private key är owner-only;
-7. godkänd credential adapter finns och lämnar inga persistenta credentials;
+7. godkänd credential adapter finns, dess invocation är definierad i
+   jobbkonfigurationen och den lämnar inga persistenta credentials;
 8. source-state har avsiktligt bootstrapats;
 9. en full researchcykel har lyckats innan första ack;
 10. branch protection, required checks och App-bypass har live-verifierats;

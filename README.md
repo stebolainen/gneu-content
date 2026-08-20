@@ -74,9 +74,11 @@ source-signal
   -> produktionspull och produktionsvalidering
 ```
 
-Endast exakt ett appendat class A-event med `confidence: verified` och samtliga
-Publisher Gate-invariants kan autopubliceras. Class B, rättelser och
-uppdateringar kräver mänsklig redaktionell hantering.
+Endast exakt ett appendat event som enligt policy verkligen är class A och har
+verified confidence kan autopubliceras när samtliga Publisher Gate-invariants
+passerar. Gate och validator kontrollerar deklarerade fält och struktur men gör
+ingen semantisk källverifiering eller oberoende class A-bedömning. Class B,
+rättelser och uppdateringar kräver mänsklig redaktionell hantering.
 
 Autopublish är fail-closed och avstängd tills
 `AUTOPUBLISH_ENABLED=true`. Se releasehistoriken i

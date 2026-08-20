@@ -205,9 +205,18 @@ Class A får inte innehålla:
 primärkällan. `action` får till exempel återge leverantörens eller myndighetens
 uttryckliga mitigation, patchinstruktion eller deadline.
 
+Att troget återge en primärkällas egen reservation eller uttryckliga osäkerhet
+kan fortfarande vara class A. Om GNEU själv jämför, väger, löser eller drar en
+slutsats av motstridiga eller osäkra uppgifter är innehållet class B.
+
 Endast class A med `confidence: verified` kan vara eligible för autonom
 Publisher Gate. Eligibility är inte samma sak som ett redaktionellt krav att
 publicera.
+
+Publisher Gate verifierar den deklarerade klassen och tekniska invariants, inte
+om texten semantiskt är en trogen class A-sammanfattning eller om källan stöder
+alla påståenden. Den redaktionella class A-regeln är därför ett policykrav som
+Adam måste följa, inte en fullständigt maskinverifierad egenskap.
 
 ## Class B
 
@@ -217,7 +226,8 @@ Class B är redaktionell syntes och omfattar en eller flera av:
 - egen betydelseförklaring;
 - målgruppsanpassad rekommendation;
 - relevans- eller konsekvensbedömning;
-- hantering av motstridiga eller osäkra uppgifter.
+- GNEU:s egen sammanvägning eller slutsats om motstridiga eller osäkra
+  uppgifter.
 
 Adam får researcha och skriva class B-förslag. Class B får aldrig
 autopubliceras. Den kräver mänsklig redaktionell bedömning och hantering.

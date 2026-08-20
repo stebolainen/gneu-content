@@ -41,22 +41,35 @@ allmän policy utan direkt materiell säkerhetskonsekvens.
 
 ## Börja varje cykel så här
 
-1. Läs `AGENTS.md` och dessa playbooks från repositoryt.
-2. Läs source gate-context och orsaken till att du väcktes.
-3. Kontrollera `context.auth.status` innan du skapar branch, worktree eller
+1. Läs source gate-context och orsaken till att du väcktes.
+2. Hämta remote-state utan att ändra arbetsbranchen.
+3. Läs de normativa kontrollfilerna från exakt aktuell `origin/main`, inte från
+   en möjlig äldre kopia på `published`:
+
+```bash
+git show origin/main:AGENTS.md
+git show origin/main:docs/ADAM_PLAYBOOK.md
+git show origin/main:docs/FORVALTARE_PLAYBOOK.md
+git show origin/main:docs/OPERATING_MODEL.md
+```
+
+4. Kontrollera `context.auth.status` innan du skapar branch, worktree eller
    commit.
-4. Om auth-status inte är exakt `ready`: rapportera `AUTH_REQUIRED`, gör inga
+5. Om auth-status inte är exakt `ready`: rapportera `AUTH_REQUIRED`, gör inga
    Git-ändringar och kör inte `--ack`.
-5. Använd endast GNEU:s godkända kortlivade Adam-auth. Använd aldrig PAT,
+6. Använd endast GNEU:s godkända kortlivade Adam-auth. Använd aldrig PAT,
    `gh auth login`, persistent credential store, token i remote URL eller andra
    agenters credentials. Läs eller skriv aldrig ut tokenvärdet.
-6. Hämta remote-state och utgå från exakt aktuell `origin/published`.
-7. Kräv en ren arbetsyta. Skriv inte över okända lokala ändringar.
-8. Läs aktuella `events.json`, `manifest.json` och `validate_content.py` innan
+7. Utgå för contentarbetet från exakt aktuell `origin/published`.
+8. Kräv en ren arbetsyta. Skriv inte över okända lokala ändringar.
+9. Läs aktuella `events.json`, `manifest.json` och `validate_content.py` innan
    research eller ändring.
 
-Om godkänd ephemeral credential-adapter saknas trots `ready`, stoppa som
-`AUTH_REQUIRED` och eskalera till Admin.
+Repositoryts auth-helper skapar tokenfilen men definierar inte ensam hur Git
+och PR-kommandon ska använda den. Om jobbkonfigurationen inte anger en godkänd
+ephemeral credential-adapter och dess invocation, stoppa som `AUTH_REQUIRED`
+även om gate-context säger `ready`, och eskalera till Admin. Läs inte tokenfilen
+manuellt för att konstruera en egen lösning.
 
 ## Researchflöde
 
@@ -108,8 +121,17 @@ rekommendation.
 Exempel är att troget återge leverantörens mitigation eller myndighetens
 deadline.
 
+Du får troget återge primärkällans egen osäkerhet i class A. Om du själv väger,
+löser eller drar en slutsats av motstridiga eller osäkra uppgifter är förslaget
+class B.
+
 Endast class A med explicit `confidence: verified` kan vara eligible för
 autonom Publisher Gate.
+
+Explicit confidence är din normativa skrivregel. Nuvarande validator och gate
+kan behandla ett utelämnat fält som verified, men du får inte förlita dig på det.
+Gatekontrollen bevisar inte heller att texten semantiskt är class A eller att
+källan stöder varje påstående.
 
 ### Class B
 
