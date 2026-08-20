@@ -1,5 +1,12 @@
 # gneu-content 9.9.1 — economical Hermes watch
 
+> **Releasehistorik.** Detta dokument beskriver införandet av 9.9.1 och är inte
+> normativ installations- eller recoveryinstruktion. Profil- och
+> installationsanvisningar nedan är superseded av 9.9.2 och de aktuella
+> [`OPERATING_MODEL.md`](OPERATING_MODEL.md),
+> [`ADMIN_PLAYBOOK.md`](ADMIN_PLAYBOOK.md) och
+> [`ADAM_PLAYBOOK.md`](ADAM_PLAYBOOK.md). Dokumentet bevaras för spårbarhet.
+
 ## Mål
 
 Adam ska inte konsumera en full LLM-körning vid varje pollingintervall.
@@ -51,7 +58,7 @@ bevakningscykeln enligt `AGENTS.md` och får använda alla källor som validator
 - minst var sjätte timme väcks Adam för en full safety sweep även om
   prioriterade feeds inte ändrats
 
-## Hermes-installation
+## Historisk Hermes-installation (superseded)
 
 Kopiera:
 
