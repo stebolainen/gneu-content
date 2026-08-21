@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 4,
+  "generation": 5,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -60,6 +60,24 @@
         {
           "id": "cert-se",
           "url": "https://www.cert.se/2026/08/kritisk-sarbarhet-i-citrix.html"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:AA26-231A",
+      "type": "ai_security",
+      "publication_class": "A",
+      "occurred_at": "2026-08-19T00:00:00Z",
+      "updated_at": "2026-08-19T00:00:00Z",
+      "title": "AI-genererade exploateringsskript används mot Siemens S7-PLC:er",
+      "summary": "Amerikanska myndigheter varnar för ett aktivt hot mot Siemens S7-PLC-installationer i USA. Aktörer använder AI-genererade exploateringsskript mot internetexponerade enheter med inaktuell programvara eller bristande skydd.",
+      "action": "Inventera Siemens S7-PLC:er, installera tillämpliga säkerhetsuppdateringar, gör dem oåtkomliga från internet, stärk åtkomstkontroller och övervaka efter obehörig aktivitet.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-231a"
         }
       ],
       "confidence": "verified"
