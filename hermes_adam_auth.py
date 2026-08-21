@@ -5,9 +5,11 @@ Secrets are read from the active Hermes profile:
   $HERMES_HOME/secrets/gneu-content-adam/app-id
   $HERMES_HOME/secrets/gneu-content-adam/private-key.pem
 
-The installation token is written to /root/gneu-inbox/github-token (0600).
-The token value is never printed. `cleanup` revokes it when possible and always
-removes the local token file.
+The standalone `mint` command writes the installation token to
+/root/gneu-inbox/github-token (0600) for the 9.9.2 source-gate contract. The
+9.9.3 credential adapter instead uses `_mint_token()` in memory. The token value
+is never printed. `cleanup` revokes a token file when possible and always
+removes the local file.
 """
 
 from __future__ import annotations
@@ -122,7 +124,8 @@ def _installation_id(app_jwt: str) -> int:
     return obj["id"]
 
 
-def _mint() -> dict[str, Any]:
+def _mint_token() -> tuple[str, dict[str, Any]]:
+    """Mint and validate a repository-scoped token without writing it to disk."""
     app_jwt = _jwt()
     installation_id = _installation_id(app_jwt)
     status, obj = _request(
@@ -145,9 +148,24 @@ def _mint() -> dict[str, Any]:
     full_names = [r.get("full_name") for r in repos if isinstance(r, dict)]
     if not isinstance(token, str) or not token:
         raise RuntimeError("GitHub installation response had no token")
-    if full_names and full_names != [f"{OWNER}/{REPO}"]:
+    if full_names != [f"{OWNER}/{REPO}"]:
+        try:
+            _request("DELETE", "/installation/token", token)
+        except Exception:
+            pass
         raise RuntimeError(f"unexpected repository scope: {full_names}")
 
+    meta = {
+        "schema": "gneu-content-adam-token-v1",
+        "owner_repo": f"{OWNER}/{REPO}",
+        "installation_id": installation_id,
+        "expires_at": expires_at,
+        "created_at_epoch": int(time.time()),
+    }
+    return token, meta
+
+
+def _store_token(token: str, meta: dict[str, Any]) -> None:
     dest = token_file()
     dest.parent.mkdir(parents=True, exist_ok=True)
     os.chmod(dest.parent, 0o700)
@@ -166,16 +184,14 @@ def _mint() -> dict[str, Any]:
     os.replace(tmp, dest)
     os.chmod(dest, 0o600)
 
-    meta = {
-        "schema": "gneu-content-adam-token-v1",
-        "owner_repo": f"{OWNER}/{REPO}",
-        "installation_id": installation_id,
-        "expires_at": expires_at,
-        "created_at_epoch": int(time.time()),
-    }
     mp = meta_file()
     mp.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.chmod(mp, 0o600)
+
+
+def _mint() -> dict[str, Any]:
+    token, meta = _mint_token()
+    _store_token(token, meta)
     return meta
 
 

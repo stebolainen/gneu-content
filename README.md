@@ -42,6 +42,7 @@ credential eller en ensam autonom beslutsväg.
 - `publisher_gate.py` — trusted append-only gate för autonom class A-publicering
 - `hermes_source_gate.py` — deterministisk pre-run source gate
 - `hermes_adam_auth.py` — ephemeral Adam GitHub App-auth
+- `hermes_adam_github.py` — policybegränsad ephemeral Git/PR-adapter för Adam
 - `AGENTS.md` — hårda repositoryregler för Adam
 - `docs/ADAM_PLAYBOOK.md` — Adams cold-start-körinstruktion
 - `docs/FORVALTARE_PLAYBOOK.md` — auktoritativ redaktionell policy
@@ -92,6 +93,8 @@ Autopublish är fail-closed och avstängd tills
   economical Hermes watch
 - [`docs/hermes-watch-9.9.2.md`](docs/hermes-watch-9.9.2.md) — introduktion av
   ephemeral Adam auth
+- [`docs/adam-credential-adapter-9.9.3.md`](docs/adam-credential-adapter-9.9.3.md)
+  — policybegränsad GitHub credential-adapter för Adam
 
 Releaseanteckningarna bevaras som historik. Använd de normativa playbooks ovan,
 inte äldre releaseinstruktioner, för ny installation och recovery.

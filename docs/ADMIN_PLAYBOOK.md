@@ -49,6 +49,7 @@ Minsta kontrollpaket för nuvarande repository är:
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 test_hermes_source_gate.py
 PYTHONDONTWRITEBYTECODE=1 python3 test_hermes_adam_auth.py
+PYTHONDONTWRITEBYTECODE=1 python3 test_hermes_adam_github.py
 PYTHONDONTWRITEBYTECODE=1 python3 test_publisher_gate.py
 PYTHONDONTWRITEBYTECODE=1 python3 validate_content.py
 ```
@@ -143,13 +144,18 @@ Sessionshistorik får återskapas genom dokumenten, inte genom gissning.
 
 1. skapa eller verifiera en avgränsad Adam-profil;
 2. säkerställ att workdir är separat och pekar på rätt repository;
-3. installera source gate och auth-helper från aktuell betrodd `main`;
+3. installera source gate, auth-helper och credential-adapter från aktuell
+   betrodd `main` enligt
+   [`adam-credential-adapter-9.9.3.md`](adam-credential-adapter-9.9.3.md);
 4. verifiera script-hashes;
 5. provisionera Adam App-secrets utan att exponera dem;
 6. verifiera owner-only mode och ägare;
-7. verifiera den godkända ephemeral credential-adaptern;
-8. dokumentera adapterns exakta invocation i jobbkonfigurationen; auth-helperns
-   tokenfil är inte ensam en komplett Git/PR-integration;
+7. verifiera den godkända ephemeral credential-adaptern, dess negativa tester
+   och att runtimekopians hash motsvarar exakt betrodd `origin/main`;
+8. dokumentera adapterns absoluta path och exakta
+   `/usr/bin/python3 -I <adapter> -- ...`-invocation i jobbkonfigurationen;
+   auth-helperns tokenfil är inte ensam en
+   komplett Git/PR-integration och får aldrig användas manuellt;
 9. återskapa cronjobbet från den normativa Adam-playbooken och se till att en
    tom session instrueras att läsa kontrollfiler från aktuell `origin/main`;
 10. koppla inte den generella `github-auth`-skillen till jobbet;

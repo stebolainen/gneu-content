@@ -65,11 +65,15 @@ git show origin/main:docs/OPERATING_MODEL.md
 9. Läs aktuella `events.json`, `manifest.json` och `validate_content.py` innan
    research eller ändring.
 
-Repositoryts auth-helper skapar tokenfilen men definierar inte ensam hur Git
-och PR-kommandon ska använda den. Om jobbkonfigurationen inte anger en godkänd
-ephemeral credential-adapter och dess invocation, stoppa som `AUTH_REQUIRED`
-även om gate-context säger `ready`, och eskalera till Admin. Läs inte tokenfilen
-manuellt för att konstruera en egen lösning.
+Repositoryts auth-helper skapar tokenfilen men får inte användas direkt för Git
+eller PR. Jobbkonfigurationen måste ange den absoluta, hashverifierade pathen
+till `gneu-content-adam-github.py`. Kör varje autentiserad Git/PR-operation som
+`/usr/bin/python3 -I <adapter-path> -- <kommando>` enligt
+[`adam-credential-adapter-9.9.3.md`](adam-credential-adapter-9.9.3.md). Om
+adaptern eller dess exakta invocation saknas: stoppa som `AUTH_REQUIRED` även
+om gate-context säger `ready`, och eskalera till Admin. Läs aldrig tokenfilen
+och konstruera aldrig en egen credentiallösning. Vanlig autentiserad `git`,
+vanlig `gh` och generell `github-auth` är inte tillåtna fallbackvägar.
 
 ## Researchflöde
 
@@ -166,8 +170,8 @@ python3 validate_content.py
 
 9. granska att inga andra filer har ändrats;
 10. commit med ett sakligt meddelande;
-11. pusha endast `adam/genN-*` med godkänd ephemeral auth;
-12. skapa PR mot exakt `published`;
+11. pusha endast `adam/genN-*` genom den godkända ephemeral adaptern;
+12. skapa och läs PR mot exakt `published` genom samma adapter;
 13. mergea aldrig.
 
 För den autonoma append-only-vägen ska exakt ett nytt class A/verified-event
