@@ -140,26 +140,31 @@ samma verifierade `origin/main`, ersätta SOUL och jobbprompt med mallarna, ladd
 endast `grounded-citations` och hålla jobbet pausat. Secrets provisioneras
 separat och cron aktiveras sist efter samtliga recoverygates.
 
-## Ack och kvarvarande bevisgräns
+## Accepterade kvarvarande risker
 
 `--ack` påverkar endast source-state och får köras efter komplett framgångsrik
 `NO_CHANGE` eller remote-verifierat giltigt PR-resultat. Det får aldrig köras
 vid auth-, source-, validator-, adapter-, push-, PR- eller remote-state-fel.
 Gatekommandot kan fortfarande inte kryptografiskt bevisa att den anropande
-agentcykeln verkligen uppfyllde villkoren; detta är en dokumenterad kvarvarande
-svaghet och ack ska därför fortsatt betraktas som en privilegierad
-agentåtgärd/policykontroll tills separat proof införs.
+agentcykeln verkligen uppfyllde villkoren. `--ack` är inte cycle-bound och ska
+fortsatt betraktas som en privilegierad agentåtgärd/policykontroll. Denna risk är
+uttryckligen accepterad för första kontrollerade produktionsaktiveringen och är
+inte en aktiveringsblockerare.
 
 Det finns även en separat OS-trustgräns som denna Pythonadapter inte ensam kan
 lösa: om Adam kör godtycklig kod som samma OS-identitet som kan läsa Appens
 private key kan processen tekniskt kringgå adaptern genom att implementera egen
 GitHub App-auth. Prompten och borttagna generiska skills minskar inte denna
-privilegierisk. Före secretprovisionering eller aktivering måste runtime
-privilegieseparera mint/signering till en broker/identitet som Adam varken kan
-läsa eller exekvera godtycklig kod som. Att dokumentera Adamprocessen som
-betrodd kod är inte en tillåten ersättning för denna tekniska gräns. Utan den
-verifierade trust boundaryn är både secretprovisionering och aktivering
-blockerade, även om adapterns egna allowlist-tester passerar.
+privilegierisk. Same-UID/root-/proc-risken är uttryckligen accepterad för release
+9.9.3 och blockerar därför inte installation, separat secretprovisionering efter
+merge och tester, eller första kontrollerade aktivering. Alla implementerade
+fail-closed-skydd och adapterrestriktioner gäller oförändrat.
+
+## Framtida hardening
+
+- flytta mint/signering till en privilegieseparerad broker och kör Adam under en
+  separat Linux-identitet/process/container utan direkt private-key-access;
+- bind `--ack` till cycle-id och ett trusted, verifierbart success-proof.
 
 ## Policyöversikt
 

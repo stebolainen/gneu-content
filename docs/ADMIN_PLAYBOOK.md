@@ -151,25 +151,56 @@ Sessionshistorik får återskapas genom dokumenten, inte genom gissning.
    [`adam-credential-adapter-9.9.3.md`](adam-credential-adapter-9.9.3.md) och
    [`../runtime/adam/README.md`](../runtime/adam/README.md);
 4. verifiera script-hashes;
-5. verifiera först att Adam kör under en avgränsad OS-identitet utan direkt
-   private-key-access och att privilegieseparerad policybroker är enda mintväg;
-   same-UID/root är fail-closed blockerare;
-6. provisionera Adam App-secrets utan att exponera dem först när OS-gränsen är
-   stängd och separat godkänd;
-7. verifiera owner-only mode och ägare;
-8. verifiera den godkända ephemeral credential-adaptern, dess negativa tester
+5. provisionera Adams separata GitHub App-secrets utan att exponera dem efter
+   merge och uttryckligt godkännande;
+6. verifiera App-installationen, minsta permissions, owner-only mode och ägare;
+7. verifiera den godkända ephemeral credential-adaptern, dess negativa och live
+   tester
    och att runtimekopians hash motsvarar exakt betrodd `origin/main`;
-9. dokumentera adapterns absoluta path och exakta
+8. dokumentera adapterns absoluta path och exakta
    `/usr/bin/python3 -I <adapter> -- ...`-invocation i jobbkonfigurationen;
    auth-helpern får aldrig anropas direkt för mint och legacy-tokenfilen är
    inte en tillåten Git/PR-integration;
-10. återskapa cronjobbet från den normativa Adam-playbooken och se till att en
+9. återskapa cronjobbet från den normativa Adam-playbooken och se till att en
    tom session instrueras att läsa kontrollfiler från aktuell `origin/main`;
-11. koppla endast `grounded-citations` till jobbet; ta bort generell
+10. koppla endast `grounded-citations` till jobbet; ta bort generell
    `github-auth`, `github-pr-workflow` och andra GitHub-authfallbacks;
-12. bootstrapa source-state avsiktligt;
-13. genomför en full researchcykel och ack först efter framgång;
-14. aktivera schemat sist.
+11. verifiera `published` ruleset, App-bypass och required checks live;
+12. bootstrapa source-state avsiktligt och verifiera full cold-start-cykel;
+13. kör Publisher `workflow_dispatch` med `dry_run=true` och verifiera att ingen
+    merge skedde;
+14. genomför en full researchcykel och ack först efter framgång;
+15. aktivera schemat sist.
+
+#### Blockerare före aktivering
+
+- 9.9.3-PR:n ska vara mergad och installationen ska komma från exakt verifierad
+  mergecommit på `origin/main`;
+- installerade runtimefiler, SOUL, cronprompt och skills ska motsvara den
+  mergecommiten och deras hashes och fulla jobbkontrakt ska vara verifierade;
+- Adams App-secrets, App-installation, minsta permissions och owner-only
+  filskydd ska vara verifierade;
+- live negativa adaptertester och cleanup ska passera utan persistent token;
+- `published` ruleset, App-bypass och required checks ska vara live-verifierade;
+- source-state/bootstrap och full cold-start ska vara verifierade;
+- Publisher dry-run ska passera utan merge;
+- cron ska förbli pausat tills samtliga punkter ovan passerat och aktiveras sist.
+
+#### Accepterade kvarvarande risker
+
+- Nuvarande same-UID/root-/proc-modell kan inte hindra en komprometterad
+  Adamprocess med private-key-access från att implementera egen App-signering.
+  Risken är uttryckligen accepterad för första kontrollerade aktiveringen och är
+  inte en installations-, secretprovisionerings- eller aktiveringsblockerare.
+- `--ack` är policybegränsat men ännu inte kryptografiskt eller cycle-bound.
+  Risken är uttryckligen accepterad för första kontrollerade aktiveringen och är
+  inte en aktiveringsblockerare.
+
+#### Framtida hardening
+
+- separera Adam till egen Linux-identitet/process/container och flytta
+  signering/mint till en privilegieseparerad broker;
+- bind ack till verifierbart cycle-id, remote-resultat och trusted success-proof.
 
 ### Förlorad source-state
 
