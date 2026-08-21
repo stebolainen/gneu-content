@@ -184,11 +184,13 @@ Adam App får inte ha administration eller ruleset-bypass. Den tekniska
 autentiseringsvägen ska dessutom begränsa användningen till Adams tillåtna
 operationer; promptregler är inte ensamma en tillräcklig säkerhetsgräns.
 
-Repositoryts nuvarande auth-helper skapar tokenfilen men innehåller inte en
-fullständig Git/PR credential-adapter. En sådan adapter och dess invocation
-måste provisioneras och dokumenteras i den aktiva Hermes-jobbkonfigurationen
-innan Adams happy path kan aktiveras. Utan den är säkert resultat
-`AUTH_REQUIRED`.
+Repositoryts versionshanterade `hermes_adam_github.py` är den godkända
+Git/PR credential-adaptern. Den låser repository, branch/refspec och
+GitHub CLI-operationer, mintar via auth-helpern per tillåtet kommando och
+städar credentials efteråt. Den installerade adapterns absoluta path och exakta
+invocation måste fortfarande provisioneras och dokumenteras i den aktiva
+Hermes-jobbkonfigurationen innan Adams happy path kan aktiveras. Utan det är
+säkert resultat `AUTH_REQUIRED`.
 
 ### Admin App
 

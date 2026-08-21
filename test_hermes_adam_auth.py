@@ -55,4 +55,43 @@ with tempfile.TemporaryDirectory(prefix="gneu-auth-") as td:
     ok(not tok.exists(), "cleanup removes token file")
     ok(not auth.meta_file().exists(), "cleanup removes metadata")
 
+    original_jwt = auth._jwt
+    original_installation_id = auth._installation_id
+    original_request = auth._request
+    try:
+        setattr(auth, "_jwt", lambda: "app-jwt")
+        setattr(auth, "_installation_id", lambda app_jwt: 77)
+        setattr(auth, "_request", lambda method, path, bearer, body=None: (201, {
+            "token": "in-memory-installation-token",
+            "expires_at": "2026-08-21T06:00:00Z",
+            "repositories": [{"full_name": "stebolainen/gneu-content"}],
+        }))
+        token, meta = auth._mint_token()
+        ok(token == "in-memory-installation-token", "in-memory mint returns token")
+        ok(meta["owner_repo"] == "stebolainen/gneu-content", "in-memory mint locks repository")
+        ok(not tok.exists(), "in-memory mint does not write token file")
+
+        revoked = []
+        def wrong_scope_request(method, path, bearer, body=None):
+            if method == "DELETE":
+                revoked.append(bearer)
+                return 204, None
+            return 201, {
+                "token": "wrong-scope-token",
+                "expires_at": "2026-08-21T06:00:00Z",
+                "repositories": [{"full_name": "other/repository"}],
+            }
+        setattr(auth, "_request", wrong_scope_request)
+        try:
+            auth._mint_token()
+        except RuntimeError:
+            pass
+        else:
+            raise SystemExit("FAIL: wrong repository scope accepted")
+        ok(revoked == ["wrong-scope-token"], "wrong-scope token revoked before failure")
+    finally:
+        setattr(auth, "_jwt", original_jwt)
+        setattr(auth, "_installation_id", original_installation_id)
+        setattr(auth, "_request", original_request)
+
 print(f"gneu-content 9.9.2 Adam auth helper OK · {N} kontroller")
