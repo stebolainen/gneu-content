@@ -175,22 +175,25 @@ Adam använder en separat GitHub App installerad endast på
 repository-scoped installation-token med endast de permissions som behövs för
 content-branch och PR.
 
-Hemligheter ligger utanför Git under aktivt `$HERMES_HOME`. Token får aldrig
-skrivas till remote URL, `.gitconfig`, `.git-credentials`, dokumentation,
-terminalutdata eller sessionshistorik. Ett lyckat `--ack` ska återkalla eller
-rensa runtime-token.
+Hemligheter ligger utanför Git under aktivt `$HERMES_HOME`. Source gate får
+endast kontrollera lokal status och får aldrig minta eller skriva token. Token
+får aldrig skrivas till remote URL, `.gitconfig`, `.git-credentials`,
+dokumentation, terminalutdata, sessionshistorik eller legacy-tokenfil. Adaptern
+mintar i minnet först för ett godkänt faktiskt kommando och återkallar/rensar i
+`finally`; `--ack` hanterar endast source-state.
 
 Adam App får inte ha administration eller ruleset-bypass. Den tekniska
 autentiseringsvägen ska dessutom begränsa användningen till Adams tillåtna
 operationer; promptregler är inte ensamma en tillräcklig säkerhetsgräns.
 
-Repositoryts versionshanterade `hermes_adam_github.py` är den godkända
+Repositoryts versionshanterade `hermes_adam_github.py` är den enda godkända
 Git/PR credential-adaptern. Den låser repository, branch/refspec och
 GitHub CLI-operationer, mintar via auth-helpern per tillåtet kommando och
 städar credentials efteråt. Den installerade adapterns absoluta path och exakta
-invocation måste fortfarande provisioneras och dokumenteras i den aktiva
-Hermes-jobbkonfigurationen innan Adams happy path kan aktiveras. Utan det är
-säkert resultat `AUTH_REQUIRED`.
+invocation ska provisioneras från runtimekontraktet i `runtime/adam/`. Den
+generella `github-auth`-skillen och andra generiska GitHub-workflows får inte
+laddas av jobbet. Utan exakt installerad adapter och ready status är säkert
+resultat `AUTH_REQUIRED`.
 
 ### Admin App
 

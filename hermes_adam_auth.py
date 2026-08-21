@@ -5,11 +5,10 @@ Secrets are read from the active Hermes profile:
   $HERMES_HOME/secrets/gneu-content-adam/app-id
   $HERMES_HOME/secrets/gneu-content-adam/private-key.pem
 
-The standalone `mint` command writes the installation token to
-/root/gneu-inbox/github-token (0600) for the 9.9.2 source-gate contract. The
-9.9.3 credential adapter instead uses `_mint_token()` in memory. The token value
-is never printed. `cleanup` revokes a token file when possible and always
-removes the local file.
+The 9.9.3 source gate uses only the non-minting `status` command. The credential
+adapter uses `_mint_token()` in memory only when it executes an allowlisted
+GitHub command. This helper has no CLI or function that writes a new token to
+disk; `cleanup` only removes/revokes a legacy 9.9.2 token if one remains.
 """
 
 from __future__ import annotations
@@ -18,6 +17,7 @@ import argparse
 import base64
 import json
 import os
+import stat as stat_module
 import subprocess
 import sys
 import time
@@ -30,7 +30,7 @@ OWNER = "stebolainen"
 REPO = "gneu-content"
 API = "https://api.github.com"
 API_VERSION = "2026-03-10"
-USER_AGENT = "gneu-content-adam-auth/9.9.2"
+USER_AGENT = "gneu-content-adam-auth/9.9.3"
 
 
 def hermes_home() -> Path:
@@ -72,6 +72,59 @@ def _private_key() -> Path:
     return p
 
 
+def _owner_only(path: Path, *, directory: bool = False) -> bool:
+    """Return whether a credential path is local, owner-controlled and expected."""
+    try:
+        stat = path.lstat()
+    except OSError:
+        return False
+    expected_type = path.is_dir() if directory else path.is_file()
+    maximum_mode = 0o700 if directory else 0o600
+    return bool(
+        expected_type
+        and not path.is_symlink()
+        and stat.st_uid == os.geteuid()
+        and not (stat.st_mode & 0o077)
+        and (stat.st_mode & 0o700) <= maximum_mode
+    )
+
+
+def _validate_private_key(path: Path) -> bool:
+    """Validate key structure locally without minting, networking or output."""
+    try:
+        cp = subprocess.run(
+            ["/usr/bin/openssl", "pkey", "-in", str(path), "-check", "-noout"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env={"PATH": "/usr/bin:/bin"},
+            shell=False,
+            check=False,
+            timeout=10,
+        )
+    except Exception:
+        return False
+    return cp.returncode == 0
+
+
+def _assert_credentials_ready() -> None:
+    directory = secret_dir()
+    app_path = directory / "app-id"
+    key_path = directory / "private-key.pem"
+    if not _owner_only(directory, directory=True):
+        raise RuntimeError("credential directory is missing or unsafe")
+    if not _owner_only(app_path):
+        raise RuntimeError("app-id file is missing or unsafe")
+    if not _owner_only(key_path):
+        raise RuntimeError("private key file is missing or unsafe")
+    if not _read_app_id().isdigit():
+        raise RuntimeError("app-id is invalid")
+    if not _validate_private_key(key_path):
+        raise RuntimeError("private key is invalid")
+    if token_file().exists() or token_file().is_symlink():
+        raise RuntimeError("legacy token path must be clean before mint")
+
+
 def _jwt(now: int | None = None) -> str:
     now = int(time.time()) if now is None else int(now)
     header = {"alg": "RS256", "typ": "JWT"}
@@ -80,9 +133,12 @@ def _jwt(now: int | None = None) -> str:
     p = _b64url(json.dumps(payload, separators=(",", ":")).encode())
     signing = f"{h}.{p}".encode("ascii")
     cp = subprocess.run(
-        ["openssl", "dgst", "-sha256", "-sign", str(_private_key()), "-binary"],
+        ["/usr/bin/openssl", "dgst", "-sha256", "-sign", str(_private_key()), "-binary"],
         input=signing,
         capture_output=True,
+        env={"PATH": "/usr/bin:/bin"},
+        shell=False,
+        timeout=10,
     )
     if cp.returncode != 0:
         raise RuntimeError("openssl failed to sign GitHub App JWT")
@@ -126,6 +182,7 @@ def _installation_id(app_jwt: str) -> int:
 
 def _mint_token() -> tuple[str, dict[str, Any]]:
     """Mint and validate a repository-scoped token without writing it to disk."""
+    _assert_credentials_ready()
     app_jwt = _jwt()
     installation_id = _installation_id(app_jwt)
     status, obj = _request(
@@ -165,49 +222,39 @@ def _mint_token() -> tuple[str, dict[str, Any]]:
     return token, meta
 
 
-def _store_token(token: str, meta: dict[str, Any]) -> None:
-    dest = token_file()
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(dest.parent, 0o700)
-
-    tmp = dest.with_name(dest.name + ".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(token)
-    except Exception:
-        try:
-            tmp.unlink()
-        except FileNotFoundError:
-            pass
-        raise
-    os.replace(tmp, dest)
-    os.chmod(dest, 0o600)
-
-    mp = meta_file()
-    mp.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.chmod(mp, 0o600)
-
-
-def _mint() -> dict[str, Any]:
-    token, meta = _mint_token()
-    _store_token(token, meta)
-    return meta
-
-
 def _cleanup() -> tuple[bool, str]:
     tf = token_file()
     mp = meta_file()
     revoke = "not_present"
-    if tf.is_file():
+    token_path_present = tf.exists() or tf.is_symlink()
+    if token_path_present:
         try:
-            token = tf.read_text(encoding="utf-8").strip()
+            if not _owner_only(tf.parent, directory=True):
+                raise RuntimeError("unsafe legacy token directory")
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(tf, flags)
+            try:
+                info = os.fstat(fd)
+                if (
+                    not stat_module.S_ISREG(info.st_mode)
+                    or info.st_uid != os.geteuid()
+                    or info.st_mode & 0o077
+                    or info.st_size > 4096
+                ):
+                    raise RuntimeError("unsafe legacy token file")
+                token = os.read(fd, 4097).decode("ascii").strip()
+            finally:
+                os.close(fd)
+            if len(token) > 4096 or any(character.isspace() for character in token):
+                raise RuntimeError("malformed legacy token")
             if token:
                 try:
                     status, _ = _request("DELETE", "/installation/token", token)
                     revoke = "revoked" if status == 204 else f"http_{status}"
                 except Exception:
                     revoke = "revoke_failed"
+        except Exception:
+            revoke = "unsafe_removed"
         finally:
             try:
                 tf.unlink()
@@ -222,19 +269,35 @@ def _cleanup() -> tuple[bool, str]:
 
 def _status() -> dict[str, Any]:
     sd = secret_dir()
-    app_id_ok = (sd / "app-id").is_file()
-    key_ok = (sd / "private-key.pem").is_file()
+    app_id_path = sd / "app-id"
+    key_path = sd / "private-key.pem"
+    directory_ok = _owner_only(sd, directory=True)
+    app_id_file = _owner_only(app_id_path)
+    key_file = _owner_only(key_path)
+    app_id_ok = False
+    if directory_ok and app_id_file:
+        try:
+            app_id = app_id_path.read_text(encoding="utf-8").strip()
+            app_id_ok = bool(app_id.isdigit() and str(int(app_id)) == app_id and int(app_id) > 0)
+        except Exception:
+            app_id_ok = False
+    key_ok = bool(directory_ok and key_file and _validate_private_key(key_path))
+    legacy_token_present = token_file().exists() or token_file().is_symlink()
+    configured = bool(app_id_ok and key_ok and not legacy_token_present)
     meta = {}
-    if meta_file().is_file():
+    if _owner_only(meta_file()) and _owner_only(meta_file().parent, directory=True):
         try:
             meta = json.loads(meta_file().read_text(encoding="utf-8"))
         except Exception:
             meta = {}
     return {
-        "configured": bool(app_id_ok and key_ok),
-        "app_id_file": app_id_ok,
-        "private_key_file": key_ok,
-        "token_present": token_file().is_file(),
+        "status": "ready" if configured else "auth_required",
+        "configured": configured,
+        "app_id_file": app_id_file,
+        "private_key_file": key_file,
+        "app_id_valid": app_id_ok,
+        "private_key_valid": key_ok,
+        "token_present": legacy_token_present,
         "expires_at": meta.get("expires_at"),
         "owner_repo": f"{OWNER}/{REPO}",
     }
@@ -242,25 +305,18 @@ def _status() -> dict[str, Any]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=("mint", "cleanup", "status"))
+    ap.add_argument("command", choices=("cleanup", "status"))
     args = ap.parse_args()
 
     try:
-        if args.command == "mint":
-            # Never leave an older token around before minting a fresh one.
-            _cleanup()
-            meta = _mint()
-            print(json.dumps({
-                "status": "MINTED",
-                "owner_repo": meta["owner_repo"],
-                "expires_at": meta.get("expires_at"),
-            }, separators=(",", ":")))
-            return 0
-
         if args.command == "cleanup":
             _, revoke = _cleanup()
-            print(json.dumps({"status": "REMOVED", "revoke": revoke}, separators=(",", ":")))
-            return 0
+            verified = revoke in {"not_present", "revoked"}
+            print(json.dumps({
+                "status": "REMOVED" if verified else "UNVERIFIED",
+                "revoke": revoke,
+            }, separators=(",", ":")))
+            return 0 if verified else 2
 
         print(json.dumps(_status(), separators=(",", ":")))
         return 0

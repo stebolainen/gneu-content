@@ -1,32 +1,34 @@
 #!/usr/bin/env python3
-"""gneu-content 9.9.2 — deterministic Hermes source gate + ephemeral Adam auth.
+"""gneu-content 9.9.3 — deterministic source gate and non-minting auth status.
 
 Hermes pre-run contract:
   {"wakeAgent": false}
 or
   {"wakeAgent": true, "context": {...}}
 
-When the agent is woken, this gate asks the sibling Adam GitHub App helper to
-mint a short-lived repository-scoped token. The token value is never printed.
-A successful --ack promotes pending fingerprints, records the successful cycle
-and removes/revokes the temporary token.
+When the agent is woken, this gate asks the sibling Adam GitHub App helper only
+for local configuration status. It never creates a GitHub credential. The
+policy-bound Adam adapter is the sole component allowed to mint a token, and it
+does so only for one validated GitHub command.
 """
 
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
+import stat as stat_module
 import subprocess
-import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
 
-VERSION = "9.9.2"
+VERSION = "9.9.3"
 FORCE_SWEEP_SECONDS = 6 * 60 * 60
 ERROR_WAKE_THRESHOLD = 3
 MAX_BODY_BYTES = 8 * 1024 * 1024
@@ -44,11 +46,7 @@ def _now() -> int:
 
 
 def _state_path() -> Path:
-    override = os.getenv("GNEU_WATCH_GATE_STATE", "").strip()
-    if override:
-        return Path(override).expanduser()
-    home = Path(os.getenv("HERMES_HOME", "~/.hermes")).expanduser()
-    return home / "scripts" / ".gneu-content-source-gate-state.json"
+    return Path("/root/.hermes/profiles/gneu/scripts/.gneu-content-source-gate-state.json")
 
 
 def _empty_state() -> dict[str, Any]:
@@ -61,15 +59,57 @@ def _empty_state() -> dict[str, Any]:
     }
 
 
+class StateError(RuntimeError):
+    """Persisted gate state cannot be trusted or safely interpreted."""
+
+
+def _verify_state_parent(path: Path) -> None:
+    parent = path.parent
+    try:
+        info = parent.lstat()
+    except OSError as exc:
+        raise StateError("state directory is unavailable") from exc
+    if (
+        not stat_module.S_ISDIR(info.st_mode)
+        or parent.is_symlink()
+        or info.st_uid != os.geteuid()
+        or info.st_mode & 0o022
+    ):
+        raise StateError("state directory is unsafe")
+
+
 def load_state(path: Path) -> dict[str, Any]:
-    if not path.exists():
+    _verify_state_parent(path)
+    if not path.exists() and not path.is_symlink():
         return _empty_state()
     try:
-        obj = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return _empty_state()
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            info = os.fstat(fd)
+            if (
+                not stat_module.S_ISREG(info.st_mode)
+                or info.st_uid != os.geteuid()
+                or info.st_mode & 0o077
+                or info.st_size > 1_048_576
+            ):
+                raise StateError("state file is unsafe")
+            chunks: list[bytes] = []
+            remaining = info.st_size
+            while remaining:
+                chunk = os.read(fd, min(remaining, 65536))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            obj = json.loads(b"".join(chunks).decode("utf-8"))
+        finally:
+            os.close(fd)
+    except Exception as exc:
+        if isinstance(exc, StateError):
+            raise
+        raise StateError("state is unreadable or malformed") from exc
     if not isinstance(obj, dict) or obj.get("schema") != "gneu-content-hermes-gate-v1":
-        return _empty_state()
+        raise StateError("state schema is missing or invalid")
     obj.setdefault("sources", {})
     obj.setdefault("last_agent_success_at", None)
     obj.setdefault("last_check_at", None)
@@ -78,12 +118,52 @@ def load_state(path: Path) -> dict[str, Any]:
 
 
 def save_state(path: Path, state: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
+    _verify_state_parent(path)
     raw = json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-    tmp.write_text(raw, encoding="utf-8")
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, path)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    tmp = Path(tmp_name)
+    try:
+        os.fchmod(fd, 0o600)
+        payload = raw.encode("utf-8")
+        written = 0
+        while written < len(payload):
+            written += os.write(fd, payload[written:])
+        os.fsync(fd)
+        os.close(fd)
+        fd = -1
+        os.replace(tmp, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _acquire_state_lock(path: Path) -> int:
+    _verify_state_parent(path)
+    lock_path = path.with_name(path.name + ".lock")
+    fd = os.open(
+        lock_path,
+        os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    info = os.fstat(fd)
+    if (
+        not stat_module.S_ISREG(info.st_mode)
+        or info.st_uid != os.geteuid()
+        or info.st_mode & 0o077
+    ):
+        os.close(fd)
+        raise StateError("state lock is unsafe")
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    return fd
 
 
 def _sha256(data: bytes) -> str:
@@ -92,7 +172,7 @@ def _sha256(data: bytes) -> str:
 
 def fetch_source(source_id: str, url: str, baseline: dict[str, Any] | None) -> dict[str, Any]:
     headers = {
-        "User-Agent": "gneu-content-watch/9.9.2 (+https://gneu.se)",
+        "User-Agent": "gneu-content-watch/9.9.3 (+https://gneu.se)",
         "Accept": "application/json, application/rss+xml, application/atom+xml, application/xml, text/xml, */*;q=0.1",
         "Cache-Control": "no-cache",
     }
@@ -142,10 +222,6 @@ def promote_pending(state: dict[str, Any], now: int) -> int:
 
 
 def _auth_helper() -> Path | None:
-    override = os.getenv("GNEU_ADAM_AUTH_HELPER", "").strip()
-    if override:
-        p = Path(override).expanduser()
-        return p if p.is_file() else None
     here = Path(__file__).resolve().parent
     for name in ("gneu-content-adam-auth.py", "hermes_adam_auth.py"):
         p = here / name
@@ -154,42 +230,76 @@ def _auth_helper() -> Path | None:
     return None
 
 
-def prepare_agent_auth() -> dict[str, Any]:
-    helper = _auth_helper()
-    if helper is None:
-        return {"status": "helper_missing"}
-    try:
-        cp = subprocess.run(
-            [sys.executable, str(helper), "mint"],
-            text=True,
-            capture_output=True,
-            timeout=35,
-        )
-    except Exception as exc:
-        return {"status": "error", "detail": f"{type(exc).__name__}: {exc}"[:240]}
-    if cp.returncode != 0:
-        detail = (cp.stderr or cp.stdout or "mint failed").strip().splitlines()[-1:]
-        return {"status": "unavailable", "detail": (detail[0] if detail else "mint failed")[:240]}
-    return {"status": "ready"}
+def _adam_adapter() -> Path | None:
+    here = Path(__file__).resolve().parent
+    for name in ("gneu-content-adam-github.py", "hermes_adam_github.py"):
+        p = here / name
+        if p.is_file():
+            return p
+    return None
 
 
-def cleanup_agent_auth() -> dict[str, Any]:
+def _safe_runtime_script(path: Path | None) -> bool:
+    if path is None:
+        return False
+    try:
+        stat = path.lstat()
+    except OSError:
+        return False
+    return bool(
+        path.is_file()
+        and not path.is_symlink()
+        and stat.st_uid == os.geteuid()
+        and not (stat.st_mode & 0o022)
+        and os.access(path, os.X_OK)
+    )
+
+
+def check_agent_auth() -> dict[str, Any]:
+    """Check local auth/adapter readiness without creating any credential."""
     helper = _auth_helper()
-    if helper is None:
-        return {"status": "helper_missing"}
+    adapter = _adam_adapter()
+    if not _safe_runtime_script(helper):
+        return {"status": "auth_required", "reason": "auth_helper_missing_or_unsafe"}
+    if not _safe_runtime_script(adapter):
+        return {"status": "auth_required", "reason": "credential_adapter_missing_or_unsafe"}
+    assert helper is not None and adapter is not None
     try:
         cp = subprocess.run(
-            [sys.executable, str(helper), "cleanup"],
+            ["/usr/bin/python3", "-I", str(helper), "status"],
             text=True,
             capture_output=True,
-            timeout=20,
+            env={"PATH": "/usr/bin:/bin", "HERMES_HOME": str(helper.resolve().parent.parent)},
+            shell=False,
+            check=False,
+            timeout=15,
         )
-    except Exception as exc:
-        return {"status": "error", "detail": f"{type(exc).__name__}: {exc}"[:240]}
+    except Exception:
+        return {"status": "error", "reason": "auth_status_check_failed"}
     if cp.returncode != 0:
-        detail = (cp.stderr or cp.stdout or "cleanup failed").strip().splitlines()[-1:]
-        return {"status": "cleanup_warning", "detail": (detail[0] if detail else "cleanup failed")[:240]}
-    return {"status": "removed"}
+        return {"status": "error", "reason": "auth_status_check_failed"}
+    try:
+        status = json.loads(cp.stdout)
+    except Exception:
+        return {"status": "error", "reason": "auth_status_malformed"}
+    value = status.get("status") if isinstance(status, dict) else None
+    if value == "ready" and status.get("configured") is True:
+        resolved = adapter.resolve()
+        return {
+            "status": "ready",
+            "adapter": str(resolved),
+            "invocation": f"/usr/bin/python3 -I {resolved} -- <allowlisted-command>",
+        }
+    if value == "auth_required":
+        return {"status": "auth_required", "reason": "auth_configuration_invalid"}
+    return {"status": "error", "reason": "auth_status_unknown"}
+
+
+def attach_auth_status(result: dict[str, Any]) -> dict[str, Any]:
+    """Attach auth readiness only to wake contexts; no-wake remains auth-free."""
+    if result.get("wakeAgent") is True:
+        result.setdefault("context", {})["auth"] = check_agent_auth()
+    return result
 
 
 def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = None) -> dict[str, Any]:
@@ -236,7 +346,10 @@ def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = Non
                 continue
 
             if snapshot["sha256"] == baseline.get("sha256"):
-                src["pending"] = None
+                # A previously observed change remains pending until verified ack,
+                # even if the source later reverts to its baseline representation.
+                if not isinstance(src.get("pending"), dict):
+                    src["pending"] = None
                 continue
 
             src["pending"] = snapshot
@@ -299,33 +412,42 @@ def run_check(state: dict[str, Any], fetcher=fetch_source, now: int | None = Non
     }
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ack", action="store_true", help="ack successful agent cycle and clean temporary auth")
-    parser.add_argument("--state", type=Path, help="override state path")
-    args = parser.parse_args()
+def _state_failure(ack: bool, exc: Exception) -> int:
+    if ack:
+        print(json.dumps({"ack": False, "reason": "state_corrupt"}, separators=(",", ":")))
+        return 2
+    print(json.dumps({
+        "wakeAgent": True,
+        "context": {
+            "gate_version": VERSION,
+            "reason": "state_corrupt",
+            "auth": {"status": "unknown"},
+            "error": f"{type(exc).__name__}: {exc}"[:300],
+        },
+    }, ensure_ascii=False, separators=(",", ":")))
+    return 0
 
-    path = args.state.expanduser() if args.state else _state_path()
-    state = load_state(path)
-    now = _now()
 
-    if args.ack:
+def _run_locked(path: Path, ack: bool, now: int) -> int:
+    try:
+        state = load_state(path)
+    except StateError as exc:
+        return _state_failure(ack, exc)
+
+    if ack:
         promoted = promote_pending(state, now)
         state["last_check_at"] = state.get("last_check_at") or now
         save_state(path, state)
-        cleanup = cleanup_agent_auth()
         print(json.dumps({
             "ack": True,
             "promoted": promoted,
             "version": VERSION,
-            "auth_cleanup": cleanup,
         }, ensure_ascii=False, separators=(",", ":")))
         return 0
 
     try:
         result = run_check(state, now=now)
-        if result.get("wakeAgent") is True:
-            result.setdefault("context", {})["auth"] = prepare_agent_auth()
+        attach_auth_status(result)
         save_state(path, state)
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
         return 0
@@ -340,6 +462,23 @@ def main() -> int:
             },
         }, ensure_ascii=False, separators=(",", ":")))
         return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ack", action="store_true", help="ack a verified successful agent cycle")
+    args = parser.parse_args()
+
+    path = _state_path()
+    try:
+        lock_fd = _acquire_state_lock(path)
+    except StateError as exc:
+        return _state_failure(args.ack, exc)
+    try:
+        return _run_locked(path, args.ack, _now())
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
 
 
 if __name__ == "__main__":

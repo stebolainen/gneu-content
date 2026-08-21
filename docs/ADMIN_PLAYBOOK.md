@@ -79,8 +79,9 @@ Kontrollera minst:
 - auth-helperns `status`, inte privata filer;
 - förekomst, ägare och mode för secret directory/private key utan att läsa
   innehåll;
-- förekomst och expiry-metadata för runtime-token utan att visa token;
-- att tokenfil och metadata tas bort efter lyckad cleanup;
+- att source gate-status inte skapar runtime-token eller legacy-tokenfil;
+- att eventuell legacy-token och metadata tas bort genom separat pausad
+  recovery-cleanup före aktivering;
 - att ingen persistent PAT, token-URL eller gemensam credential store används.
 
 Skriv aldrig ut `.env`, private keys, App JWT, installation-token,
@@ -144,24 +145,62 @@ Sessionshistorik får återskapas genom dokumenten, inte genom gissning.
 
 1. skapa eller verifiera en avgränsad Adam-profil;
 2. säkerställ att workdir är separat och pekar på rätt repository;
-3. installera source gate, auth-helper och credential-adapter från aktuell
+3. installera source gate, auth-helper, credential-adapter, SOUL och jobbprompt
+   från aktuell
    betrodd `main` enligt
-   [`adam-credential-adapter-9.9.3.md`](adam-credential-adapter-9.9.3.md);
+   [`adam-credential-adapter-9.9.3.md`](adam-credential-adapter-9.9.3.md) och
+   [`../runtime/adam/README.md`](../runtime/adam/README.md);
 4. verifiera script-hashes;
-5. provisionera Adam App-secrets utan att exponera dem;
-6. verifiera owner-only mode och ägare;
-7. verifiera den godkända ephemeral credential-adaptern, dess negativa tester
+5. provisionera Adams separata GitHub App-secrets utan att exponera dem efter
+   merge och uttryckligt godkännande;
+6. verifiera App-installationen, minsta permissions, owner-only mode och ägare;
+7. verifiera den godkända ephemeral credential-adaptern, dess negativa och live
+   tester
    och att runtimekopians hash motsvarar exakt betrodd `origin/main`;
 8. dokumentera adapterns absoluta path och exakta
    `/usr/bin/python3 -I <adapter> -- ...`-invocation i jobbkonfigurationen;
-   auth-helperns tokenfil är inte ensam en
-   komplett Git/PR-integration och får aldrig användas manuellt;
+   auth-helpern får aldrig anropas direkt för mint och legacy-tokenfilen är
+   inte en tillåten Git/PR-integration;
 9. återskapa cronjobbet från den normativa Adam-playbooken och se till att en
    tom session instrueras att läsa kontrollfiler från aktuell `origin/main`;
-10. koppla inte den generella `github-auth`-skillen till jobbet;
-11. bootstrapa source-state avsiktligt;
-12. genomför en full researchcykel och ack först efter framgång;
-13. aktivera schemat sist.
+10. koppla endast `grounded-citations` till jobbet; ta bort generell
+   `github-auth`, `github-pr-workflow` och andra GitHub-authfallbacks;
+11. verifiera `published` ruleset, App-bypass och required checks live;
+12. bootstrapa source-state avsiktligt och verifiera full cold-start-cykel;
+13. kör Publisher `workflow_dispatch` med `dry_run=true` och verifiera att ingen
+    merge skedde;
+14. genomför en full researchcykel och ack först efter framgång;
+15. aktivera schemat sist.
+
+#### Blockerare före aktivering
+
+- 9.9.3-PR:n ska vara mergad och installationen ska komma från exakt verifierad
+  mergecommit på `origin/main`;
+- installerade runtimefiler, SOUL, cronprompt och skills ska motsvara den
+  mergecommiten och deras hashes och fulla jobbkontrakt ska vara verifierade;
+- Adams App-secrets, App-installation, minsta permissions och owner-only
+  filskydd ska vara verifierade;
+- live negativa adaptertester och cleanup ska passera utan persistent token;
+- `published` ruleset, App-bypass och required checks ska vara live-verifierade;
+- source-state/bootstrap och full cold-start ska vara verifierade;
+- Publisher dry-run ska passera utan merge;
+- cron ska förbli pausat tills samtliga punkter ovan passerat och aktiveras sist.
+
+#### Accepterade kvarvarande risker
+
+- Nuvarande same-UID/root-/proc-modell kan inte hindra en komprometterad
+  Adamprocess med private-key-access från att implementera egen App-signering.
+  Risken är uttryckligen accepterad för första kontrollerade aktiveringen och är
+  inte en installations-, secretprovisionerings- eller aktiveringsblockerare.
+- `--ack` är policybegränsat men ännu inte kryptografiskt eller cycle-bound.
+  Risken är uttryckligen accepterad för första kontrollerade aktiveringen och är
+  inte en aktiveringsblockerare.
+
+#### Framtida hardening
+
+- separera Adam till egen Linux-identitet/process/container och flytta
+  signering/mint till en privilegieseparerad broker;
+- bind ack till verifierbart cycle-id, remote-resultat och trusted success-proof.
 
 ### Förlorad source-state
 
@@ -169,6 +208,9 @@ Förlorad source-state ska behandlas som cold start, inte som bevis på
 oförändrade källor.
 
 - Första pollningen får skapa baseline tyst.
+- Malformed, osäker eller symlinkad befintlig state är inte "förlorad" state:
+  gate ska väcka med `state_corrupt`, bevara beviset och kräva administrativ
+  recovery; den får inte tyst skapa nya baselines ovanpå felet.
 - En full safety sweep ska genomföras innan driften betraktas som återställd.
 - `last_agent_success_at` ska inte sättas utan en verkligt framgångsrik cykel.
 - Pending får inte promoveras genom manuellt ack utan verifierad cykel.
@@ -178,9 +220,12 @@ oförändrade källor.
 - Rotera inte privata nycklar utan uttryckligt godkännande.
 - Kontrollera först App-installation, App ID, filpermissions, systemtid,
   repositoryscope och GitHub API-fel.
-- Mint ska aldrig logga token.
-- En gammal tokenfil ska städas före ny mint.
-- Om revoke misslyckas ska lokal token ändå bort och händelsen rapporteras.
+- Source gate-status får aldrig minta, nätverksverifiera eller skriva token.
+- En gammal tokenfil ska städas medan jobbet är pausat före adapterverifiering.
+- Mint ska ske endast i adaptern efter godkänd command policy och aldrig logga
+  token.
+- Om revoke misslyckas ska lokal token ändå bort, cleanup returnera nonzero och
+  aktivering blockeras tills revocation eller säker expiry verifierats.
 - Adam-jobbet ska förbli pausat tills `status`, mint, tillåten operation och
   cleanup har verifierats säkert.
 
