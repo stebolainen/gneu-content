@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 2,
+  "generation": 3,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -15,6 +15,27 @@
         "CVE-2025-62593"
       ],
       "deadline": "2026-08-20",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-72529",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-20T00:00:00Z",
+      "updated_at": "2026-08-20T00:00:00Z",
+      "title": "CVE-2026-72529 i TrueConf Server tillagd i CISA KEV",
+      "summary": "CISA har lagt till CVE-2026-72529 i KEV. Sårbarheten gäller saknad autentisering i TrueConf Server och kan låta en obehörig fjärrangripare köra ett godtyckligt skript.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist är 23 augusti 2026; sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-72529"
+      ],
+      "deadline": "2026-08-23",
       "sources": [
         {
           "id": "cisa-kev",
