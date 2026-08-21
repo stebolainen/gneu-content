@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 3,
+  "generation": 4,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -40,6 +40,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:CVE-2026-19490",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-20T11:30:00Z",
+      "updated_at": "2026-08-20T11:30:00Z",
+      "title": "CERT-SE varnar för kritisk sårbarhet i Citrix NetScaler",
+      "summary": "CVE-2026-19490 påverkar Citrix NetScaler ADC och NetScaler Gateway. Sårbarheten har CVSS 9,3 och kan ge en oautentiserad angripare fjärrkörning av kod när enheten är konfigurerad som Gateway.",
+      "action": "Följ skyndsamt leverantörens anvisningar för uppdatering och undersök systemen noggrant efter tecken på intrång, enligt CERT-SE:s rekommendation.",
+      "cves": [
+        "CVE-2026-19490"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/08/kritisk-sarbarhet-i-citrix.html"
         }
       ],
       "confidence": "verified"
