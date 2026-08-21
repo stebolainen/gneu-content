@@ -12,7 +12,7 @@ arkitekturen finns i [`OPERATING_MODEL.md`](OPERATING_MODEL.md), Adams körsteg 
 Adam. För varje tillåtet kommando:
 
 1. valideras hela argumentvektorn innan auth används;
-2. en eventuell gammal Adam-token städas;
+2. en eventuell gammal 9.9.2-token städas;
 3. en ny repository-scoped installation-token mintas i minnet genom den
    befintliga `hermes_adam_auth.py`-implementationen, utan runtime-tokenfil;
 4. exakt ett tillåtet `/usr/bin/git`- eller `/usr/bin/gh`-kommando körs utan
@@ -48,9 +48,9 @@ Installera inga secrets med dessa kommandon. Kör från en ren checkout av exakt
 verifierad `origin/main` och kopiera auth-helper och adapter tillsammans:
 
 ```bash
-install -m 0755 hermes_adam_auth.py \
+install -m 0700 hermes_adam_auth.py \
   "$HERMES_HOME/scripts/gneu-content-adam-auth.py"
-install -m 0755 hermes_adam_github.py \
+install -m 0700 hermes_adam_github.py \
   "$HERMES_HOME/scripts/gneu-content-adam-github.py"
 ```
 
@@ -63,6 +63,12 @@ repositorycheckout, `hermes_adam_auth.py`.
 Runtimeförutsättningar är Linuxverktygen `/usr/bin/git`, `/usr/bin/gh`, Python 3
 och `openssl`. Saknad helper, osäker tokenfil, fel repositoryscope eller mintfel
 ger `AUTH_REQUIRED`; det tillåtna child-kommandot startas inte.
+
+Auth-helperns CLI tillåter i 9.9.3 endast `status` och `cleanup`. Den kan inte
+skriva en ny tokenfil. Source gate kör endast `status`, som verifierar lokal
+owner-only konfiguration, canonical numeriskt App ID och private-key-struktur
+utan nätverk eller token-mint. Source gate kräver dessutom den installerade
+adaptern och sätter endast `ready`, `auth_required` eller `error` i wake-context.
 
 Vid riktig auth kräver adaptern installationsnamnet
 `scripts/gneu-content-adam-github.py`, härleder aktivt `HERMES_HOME` från denna
@@ -106,13 +112,20 @@ Exempel:
 /usr/bin/python3 -I "$ADAPTER" -- gh pr checks 42 --repo stebolainen/gneu-content
 ```
 
+Det låsta `git fetch origin` översätts till explicita force-refspecs för endast
+`main` och `published`; det uppdaterar
+`refs/remotes/origin/main` och `refs/remotes/origin/published` i stället för att
+enbart lämna resultatet i `FETCH_HEAD`. Cold start läser policy först efter att
+dessa refs har uppdaterats.
+
 Vanlig autentiserad `git` eller `gh` är inte en fallback. `POLICY_DENIED`,
 `AUTH_REQUIRED` och `ADAPTER_ERROR` ska stoppa cykeln utan ack.
 
-## Future cronprompt contract
+## Runtime- och cronpromptkontrakt
 
-Den framtida Adam-cronprompten ska ange adapterns absoluta, hashverifierade path
-och instruera en tom session att:
+De versionshanterade mallarna i [`../runtime/adam/`](../runtime/adam/) anger
+Adams SOUL och fulla cold-start-prompt. Cronprompten ska ange adapterns absoluta,
+hashverifierade path och instruera en tom session att:
 
 - använda adaptern för varje autentiserad `git fetch`, `git ls-remote`,
   `git push` och `gh pr`-operation;
@@ -122,8 +135,31 @@ och instruera en tom session att:
 - returnera `AUTH_REQUIRED` om adapter/auth inte är redo;
 - inte ack:a efter adapter-, push-, PR- eller verifieringsfel.
 
-Denna PR installerar inte runtimekopior, provisionerar inga secrets och ändrar
-inte eller aktiverar inte cronjobbet.
+Runtimeinstallationen ska kopiera source gate, auth-helper och adapter från
+samma verifierade `origin/main`, ersätta SOUL och jobbprompt med mallarna, ladda
+endast `grounded-citations` och hålla jobbet pausat. Secrets provisioneras
+separat och cron aktiveras sist efter samtliga recoverygates.
+
+## Ack och kvarvarande bevisgräns
+
+`--ack` påverkar endast source-state och får köras efter komplett framgångsrik
+`NO_CHANGE` eller remote-verifierat giltigt PR-resultat. Det får aldrig köras
+vid auth-, source-, validator-, adapter-, push-, PR- eller remote-state-fel.
+Gatekommandot kan fortfarande inte kryptografiskt bevisa att den anropande
+agentcykeln verkligen uppfyllde villkoren; detta är en dokumenterad kvarvarande
+svaghet och ack ska därför fortsatt betraktas som en privilegierad
+agentåtgärd/policykontroll tills separat proof införs.
+
+Det finns även en separat OS-trustgräns som denna Pythonadapter inte ensam kan
+lösa: om Adam kör godtycklig kod som samma OS-identitet som kan läsa Appens
+private key kan processen tekniskt kringgå adaptern genom att implementera egen
+GitHub App-auth. Prompten och borttagna generiska skills minskar inte denna
+privilegierisk. Före secretprovisionering eller aktivering måste runtime
+privilegieseparera mint/signering till en broker/identitet som Adam varken kan
+läsa eller exekvera godtycklig kod som. Att dokumentera Adamprocessen som
+betrodd kod är inte en tillåten ersättning för denna tekniska gräns. Utan den
+verifierade trust boundaryn är både secretprovisionering och aktivering
+blockerade, även om adapterns egna allowlist-tester passerar.
 
 ## Policyöversikt
 

@@ -12,6 +12,7 @@ import base64
 import importlib.util
 import os
 import re
+import stat as stat_module
 import subprocess
 import sys
 import tempfile
@@ -82,7 +83,15 @@ def _validate_repo(options: dict[str, str]) -> None:
 
 def _build_git(argv: Sequence[str]) -> list[str]:
     if list(argv) == ["git", "fetch", "origin"]:
-        return [GIT_EXECUTABLE, "fetch", REPOSITORY_URL]
+        return [
+            GIT_EXECUTABLE,
+            "fetch",
+            "--no-tags",
+            "--prune",
+            REPOSITORY_URL,
+            "+refs/heads/main:refs/remotes/origin/main",
+            "+refs/heads/published:refs/remotes/origin/published",
+        ]
     if list(argv) == ["git", "ls-remote", "origin"]:
         return [GIT_EXECUTABLE, "ls-remote", REPOSITORY_URL]
     if list(argv) == ["git", "ls-remote", "--heads", "origin"]:
@@ -322,6 +331,20 @@ def _verify_local_git_config(runner: Callable[..., object]) -> None:
             raise PolicyError("local Git config contains a forbidden transport setting")
 
 
+def _verify_executable(path: str) -> None:
+    try:
+        info = os.stat(path, follow_symlinks=False)
+    except OSError as exc:
+        raise AdapterError("allowlisted executable is unavailable") from exc
+    if (
+        not stat_module.S_ISREG(info.st_mode)
+        or info.st_uid != 0
+        or info.st_mode & 0o022
+        or not info.st_mode & 0o111
+    ):
+        raise AdapterError("allowlisted executable is unsafe")
+
+
 def execute(
     argv: Sequence[str],
     auth_module: ModuleType | None = None,
@@ -331,15 +354,19 @@ def execute(
 ) -> int:
     """Run one validated operation with a freshly minted, always-cleaned token."""
     command = build_command(argv)
+    _verify_executable(command[0])
     if command[0] == GIT_EXECUTABLE:
         _verify_local_git_config(preflight_runner)
     auth_home = None if auth_module is not None else _runtime_auth_home()
     auth = auth_module or _load_auth_module()
+    gh_config_context = tempfile.TemporaryDirectory(prefix="gneu-adam-gh-")
     token: str | None = None
     try:
         try:
             with _sanitized_auth_environment(auth_home):
-                auth._cleanup()
+                _, legacy_cleanup = auth._cleanup()
+                if legacy_cleanup not in {"not_present", "revoked"}:
+                    raise AuthRequired("legacy credential cleanup did not verify revocation")
                 token, meta = auth._mint_token()
             if not isinstance(meta, dict) or meta.get("owner_repo") != OWNER_REPO:
                 raise AuthRequired("minted credential repository scope mismatch")
@@ -359,9 +386,8 @@ def execute(
         if command[0] == GH_EXECUTABLE:
             env["GH_TOKEN"] = token
         try:
-            with tempfile.TemporaryDirectory(prefix="gneu-adam-gh-") as gh_config:
-                env["GH_CONFIG_DIR"] = gh_config
-                completed = runner(command, env=env, shell=False, check=False)
+            env["GH_CONFIG_DIR"] = gh_config_context.name
+            completed = runner(command, env=env, shell=False, check=False)
         except Exception as exc:
             raise AdapterError("allowed command could not be executed") from exc
         return int(completed.returncode)
@@ -376,11 +402,17 @@ def execute(
                     except Exception:
                         cleanup_failed = True
                 try:
-                    auth._cleanup()
+                    _, legacy_cleanup = auth._cleanup()
+                    if legacy_cleanup not in {"not_present", "revoked"}:
+                        cleanup_failed = True
                 except Exception:
                     cleanup_failed = True
         except Exception:
             cleanup_failed = token is not None
+        try:
+            gh_config_context.cleanup()
+        except Exception:
+            cleanup_failed = True
         if cleanup_failed:
             raise AdapterError("ephemeral credential cleanup failed") from None
 

@@ -79,8 +79,9 @@ Kontrollera minst:
 - auth-helperns `status`, inte privata filer;
 - förekomst, ägare och mode för secret directory/private key utan att läsa
   innehåll;
-- förekomst och expiry-metadata för runtime-token utan att visa token;
-- att tokenfil och metadata tas bort efter lyckad cleanup;
+- att source gate-status inte skapar runtime-token eller legacy-tokenfil;
+- att eventuell legacy-token och metadata tas bort genom separat pausad
+  recovery-cleanup före aktivering;
 - att ingen persistent PAT, token-URL eller gemensam credential store används.
 
 Skriv aldrig ut `.env`, private keys, App JWT, installation-token,
@@ -144,24 +145,31 @@ Sessionshistorik får återskapas genom dokumenten, inte genom gissning.
 
 1. skapa eller verifiera en avgränsad Adam-profil;
 2. säkerställ att workdir är separat och pekar på rätt repository;
-3. installera source gate, auth-helper och credential-adapter från aktuell
+3. installera source gate, auth-helper, credential-adapter, SOUL och jobbprompt
+   från aktuell
    betrodd `main` enligt
-   [`adam-credential-adapter-9.9.3.md`](adam-credential-adapter-9.9.3.md);
+   [`adam-credential-adapter-9.9.3.md`](adam-credential-adapter-9.9.3.md) och
+   [`../runtime/adam/README.md`](../runtime/adam/README.md);
 4. verifiera script-hashes;
-5. provisionera Adam App-secrets utan att exponera dem;
-6. verifiera owner-only mode och ägare;
-7. verifiera den godkända ephemeral credential-adaptern, dess negativa tester
+5. verifiera först att Adam kör under en avgränsad OS-identitet utan direkt
+   private-key-access och att privilegieseparerad policybroker är enda mintväg;
+   same-UID/root är fail-closed blockerare;
+6. provisionera Adam App-secrets utan att exponera dem först när OS-gränsen är
+   stängd och separat godkänd;
+7. verifiera owner-only mode och ägare;
+8. verifiera den godkända ephemeral credential-adaptern, dess negativa tester
    och att runtimekopians hash motsvarar exakt betrodd `origin/main`;
-8. dokumentera adapterns absoluta path och exakta
+9. dokumentera adapterns absoluta path och exakta
    `/usr/bin/python3 -I <adapter> -- ...`-invocation i jobbkonfigurationen;
-   auth-helperns tokenfil är inte ensam en
-   komplett Git/PR-integration och får aldrig användas manuellt;
-9. återskapa cronjobbet från den normativa Adam-playbooken och se till att en
+   auth-helpern får aldrig anropas direkt för mint och legacy-tokenfilen är
+   inte en tillåten Git/PR-integration;
+10. återskapa cronjobbet från den normativa Adam-playbooken och se till att en
    tom session instrueras att läsa kontrollfiler från aktuell `origin/main`;
-10. koppla inte den generella `github-auth`-skillen till jobbet;
-11. bootstrapa source-state avsiktligt;
-12. genomför en full researchcykel och ack först efter framgång;
-13. aktivera schemat sist.
+11. koppla endast `grounded-citations` till jobbet; ta bort generell
+   `github-auth`, `github-pr-workflow` och andra GitHub-authfallbacks;
+12. bootstrapa source-state avsiktligt;
+13. genomför en full researchcykel och ack först efter framgång;
+14. aktivera schemat sist.
 
 ### Förlorad source-state
 
@@ -169,6 +177,9 @@ Förlorad source-state ska behandlas som cold start, inte som bevis på
 oförändrade källor.
 
 - Första pollningen får skapa baseline tyst.
+- Malformed, osäker eller symlinkad befintlig state är inte "förlorad" state:
+  gate ska väcka med `state_corrupt`, bevara beviset och kräva administrativ
+  recovery; den får inte tyst skapa nya baselines ovanpå felet.
 - En full safety sweep ska genomföras innan driften betraktas som återställd.
 - `last_agent_success_at` ska inte sättas utan en verkligt framgångsrik cykel.
 - Pending får inte promoveras genom manuellt ack utan verifierad cykel.
@@ -178,9 +189,12 @@ oförändrade källor.
 - Rotera inte privata nycklar utan uttryckligt godkännande.
 - Kontrollera först App-installation, App ID, filpermissions, systemtid,
   repositoryscope och GitHub API-fel.
-- Mint ska aldrig logga token.
-- En gammal tokenfil ska städas före ny mint.
-- Om revoke misslyckas ska lokal token ändå bort och händelsen rapporteras.
+- Source gate-status får aldrig minta, nätverksverifiera eller skriva token.
+- En gammal tokenfil ska städas medan jobbet är pausat före adapterverifiering.
+- Mint ska ske endast i adaptern efter godkänd command policy och aldrig logga
+  token.
+- Om revoke misslyckas ska lokal token ändå bort, cleanup returnera nonzero och
+  aktivering blockeras tills revocation eller säker expiry verifierats.
 - Adam-jobbet ska förbli pausat tills `status`, mint, tillåten operation och
   cleanup har verifierats säkert.
 

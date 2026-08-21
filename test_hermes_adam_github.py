@@ -34,7 +34,13 @@ class PolicyTests(unittest.TestCase):
             adapter.build_command(argv)
 
     def test_allows_read_only_git_operations_for_locked_repository(self) -> None:
-        self.assert_allowed(["git", "fetch", "origin"], [GIT, "fetch", URL])
+        self.assert_allowed([
+            "git", "fetch", "origin"
+        ], [
+            GIT, "fetch", "--no-tags", "--prune", URL,
+            "+refs/heads/main:refs/remotes/origin/main",
+            "+refs/heads/published:refs/remotes/origin/published",
+        ])
         self.assert_allowed(["git", "ls-remote", "origin"], [GIT, "ls-remote", URL])
         self.assert_allowed(["git", "ls-remote", "--heads", "origin"], [GIT, "ls-remote", "--heads", URL])
 
@@ -209,7 +215,11 @@ class ExecutionTests(unittest.TestCase):
         })
         self.assertEqual(fake_auth._cleanup.call_count, 2)
         args, kwargs = runner.call_args
-        self.assertEqual(args[0], [GIT, "fetch", URL])
+        self.assertEqual(args[0], [
+            GIT, "fetch", "--no-tags", "--prune", URL,
+            "+refs/heads/main:refs/remotes/origin/main",
+            "+refs/heads/published:refs/remotes/origin/published",
+        ])
         self.assertFalse(kwargs.get("shell", False))
         env = kwargs["env"]
         self.assertNotIn("GITHUB_TOKEN", env)
@@ -267,6 +277,7 @@ class ExecutionTests(unittest.TestCase):
 
     def test_auth_failure_executes_nothing_and_attempts_cleanup(self) -> None:
         fake_auth = mock.Mock()
+        fake_auth._cleanup.return_value = (True, "not_present")
         fake_auth._mint_token.side_effect = RuntimeError("missing credentials")
         runner = mock.Mock()
 
@@ -283,6 +294,17 @@ class ExecutionTests(unittest.TestCase):
             adapter.execute(["gh", "pr", "merge", "42", "--repo", REPO], fake_auth, runner)
         fake_auth._mint_token.assert_not_called()
         runner.assert_not_called()
+
+    def test_executable_preflight_happens_before_auth_mint(self) -> None:
+        fake_auth = mock.Mock()
+        with mock.patch.object(
+            adapter,
+            "_verify_executable",
+            side_effect=adapter.AdapterError("unsafe executable"),
+        ):
+            with self.assertRaises(adapter.AdapterError):
+                adapter.execute(["git", "fetch", "origin"], fake_auth)
+        fake_auth._mint_token.assert_not_called()
 
 
 if __name__ == "__main__":

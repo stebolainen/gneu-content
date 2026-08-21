@@ -47,6 +47,7 @@ credential eller en ensam autonom beslutsväg.
 - `docs/ADAM_PLAYBOOK.md` — Adams cold-start-körinstruktion
 - `docs/FORVALTARE_PLAYBOOK.md` — auktoritativ redaktionell policy
 - `docs/ADMIN_PLAYBOOK.md` — teknisk drift och recovery
+- `runtime/adam/` — versionshanterade SOUL-, cronprompt- och installationsmallar
 - `.github/workflows/validate.yml` — content validation
 - `.github/workflows/publisher.yml` — Trusted Publisher Gate-workflow
 
