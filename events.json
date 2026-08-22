@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 7,
+  "generation": 8,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -113,6 +113,27 @@
         "CVE-2026-73570"
       ],
       "deadline": "2026-08-24",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-64849",
+      "type": "ai_security",
+      "publication_class": "A",
+      "occurred_at": "2026-08-19T00:00:00Z",
+      "updated_at": "2026-08-19T00:00:00Z",
+      "title": "CVE-2026-64849 i MLflow tillagd i CISA KEV",
+      "summary": "CISA har lagt till CVE-2026-64849 i KEV. SSRF-sårbarheten i MLflow kan låta angripare nå interna tjänster eller molnmetadata och ta emot svarens status och innehåll.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist är 2 september 2026; sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-64849"
+      ],
+      "deadline": "2026-09-02",
       "sources": [
         {
           "id": "cisa-kev",
