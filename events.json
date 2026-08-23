@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 8,
+  "generation": 9,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -134,6 +134,27 @@
         "CVE-2026-64849"
       ],
       "deadline": "2026-09-02",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-72530",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-20T00:00:00Z",
+      "updated_at": "2026-08-20T00:00:00Z",
+      "title": "CVE-2026-72530 i TrueConf Server tillagd i CISA KEV",
+      "summary": "CISA har lagt till CVE-2026-72530 i KEV. Sårbarheten i TrueConf Server kan låta en obehörig fjärrangripare med nätverksåtkomst via TCP-port 4307 bryta sig ur den isolerade miljön och köra godtycklig kod på värdsystemet.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist är 3 september 2026; sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-72530"
+      ],
+      "deadline": "2026-09-03",
       "sources": [
         {
           "id": "cisa-kev",
