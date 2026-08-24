@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 10,
+  "generation": 11,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -174,6 +174,27 @@
       "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist var 21 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-59310"
+      ],
+      "deadline": "2026-08-21",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-65400",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-18T00:00:00Z",
+      "updated_at": "2026-08-18T00:00:00Z",
+      "title": "CVE-2026-65400 i macOS tillagd i CISA KEV",
+      "summary": "CISA har lagt till CVE-2026-65400 i KEV. Sårbarheten i macOS gäller bristande autentisering och kan låta en angripare på nätverket autentisera till Skärmdelning utan giltiga inloggningsuppgifter.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist var 21 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-65400"
       ],
       "deadline": "2026-08-21",
       "sources": [
