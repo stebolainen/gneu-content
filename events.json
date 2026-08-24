@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 11,
+  "generation": 12,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -201,6 +201,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-47292-update-2026-08-24",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-08-24T14:00:00Z",
+      "updated_at": "2026-08-24T14:00:00Z",
+      "title": "Microsoft kompletterar CVE-2026-47292 med paketinformation",
+      "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Visual Studio Code-tillägget MSSQL från 1.0.0 till före 1.43.0 anges som sårbart; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
+      "action": "Uppdatera Visual Studio Code-tillägget MSSQL till version 1.43.0 eller senare enligt Microsofts angivna korrigerade version.",
+      "cves": [
+        "CVE-2026-47292"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-47292"
         }
       ],
       "confidence": "verified"
