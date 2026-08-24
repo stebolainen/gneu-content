@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 9,
+  "generation": 10,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -155,6 +155,27 @@
         "CVE-2026-72530"
       ],
       "deadline": "2026-09-03",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-59310",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-18T00:00:00Z",
+      "updated_at": "2026-08-18T00:00:00Z",
+      "title": "CVE-2026-59310 i VMware vCenter tillagd i CISA KEV",
+      "summary": "CISA har lagt till CVE-2026-59310 i KEV. Sårbarheten i VMware vCenter är en path traversal som kan låta en hotaktör med nätverksåtkomst köra godtycklig kod.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist var 21 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-59310"
+      ],
+      "deadline": "2026-08-21",
       "sources": [
         {
           "id": "cisa-kev",
