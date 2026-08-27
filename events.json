@@ -233,7 +233,7 @@
       "updated_at": "2026-08-24T00:00:00Z",
       "title": "CVE-2026-21962 i Oracle HTTP Server tillagd i CISA KEV",
       "summary": "CISA har lagt till CVE-2026-21962 i KEV. Sårbarheten gäller bristande åtkomstkontroll i Oracle HTTP Server och WebLogic Server Proxy Plug-in och kan ge obehörig åtkomst till samt skapande, ändring eller radering av kritiska data.",
-      "action": "Tillämpa leverantörens åtgärder. CISA:s tidsfrist är 27 augusti 2026; följ tillämplig BOD 22-01-vägledning för molntjänster eller sluta använda produkten om åtgärder saknas.",
+      "action": "Tillämpa leverantörens åtgärder. CISA:s tidsfrist är 27 augusti 2026; följ tillämplig BOD 26-04-vägledning för molntjänster eller sluta använda produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-21962"
       ],
