@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 15,
+  "generation": 16,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -278,6 +278,27 @@
       "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist är 29 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-8452"
+      ],
+      "deadline": "2026-08-29",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2019-1068",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-26T00:00:00Z",
+      "updated_at": "2026-08-26T00:00:00Z",
+      "title": "CVE-2019-1068 i Microsoft SQL Server tillagd i CISA KEV",
+      "summary": "CISA har lagt till CVE-2019-1068 i KEV. Sårbarheten i Microsoft SQL Server kan låta en angripare köra kod med SQL Server Database Engine-tjänstekontots behörigheter.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist är 29 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2019-1068"
       ],
       "deadline": "2026-08-29",
       "sources": [
