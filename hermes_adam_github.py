@@ -50,6 +50,10 @@ class AuthRequired(AdapterError):
     """Ephemeral Adam authentication could not be prepared."""
 
 
+class StaleBase(AdapterError):
+    """The local proposal is not based on the exact current published ref."""
+
+
 def _valid_branch(value: str) -> bool:
     return bool(BRANCH_RE.fullmatch(value))
 
@@ -331,6 +335,104 @@ def _verify_local_git_config(runner: Callable[..., object]) -> None:
             raise PolicyError("local Git config contains a forbidden transport setting")
 
 
+def _freshness_run(
+    runner: Callable[..., object],
+    argv: list[str],
+    *,
+    env: dict[str, str],
+) -> object:
+    try:
+        return runner(
+            argv,
+            env=env,
+            shell=False,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except Exception as exc:
+        raise AdapterError("published freshness check could not be executed") from exc
+
+
+def _verify_proposal_base_freshness(
+    token: str,
+    runner: Callable[..., object],
+) -> str:
+    """Require HEAD to be based on the exact current remote published commit."""
+
+    remote = _freshness_run(
+        runner,
+        [
+            GIT_EXECUTABLE,
+            "ls-remote",
+            REPOSITORY_URL,
+            "refs/heads/published",
+        ],
+        env=_git_environment(token),
+    )
+
+    if getattr(remote, "returncode", 1) != 0:
+        raise AdapterError("current published ref could not be verified")
+
+    stdout = getattr(remote, "stdout", "")
+    if not isinstance(stdout, str):
+        raise AdapterError("current published ref response was malformed")
+
+    lines = [line for line in stdout.splitlines() if line.strip()]
+    if len(lines) != 1:
+        raise AdapterError("current published ref response was ambiguous")
+
+    fields = lines[0].split()
+    if (
+        len(fields) != 2
+        or fields[1] != "refs/heads/published"
+        or re.fullmatch(r"[0-9a-f]{40}", fields[0]) is None
+    ):
+        raise AdapterError("current published ref response was malformed")
+
+    published_sha = fields[0]
+
+    local_env = _clean_environment()
+
+    tracked = _freshness_run(
+        runner,
+        [
+            GIT_EXECUTABLE,
+            "rev-parse",
+            "--verify",
+            "refs/remotes/origin/published^{commit}",
+        ],
+        env=local_env,
+    )
+
+    tracked_stdout = getattr(tracked, "stdout", "")
+    tracked_sha = tracked_stdout.strip() if isinstance(tracked_stdout, str) else ""
+
+    if (
+        getattr(tracked, "returncode", 1) != 0
+        or tracked_sha != published_sha
+    ):
+        raise StaleBase("published changed since the last verified fetch")
+
+    ancestor = _freshness_run(
+        runner,
+        [
+            GIT_EXECUTABLE,
+            "merge-base",
+            "--is-ancestor",
+            published_sha,
+            "HEAD",
+        ],
+        env=local_env,
+    )
+
+    if getattr(ancestor, "returncode", 1) != 0:
+        raise StaleBase("HEAD is not based on current published")
+
+    return published_sha
+
+
 def _verify_executable(path: str) -> None:
     try:
         info = os.stat(path, follow_symlinks=False)
@@ -351,12 +453,26 @@ def execute(
     runner: Callable[..., subprocess.CompletedProcess[bytes]] = subprocess.run,
     *,
     preflight_runner: Callable[..., object] = subprocess.run,
+    freshness_runner: Callable[..., object] = subprocess.run,
 ) -> int:
     """Run one validated operation with a freshly minted, always-cleaned token."""
     command = build_command(argv)
     _verify_executable(command[0])
-    if command[0] == GIT_EXECUTABLE:
+
+    is_push = (
+        command[0] == GIT_EXECUTABLE
+        and len(command) >= 2
+        and command[1] == "push"
+    )
+    is_pr_create = (
+        command[0] == GH_EXECUTABLE
+        and len(command) >= 3
+        and command[1:3] == ["pr", "create"]
+    )
+
+    if command[0] == GIT_EXECUTABLE or is_pr_create:
         _verify_local_git_config(preflight_runner)
+
     auth_home = None if auth_module is not None else _runtime_auth_home()
     auth = auth_module or _load_auth_module()
     gh_config_context = tempfile.TemporaryDirectory(prefix="gneu-adam-gh-")
@@ -385,6 +501,10 @@ def execute(
         env = _git_environment(token) if command[0] == GIT_EXECUTABLE else _clean_environment()
         if command[0] == GH_EXECUTABLE:
             env["GH_TOKEN"] = token
+
+        if is_push or is_pr_create:
+            _verify_proposal_base_freshness(token, freshness_runner)
+
         try:
             env["GH_CONFIG_DIR"] = gh_config_context.name
             completed = runner(command, env=env, shell=False, check=False)
@@ -437,6 +557,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except AuthRequired:
         print("AUTH_REQUIRED", file=sys.stderr)
         return 69
+    except StaleBase:
+        print("STALE_BASE", file=sys.stderr)
+        return 75
     except AdapterError:
         print("ADAPTER_ERROR", file=sys.stderr)
         return 70

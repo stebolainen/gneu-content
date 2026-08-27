@@ -239,6 +239,214 @@ class ExecutionTests(unittest.TestCase):
         self.assertTrue(any(value.startswith("AUTHORIZATION: basic ") for value in config_values))
         self.assertTrue(any("core.hooksPath" == env[key] for key in env if key.startswith("GIT_CONFIG_KEY_")))
 
+    def test_push_requires_exact_current_published_base(self) -> None:
+        fake_auth = mock.Mock()
+        fake_auth._mint_token.return_value = ("ephemeral", {"owner_repo": REPO})
+        fake_auth._request.return_value = (204, None)
+        fake_auth._cleanup.return_value = (True, "not_present")
+
+        push_runner = mock.Mock(return_value=mock.Mock(returncode=0))
+        config_runner = mock.Mock(return_value=mock.Mock(
+            returncode=0,
+            stdout="core.filemode\nremote.origin.url\n",
+        ))
+
+        published = "a" * 40
+
+        def freshness(argv, **kwargs):
+            if argv[1] == "ls-remote":
+                return mock.Mock(
+                    returncode=0,
+                    stdout=f"{published}\trefs/heads/published\n",
+                )
+            if argv[1] == "rev-parse":
+                return mock.Mock(returncode=0, stdout=published + "\n")
+            if argv[1] == "merge-base":
+                return mock.Mock(returncode=0, stdout="")
+            raise AssertionError("unexpected freshness command: " + repr(argv))
+
+        result = adapter.execute(
+            ["git", "push", "origin", f"HEAD:refs/heads/{BRANCH}"],
+            fake_auth,
+            push_runner,
+            preflight_runner=config_runner,
+            freshness_runner=freshness,
+        )
+
+        self.assertEqual(result, 0)
+        push_runner.assert_called_once()
+        self.assertEqual(fake_auth._cleanup.call_count, 2)
+
+
+    def test_push_blocks_when_published_advanced_since_fetch(self) -> None:
+        fake_auth = mock.Mock()
+        fake_auth._mint_token.return_value = ("ephemeral", {"owner_repo": REPO})
+        fake_auth._request.return_value = (204, None)
+        fake_auth._cleanup.return_value = (True, "not_present")
+
+        push_runner = mock.Mock()
+        config_runner = mock.Mock(return_value=mock.Mock(
+            returncode=0,
+            stdout="core.filemode\nremote.origin.url\n",
+        ))
+
+        current = "b" * 40
+        stale = "a" * 40
+
+        def freshness(argv, **kwargs):
+            if argv[1] == "ls-remote":
+                return mock.Mock(
+                    returncode=0,
+                    stdout=f"{current}\trefs/heads/published\n",
+                )
+            if argv[1] == "rev-parse":
+                return mock.Mock(returncode=0, stdout=stale + "\n")
+            raise AssertionError("unexpected freshness command: " + repr(argv))
+
+        with self.assertRaises(adapter.StaleBase):
+            adapter.execute(
+                ["git", "push", "origin", f"HEAD:refs/heads/{BRANCH}"],
+                fake_auth,
+                push_runner,
+                preflight_runner=config_runner,
+                freshness_runner=freshness,
+            )
+
+        push_runner.assert_not_called()
+        self.assertEqual(fake_auth._cleanup.call_count, 2)
+
+
+    def test_push_blocks_when_head_does_not_contain_current_published(self) -> None:
+        fake_auth = mock.Mock()
+        fake_auth._mint_token.return_value = ("ephemeral", {"owner_repo": REPO})
+        fake_auth._request.return_value = (204, None)
+        fake_auth._cleanup.return_value = (True, "not_present")
+
+        push_runner = mock.Mock()
+        config_runner = mock.Mock(return_value=mock.Mock(
+            returncode=0,
+            stdout="core.filemode\nremote.origin.url\n",
+        ))
+
+        published = "c" * 40
+
+        def freshness(argv, **kwargs):
+            if argv[1] == "ls-remote":
+                return mock.Mock(
+                    returncode=0,
+                    stdout=f"{published}\trefs/heads/published\n",
+                )
+            if argv[1] == "rev-parse":
+                return mock.Mock(returncode=0, stdout=published + "\n")
+            if argv[1] == "merge-base":
+                return mock.Mock(returncode=1, stdout="")
+            raise AssertionError("unexpected freshness command: " + repr(argv))
+
+        with self.assertRaises(adapter.StaleBase):
+            adapter.execute(
+                ["git", "push", "origin", f"HEAD:refs/heads/{BRANCH}"],
+                fake_auth,
+                push_runner,
+                preflight_runner=config_runner,
+                freshness_runner=freshness,
+            )
+
+        push_runner.assert_not_called()
+
+
+    def test_pr_create_requires_exact_current_published_base(self) -> None:
+        fake_auth = mock.Mock()
+        fake_auth._mint_token.return_value = ("ephemeral", {"owner_repo": REPO})
+        fake_auth._request.return_value = (204, None)
+        fake_auth._cleanup.return_value = (True, "not_present")
+
+        gh_runner = mock.Mock(return_value=mock.Mock(returncode=0))
+        config_runner = mock.Mock(return_value=mock.Mock(
+            returncode=0,
+            stdout="core.filemode\nremote.origin.url\n",
+        ))
+
+        published = "d" * 40
+
+        def freshness(argv, **kwargs):
+            if argv[1] == "ls-remote":
+                return mock.Mock(
+                    returncode=0,
+                    stdout=f"{published}\trefs/heads/published\n",
+                )
+            if argv[1] == "rev-parse":
+                return mock.Mock(returncode=0, stdout=published + "\n")
+            if argv[1] == "merge-base":
+                return mock.Mock(returncode=0, stdout="")
+            raise AssertionError("unexpected freshness command: " + repr(argv))
+
+        command = [
+            "gh", "pr", "create",
+            "--repo", REPO,
+            "--base", "published",
+            "--head", BRANCH,
+            "--title", "New event",
+            "--body", "Source-bound summary",
+        ]
+
+        result = adapter.execute(
+            command,
+            fake_auth,
+            gh_runner,
+            preflight_runner=config_runner,
+            freshness_runner=freshness,
+        )
+
+        self.assertEqual(result, 0)
+        gh_runner.assert_called_once()
+
+
+    def test_pr_create_blocks_when_published_advanced_after_push(self) -> None:
+        fake_auth = mock.Mock()
+        fake_auth._mint_token.return_value = ("ephemeral", {"owner_repo": REPO})
+        fake_auth._request.return_value = (204, None)
+        fake_auth._cleanup.return_value = (True, "not_present")
+
+        gh_runner = mock.Mock()
+        config_runner = mock.Mock(return_value=mock.Mock(
+            returncode=0,
+            stdout="core.filemode\nremote.origin.url\n",
+        ))
+
+        current = "e" * 40
+        stale = "d" * 40
+
+        def freshness(argv, **kwargs):
+            if argv[1] == "ls-remote":
+                return mock.Mock(
+                    returncode=0,
+                    stdout=f"{current}\trefs/heads/published\n",
+                )
+            if argv[1] == "rev-parse":
+                return mock.Mock(returncode=0, stdout=stale + "\n")
+            raise AssertionError("unexpected freshness command: " + repr(argv))
+
+        command = [
+            "gh", "pr", "create",
+            "--repo", REPO,
+            "--base", "published",
+            "--head", BRANCH,
+            "--title", "New event",
+            "--body", "Source-bound summary",
+        ]
+
+        with self.assertRaises(adapter.StaleBase):
+            adapter.execute(
+                command,
+                fake_auth,
+                gh_runner,
+                preflight_runner=config_runner,
+                freshness_runner=freshness,
+            )
+
+        gh_runner.assert_not_called()
+
+
     def test_dangerous_local_git_config_is_denied_before_mint(self) -> None:
         for key in ("push.followtags", "url.https://attacker.invalid/.insteadof"):
             with self.subTest(key=key):

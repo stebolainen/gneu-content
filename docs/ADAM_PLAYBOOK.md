@@ -174,9 +174,19 @@ python3 validate_content.py
 
 9. granska att inga andra filer har ändrats;
 10. commit med ett sakligt meddelande;
-11. pusha endast `adam/genN-*` genom den godkända ephemeral adaptern;
-12. skapa och läs PR mot exakt `published` genom samma adapter;
-13. mergea aldrig.
+11. hämta remote-state igen omedelbart före push och verifiera att lokal
+    `origin/published` fortfarande är exakt aktuell remote `published`;
+12. pusha endast `adam/genN-*` genom den godkända ephemeral adaptern; adaptern
+    måste fail-closed med `STALE_BASE` om `published` har ändrats eller om HEAD
+    inte bygger på exakt aktuell `published`;
+13. skapa PR mot exakt `published` genom samma adapter; adaptern ska göra samma
+    freshness-kontroll igen omedelbart före PR-skapandet;
+14. vid `STALE_BASE`: skapa inte PR, ack:a inte signalen och försök aldrig
+    force-pusha. Hämta aktuell `published`, bygg om förslaget från den nya basen,
+    räkna fram aktuell nästa generation, regenerera `manifest.json`, kör båda
+    validatorerna och använd vid behov en ny canonical `adam/genN-*`-branch;
+15. verifiera den skapade PR:n och dess aktuella head SHA;
+16. mergea aldrig.
 
 För den autonoma append-only-vägen ska exakt ett nytt class A/verified-event
 appenderas och endast `events.json` och `manifest.json` ändras. Class B,
