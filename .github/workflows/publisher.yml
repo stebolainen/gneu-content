@@ -1,9 +1,19 @@
 name: autonomous-publisher
 
 on:
+  # Primary path: run immediately after content validation completes.
+  # The publisher never consumes artifacts or code from the triggering run;
+  # it checks out trusted main and revalidates the selected PR independently.
+  workflow_run:
+    workflows:
+      - validate-content
+    types:
+      - completed
+
+  # Fallback only. GitHub schedules are best-effort and may be delayed.
   schedule:
-    # Five-minute cadence, offset from minute 0 to reduce top-of-hour contention.
     - cron: "2-59/5 * * * *"
+
   workflow_dispatch:
     inputs:
       dry_run:
@@ -25,7 +35,17 @@ jobs:
   publisher:
     if: >-
       ${{
-        vars.AUTOPUBLISH_ENABLED == 'true' ||
+        (
+          vars.AUTOPUBLISH_ENABLED == 'true' &&
+          (
+            github.event_name != 'workflow_run' ||
+            (
+              github.event.workflow_run.event == 'pull_request' &&
+              github.event.workflow_run.conclusion == 'success' &&
+              startsWith(github.event.workflow_run.head_branch, 'adam/')
+            )
+          )
+        ) ||
         (github.event_name == 'workflow_dispatch' && inputs.dry_run)
       }}
     runs-on: ubuntu-latest
