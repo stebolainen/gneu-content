@@ -38,7 +38,7 @@ base_event = {
     "confidence":"verified"
 }
 new_event = {
-    "id":"msrc:CVE-2026-12345",
+    "id":"uk-ncsc:CVE-2026-12345",
     "type":"vulnerability",
     "publication_class":"A",
     "occurred_at":"2026-08-19T00:00:00Z",
@@ -47,7 +47,7 @@ new_event = {
     "summary":"Verifierbart testevent.",
     "action":"Tillämpa leverantörens säkerhetsuppdatering.",
     "cves":["CVE-2026-12345"],
-    "sources":[{"id":"msrc","url":"https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-12345"}],
+    "sources":[{"id":"uk-ncsc","url":"https://www.ncsc.gov.uk/news/test-event"}],
     "confidence":"verified"
 }
 
@@ -104,7 +104,137 @@ with tempfile.TemporaryDirectory(prefix="gate-test-") as td:
     res=gate.validate(args())
     ok(res["decision"]=="PASS_AUTOPUBLISH","happy path")
     ok(res["generation"]==3,"generation 3")
-    ok(res["event_id"]=="msrc:CVE-2026-12345","event id")
+    ok(res["event_id"]=="uk-ncsc:CVE-2026-12345","event id")
+
+    native_sources = [
+        (
+            "cisa-kev",
+            "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        ),
+        (
+            "msrc",
+            "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-12345",
+        ),
+        (
+            "cert-se",
+            "https://www.cert.se/2026/08/test-event.html",
+        ),
+    ]
+
+    for source_id, source_url in native_sources:
+        native = deepcopy(head_events)
+        native["events"][-1]["id"] = f"{source_id}:CVE-2026-12345"
+        native["events"][-1]["sources"] = [
+            {"id": source_id, "url": source_url}
+        ]
+        write_json(d/"head-events.json", native)
+        write_json(
+            d/"head-manifest.json",
+            make_manifest(d/"head-events.json", 3, 2),
+        )
+        try:
+            gate.validate(args())
+            ok(False, f"native source {source_id} must block")
+        except gate.GateError:
+            ok(True, f"native source {source_id} blocked")
+
+    write_json(d/"head-events.json", head_events)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
+
+    cisa_advisory = deepcopy(head_events)
+    cisa_advisory["events"][-1]["id"] = "cisa:AA26-999A"
+    cisa_advisory["events"][-1]["sources"] = [{
+        "id": "cisa-kev",
+        "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-999a",
+    }]
+    write_json(d/"head-events.json", cisa_advisory)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
+    res = gate.validate(args())
+    ok(
+        res["event_id"] == "cisa:AA26-999A",
+        "non-KEV CISA advisory remains eligible",
+    )
+
+    write_json(d/"head-events.json", head_events)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
+
+    # A different event ID/source must not allow an already-covered CVE
+    # to be autopublished again.
+    duplicate_cve = deepcopy(head_events)
+    duplicate_cve["events"][-1]["id"] = "uk-ncsc:duplicate-cve-test"
+    duplicate_cve["events"][-1]["cves"] = ["CVE-2025-62593"]
+    duplicate_cve["events"][-1]["sources"] = [{
+        "id": "uk-ncsc",
+        "url": "https://www.ncsc.gov.uk/news/different-advisory",
+    }]
+    write_json(d/"head-events.json", duplicate_cve)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
+    try:
+        gate.validate(args())
+        ok(False, "existing CVE must block")
+    except gate.GateError:
+        ok(True, "existing CVE blocked")
+
+    # Same primary-source URL under a different event ID must also block.
+    source_base = deepcopy(base_events)
+    source_base["events"][0]["id"] = "uk-ncsc:prior-advisory"
+    source_base["events"][0]["sources"] = [{
+        "id": "uk-ncsc",
+        "url": "https://www.ncsc.gov.uk/news/existing-advisory/",
+    }]
+    source_base["events"][0]["cves"] = []
+
+    source_head = deepcopy(source_base)
+    source_head["generation"] = 3
+    duplicate_source_event = deepcopy(new_event)
+    duplicate_source_event["id"] = "uk-ncsc:different-event-id"
+    duplicate_source_event["cves"] = []
+    duplicate_source_event["sources"] = [{
+        "id": "uk-ncsc",
+        "url": "https://www.ncsc.gov.uk/news/existing-advisory",
+    }]
+    source_head["events"].append(duplicate_source_event)
+
+    write_json(d/"base-events.json", source_base)
+    write_json(
+        d/"base-manifest.json",
+        make_manifest(d/"base-events.json", 2, 1),
+    )
+    write_json(d/"head-events.json", source_head)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
+
+    try:
+        gate.validate(args())
+        ok(False, "existing source URL must block")
+    except gate.GateError:
+        ok(True, "existing source URL blocked")
+
+    # Restore canonical fixtures for remaining tests.
+    write_json(d/"base-events.json", base_events)
+    write_json(
+        d/"base-manifest.json",
+        make_manifest(d/"base-events.json", 2, 1),
+    )
+    write_json(d/"head-events.json", head_events)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
 
     bad=deepcopy(files); bad.append({"filename":"AGENTS.md","status":"modified"}); write_json(d/"files.json",bad)
     try: gate.validate(args()); ok(False,"workflow file set must block")

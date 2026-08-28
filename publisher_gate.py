@@ -17,10 +17,16 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 ALLOWED_FILES = {"events.json", "manifest.json"}
 HEAD_RE = re.compile(r"^adam/gen(?P<generation>[1-9][0-9]*)-[a-z0-9][a-z0-9._-]{0,79}$")
 MAX_RAW_BYTES = 512 * 1024
+
+# These source families are already represented natively by gneu.se and must
+# not be duplicated as autonomous Class A events.
+NATIVE_SOURCE_IDS = {"msrc", "cert-se"}
+CISA_KEV_PATH = "/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
 
 class GateError(RuntimeError):
@@ -41,6 +47,34 @@ def load_json(path: Path):
 def require(condition: bool, message: str) -> None:
     if not condition:
         fail(message)
+
+
+def normalize_source_url(value: object) -> str:
+    """Normalize a primary-source URL for deterministic duplicate checks."""
+    try:
+        parsed = urlparse(str(value or "").strip())
+        scheme = parsed.scheme.lower()
+        host = (parsed.hostname or "").lower()
+        port = parsed.port
+    except Exception:
+        return ""
+
+    if not scheme or not host:
+        return ""
+
+    authority = host
+    if port and not (scheme == "https" and port == 443):
+        authority += f":{port}"
+
+    path = parsed.path or "/"
+    if path != "/":
+        path = path.rstrip("/") or "/"
+
+    result = f"{scheme}://{authority}{path}"
+    if parsed.query:
+        result += "?" + parsed.query
+
+    return result
 
 
 def verify_manifest(events_path: Path, manifest_path: Path, label: str) -> tuple[dict, dict]:
@@ -156,6 +190,85 @@ def validate(args: argparse.Namespace) -> dict:
     require(isinstance(new_event, dict), "new event must be object")
     require(new_event.get("publication_class") == "A", "autopublish permits publication_class A only")
     require(new_event.get("confidence", "verified") == "verified", "autopublish requires verified confidence")
+
+    sources = new_event.get("sources", [])
+    require(isinstance(sources, list), "new event sources must be list")
+
+    native_hits = []
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+
+        source_id = str(source.get("id") or "").lower()
+        source_url = str(source.get("url") or "")
+
+        if source_id in NATIVE_SOURCE_IDS:
+            native_hits.append(source_id)
+            continue
+
+        if source_id == "cisa-kev":
+            parsed = urlparse(source_url)
+            if parsed.path.rstrip("/") == CISA_KEV_PATH:
+                native_hits.append("cisa-kev")
+
+    require(
+        not native_hits,
+        "native source already covered by gneu.se: "
+        + ", ".join(sorted(set(native_hits))),
+    )
+
+    # A CVE already represented in published content must not be introduced
+    # again under a different event ID. A material update requires editorial
+    # handling rather than autonomous append-only publication.
+    base_cves = set()
+    for row in before:
+        if not isinstance(row, dict):
+            continue
+        cves = row.get("cves", [])
+        if isinstance(cves, list):
+            base_cves.update(str(cve).upper() for cve in cves)
+
+    new_cves_raw = new_event.get("cves", [])
+    require(isinstance(new_cves_raw, list), "new event cves must be list")
+    new_cves = {str(cve).upper() for cve in new_cves_raw}
+    duplicate_cves = sorted(base_cves & new_cves)
+
+    require(
+        not duplicate_cves,
+        "CVE already covered by published content: "
+        + ", ".join(duplicate_cves),
+    )
+
+    # Likewise, the same primary advisory/document URL must not be republished
+    # under a new event ID. Trailing slash differences are normalized.
+    base_source_urls = set()
+    for row in before:
+        if not isinstance(row, dict):
+            continue
+        row_sources = row.get("sources", [])
+        if not isinstance(row_sources, list):
+            continue
+        for source in row_sources:
+            if not isinstance(source, dict):
+                continue
+            normalized = normalize_source_url(source.get("url"))
+            if normalized:
+                base_source_urls.add(normalized)
+
+    new_source_urls = {
+        normalized
+        for source in sources
+        if isinstance(source, dict)
+        for normalized in [normalize_source_url(source.get("url"))]
+        if normalized
+    }
+
+    duplicate_source_urls = sorted(base_source_urls & new_source_urls)
+    require(
+        not duplicate_source_urls,
+        "primary source URL already covered by published content: "
+        + ", ".join(duplicate_source_urls),
+    )
 
     base_ids = {row.get("id") for row in before if isinstance(row, dict)}
     require(new_event.get("id") not in base_ids, "new event id already exists")
