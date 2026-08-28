@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 17,
+  "generation": 18,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -301,6 +301,27 @@
         "CVE-2019-1068"
       ],
       "deadline": "2026-08-29",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2023-49105",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-08-27T00:00:00Z",
+      "updated_at": "2026-08-27T00:00:00Z",
+      "title": "CVE-2023-49105 i ownCloud tillagd i CISA KEV",
+      "summary": "CISA har lagt till CVE-2023-49105 i KEV. Sårbarheten i ownCloud kan låta en angripare läsa, ändra eller radera filer utan autentisering om offrets användarnamn är känt och ingen signeringsnyckel är konfigurerad.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist är 30 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2023-49105"
+      ],
+      "deadline": "2026-08-30",
       "sources": [
         {
           "id": "cisa-kev",
