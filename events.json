@@ -1,15 +1,15 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 18,
+  "generation": 19,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-08-17T00:00:00Z",
-      "updated_at": "2026-08-25T15:18:31Z",
+      "updated_at": "2026-08-28T14:23:06Z",
       "title": "CVE-2025-62593 i Ray tillagd i CISA KEV",
-      "summary": "CISA har lagt till CVE-2025-62593 i KEV. Sårbarheten gäller Ray-Project Ray och är en kodinjektionssårbarhet som kan möjliggöra fjärrkörning av kod.",
+      "summary": "CISA har lagt till CVE-2025-62593 i KEV. Sårbarheten gäller Ray och är en kodinjektionssårbarhet som kan möjliggöra fjärrkörning av kod.",
       "action": "Om ni använder Ray: bedöm exponeringen och tillämpa leverantörens åtgärder. CISA:s tidsfrist var 20 augusti 2026; sluta använda produkten om åtgärder saknas.",
       "cves": [
         "CVE-2025-62593"
@@ -210,9 +210,9 @@
       "type": "patch",
       "publication_class": "A",
       "occurred_at": "2026-08-24T14:00:00Z",
-      "updated_at": "2026-08-24T14:00:00Z",
+      "updated_at": "2026-08-28T14:23:06Z",
       "title": "Microsoft kompletterar CVE-2026-47292 med paketinformation",
-      "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Visual Studio Code-tillägget MSSQL från 1.0.0 till före 1.43.0 anges som sårbart; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
+      "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Versioner av Visual Studio Code-tillägget MSSQL från 1.0.0 men äldre än 1.43.0 anges som sårbara; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
       "action": "Uppdatera Visual Studio Code-tillägget MSSQL till version 1.43.0 eller senare enligt Microsofts angivna korrigerade version.",
       "cves": [
         "CVE-2026-47292"
