@@ -142,6 +142,27 @@ jobs:
           echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
           echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
 
+      - name: Fetch public AI-hot coverage
+        if: steps.pick.outputs.found == 'true'
+        env:
+          AIHOT_URL: https://gneu.se/data/aihot.json
+          AIHOT_MAX_BYTES: "2097152"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl             --fail             --silent             --show-error             --location             --proto '=https'             --proto-redir '=https'             --tlsv1.2             --connect-timeout 5             --max-time 15             --max-filesize "$AIHOT_MAX_BYTES"             --output /tmp/gneu-publisher/aihot.json             "${AIHOT_URL}?publisher_run=${GITHUB_RUN_ID}"
+
+          test -s /tmp/gneu-publisher/aihot.json
+
+          bytes="$(wc -c < /tmp/gneu-publisher/aihot.json)"
+          if (( bytes > AIHOT_MAX_BYTES )); then
+            echo "AI-hot coverage exceeds maximum size" >&2
+            exit 1
+          fi
+
+          echo "AIHOT_COVERAGE_FETCH: PASS ($bytes bytes)"
+
       - name: Trusted publisher gate
         if: steps.pick.outputs.found == 'true'
         env:
@@ -161,6 +182,7 @@ jobs:
             --base-manifest /tmp/gneu-publisher/base-manifest.json \
             --head-events /tmp/gneu-publisher/head-events.json \
             --head-manifest /tmp/gneu-publisher/head-manifest.json \
+            --aihot-coverage /tmp/gneu-publisher/aihot.json \
             --trusted-validator ./validate_content.py \
             --json-out /tmp/gneu-publisher/decision.json
 
