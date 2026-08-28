@@ -1,13 +1,13 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 16,
+  "generation": 17,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-08-17T00:00:00Z",
-      "updated_at": "2026-08-17T00:00:00Z",
+      "updated_at": "2026-08-25T15:18:31Z",
       "title": "CVE-2025-62593 i Ray tillagd i CISA KEV",
       "summary": "CISA har lagt till CVE-2025-62593 i KEV. Sårbarheten gäller Ray-Project Ray och är en kodinjektionssårbarhet som kan möjliggöra fjärrkörning av kod.",
       "action": "Om ni använder Ray: bedöm exponeringen och tillämpa leverantörens åtgärder. CISA:s tidsfrist var 20 augusti 2026; sluta använda produkten om åtgärder saknas.",
@@ -28,7 +28,7 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-08-20T00:00:00Z",
-      "updated_at": "2026-08-20T00:00:00Z",
+      "updated_at": "2026-08-25T15:18:31Z",
       "title": "CVE-2026-72529 i TrueConf Server tillagd i CISA KEV",
       "summary": "CISA har lagt till CVE-2026-72529 i KEV. Sårbarheten gäller saknad autentisering i TrueConf Server och kan låta en obehörig fjärrangripare köra ett godtyckligt skript.",
       "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist var 23 augusti 2026; sluta använda produkten om åtgärder saknas.",
@@ -105,7 +105,7 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-08-21T00:00:00Z",
-      "updated_at": "2026-08-21T00:00:00Z",
+      "updated_at": "2026-08-25T15:18:31Z",
       "title": "CVE-2026-73570 i Zimbra Collaboration Suite tillagd i CISA KEV",
       "summary": "CISA har lagt till CVE-2026-73570 i KEV. Sårbarheten i Zimbra Collaboration Suite kan låta en oautentiserad angripare använda särskilt utformade SMTP-anrop för att köra godtyckliga operativsystemkommandon som Zimbra-användaren.",
       "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist var 24 augusti 2026; sluta använda produkten om åtgärder saknas.",
@@ -230,10 +230,10 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-08-24T00:00:00Z",
-      "updated_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-27T23:30:14Z",
       "title": "CVE-2026-21962 i Oracle HTTP Server tillagd i CISA KEV",
       "summary": "CISA har lagt till CVE-2026-21962 i KEV. Sårbarheten gäller bristande åtkomstkontroll i Oracle HTTP Server och WebLogic Server Proxy Plug-in och kan ge obehörig åtkomst till samt skapande, ändring eller radering av kritiska data.",
-      "action": "Tillämpa leverantörens åtgärder. CISA:s tidsfrist är 27 augusti 2026; följ tillämplig BOD 26-04-vägledning för molntjänster eller sluta använda produkten om åtgärder saknas.",
+      "action": "Tillämpa leverantörens åtgärder. CISA:s tidsfrist var 27 augusti 2026; följ tillämplig BOD 26-04-vägledning för molntjänster eller sluta använda produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-21962"
       ],
