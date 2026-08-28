@@ -74,6 +74,13 @@ with tempfile.TemporaryDirectory(prefix="gate-test-") as td:
     write_json(d/"base-manifest.json",make_manifest(d/"base-events.json",2,1))
     write_json(d/"head-manifest.json",make_manifest(d/"head-events.json",3,2))
 
+    empty_aihot = {
+        "generated": "2026-08-26T04:07:10+00:00",
+        "editions": [],
+        "articles": [],
+    }
+    write_json(d/"aihot.json", empty_aihot)
+
     sha_head="b"*40
     sha_base="a"*40
     pr={
@@ -98,6 +105,7 @@ with tempfile.TemporaryDirectory(prefix="gate-test-") as td:
         a.pr=d/"pr.json"; a.files=d/"files.json"; a.checks=d/"checks.json"; a.compare=d/"compare.json"
         a.base_events=d/"base-events.json"; a.base_manifest=d/"base-manifest.json"
         a.head_events=d/"head-events.json"; a.head_manifest=d/"head-manifest.json"
+        a.aihot_coverage=d/"aihot.json"
         a.trusted_validator=VALIDATOR
         return a
 
@@ -235,6 +243,105 @@ with tempfile.TemporaryDirectory(prefix="gate-test-") as td:
         d/"head-manifest.json",
         make_manifest(d/"head-events.json", 3, 2),
     )
+
+    # Cross-surface duplicate: exact primary-source URL already exists in AI-hot.
+    aihot_url = deepcopy(empty_aihot)
+    aihot_url["articles"] = [{
+        "id": "2026-w99-existing-source",
+        "title": "Already covered in AI-hot",
+        "sources": [{
+            "title": "Primary source",
+            "url": "https://www.ncsc.gov.uk/news/test-event/",
+            "publisher": "NCSC",
+        }],
+    }]
+    write_json(d/"aihot.json", aihot_url)
+
+    try:
+        gate.validate(args())
+        ok(False, "AI-hot source URL overlap must block")
+    except gate.GateError:
+        ok(True, "AI-hot source URL overlap blocked")
+
+    write_json(d/"aihot.json", empty_aihot)
+
+    # Cross-surface duplicate: same advisory ID, even when source URLs differ.
+    advisory_head = deepcopy(head_events)
+    advisory_head["events"][-1]["id"] = "cisa:AA26-999A"
+    advisory_head["events"][-1]["cves"] = []
+    advisory_head["events"][-1]["sources"] = [{
+        "id": "cisa-kev",
+        "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-999a",
+    }]
+    write_json(d/"head-events.json", advisory_head)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
+
+    aihot_advisory = deepcopy(empty_aihot)
+    aihot_advisory["articles"] = [{
+        "id": "2026-w99-existing-advisory",
+        "title": "AI-hot already covers advisory AA26-999A",
+        "sources": [{
+            "title": "Secondary source",
+            "url": "https://example.com/report/related",
+            "publisher": "Example",
+        }],
+    }]
+    write_json(d/"aihot.json", aihot_advisory)
+
+    try:
+        gate.validate(args())
+        ok(False, "AI-hot advisory overlap must block")
+    except gate.GateError:
+        ok(True, "AI-hot advisory overlap blocked")
+
+    # Restore canonical event fixture.
+    write_json(d/"head-events.json", head_events)
+    write_json(
+        d/"head-manifest.json",
+        make_manifest(d/"head-events.json", 3, 2),
+    )
+    write_json(d/"aihot.json", empty_aihot)
+
+    # Cross-surface duplicate: CVE occurs in AI-hot article data.
+    aihot_cve = deepcopy(empty_aihot)
+    aihot_cve["articles"] = [{
+        "id": "2026-w99-existing-cve",
+        "title": "Patch CVE-2026-12345 immediately",
+        "sources": [{
+            "title": "Separate source",
+            "url": "https://example.com/security/article",
+            "publisher": "Example",
+        }],
+    }]
+    write_json(d/"aihot.json", aihot_cve)
+
+    try:
+        gate.validate(args())
+        ok(False, "AI-hot CVE overlap must block")
+    except gate.GateError:
+        ok(True, "AI-hot CVE overlap blocked")
+
+    # Coverage is fail-closed: malformed JSON must never permit autopublish.
+    (d/"aihot.json").write_text("{broken", encoding="utf-8")
+    try:
+        gate.validate(args())
+        ok(False, "malformed AI-hot coverage must block")
+    except gate.GateError:
+        ok(True, "malformed AI-hot coverage blocked")
+
+    # Coverage is also fail-closed when the file is unavailable.
+    (d/"aihot.json").unlink()
+    try:
+        gate.validate(args())
+        ok(False, "missing AI-hot coverage must block")
+    except gate.GateError:
+        ok(True, "missing AI-hot coverage blocked")
+
+    # Restore valid coverage for all remaining regression tests.
+    write_json(d/"aihot.json", empty_aihot)
 
     bad=deepcopy(files); bad.append({"filename":"AGENTS.md","status":"modified"}); write_json(d/"files.json",bad)
     try: gate.validate(args()); ok(False,"workflow file set must block")

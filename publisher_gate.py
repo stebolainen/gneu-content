@@ -22,6 +22,10 @@ from urllib.parse import urlparse
 ALLOWED_FILES = {"events.json", "manifest.json"}
 HEAD_RE = re.compile(r"^adam/gen(?P<generation>[1-9][0-9]*)-[a-z0-9][a-z0-9._-]{0,79}$")
 MAX_RAW_BYTES = 512 * 1024
+MAX_AIHOT_BYTES = 2 * 1024 * 1024
+
+CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.I)
+ADVISORY_RE = re.compile(r"\bAA\d{2}-\d{3}[A-Z]\b", re.I)
 
 # These source families are already represented natively by gneu.se and must
 # not be duplicated as autonomous Class A events.
@@ -75,6 +79,60 @@ def normalize_source_url(value: object) -> str:
         result += "?" + parsed.query
 
     return result
+
+
+def load_aihot_coverage(path: Path) -> dict:
+    """Load bounded, untrusted AI-hot coverage data fail-closed."""
+    try:
+        require(path.is_file(), "AI-hot coverage missing")
+        require(
+            path.stat().st_size <= MAX_AIHOT_BYTES,
+            "AI-hot coverage too large",
+        )
+        data = load_json(path)
+    except OSError as exc:
+        fail(f"AI-hot coverage unavailable: {exc}")
+
+    require(isinstance(data, dict), "AI-hot coverage root must be object")
+
+    articles = data.get("articles")
+    require(isinstance(articles, list), "AI-hot coverage articles must be list")
+    require(len(articles) <= 1000, "AI-hot coverage contains too many articles")
+
+    for article in articles:
+        require(isinstance(article, dict), "AI-hot article must be object")
+
+        sources = article.get("sources", [])
+        require(isinstance(sources, list), "AI-hot article sources must be list")
+        require(len(sources) <= 20, "AI-hot article has too many sources")
+
+        for source in sources:
+            require(isinstance(source, dict), "AI-hot source must be object")
+            if "url" in source:
+                require(
+                    isinstance(source["url"], str),
+                    "AI-hot source URL must be string",
+                )
+
+    return data
+
+
+def extract_aihot_coverage(data: dict) -> tuple[set[str], set[str], set[str]]:
+    urls: set[str] = set()
+    cves: set[str] = set()
+    advisories: set[str] = set()
+
+    for article in data["articles"]:
+        blob = json.dumps(article, ensure_ascii=False)
+        cves.update(x.upper() for x in CVE_RE.findall(blob))
+        advisories.update(x.upper() for x in ADVISORY_RE.findall(blob))
+
+        for source in article.get("sources", []):
+            normalized = normalize_source_url(source.get("url"))
+            if normalized:
+                urls.add(normalized)
+
+    return urls, cves, advisories
 
 
 def verify_manifest(events_path: Path, manifest_path: Path, label: str) -> tuple[dict, dict]:
@@ -270,6 +328,38 @@ def validate(args: argparse.Namespace) -> dict:
         + ", ".join(duplicate_source_urls),
     )
 
+    # Cross-surface coverage: AI-hot is an independent editorial surface.
+    # Treat its public JSON strictly as untrusted blocking data. It can never
+    # authorize publication; failure to load or validate it blocks autopublish.
+    aihot = load_aihot_coverage(args.aihot_coverage)
+    aihot_urls, aihot_cves, aihot_advisories = extract_aihot_coverage(aihot)
+
+    cross_urls = sorted(new_source_urls & aihot_urls)
+    require(
+        not cross_urls,
+        "primary source URL already covered by AI-hot: "
+        + ", ".join(cross_urls),
+    )
+
+    cross_cves = sorted(new_cves & aihot_cves)
+    require(
+        not cross_cves,
+        "CVE already covered by AI-hot: "
+        + ", ".join(cross_cves),
+    )
+
+    new_event_blob = json.dumps(new_event, ensure_ascii=False)
+    new_advisories = {
+        x.upper() for x in ADVISORY_RE.findall(new_event_blob)
+    }
+    cross_advisories = sorted(new_advisories & aihot_advisories)
+
+    require(
+        not cross_advisories,
+        "advisory already covered by AI-hot: "
+        + ", ".join(cross_advisories),
+    )
+
     base_ids = {row.get("id") for row in before if isinstance(row, dict)}
     require(new_event.get("id") not in base_ids, "new event id already exists")
 
@@ -305,6 +395,7 @@ def main() -> int:
     ap.add_argument("--base-manifest", type=Path, required=True)
     ap.add_argument("--head-events", type=Path, required=True)
     ap.add_argument("--head-manifest", type=Path, required=True)
+    ap.add_argument("--aihot-coverage", type=Path, required=True)
     ap.add_argument("--trusted-validator", type=Path, required=True)
     ap.add_argument("--json-out", type=Path)
     args = ap.parse_args()
