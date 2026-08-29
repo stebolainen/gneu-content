@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 19,
+  "generation": 20,
   "events": [
     {
       "id": "cisa-kev:CVE-2025-62593",
@@ -251,10 +251,10 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-08-25T00:00:00Z",
-      "updated_at": "2026-08-25T00:00:00Z",
+      "updated_at": "2026-08-28T23:33:59Z",
       "title": "CVE-2026-60004 i Gitea tillagd i CISA KEV",
       "summary": "CISA har lagt till CVE-2026-60004 i KEV. Sårbarheten i Gitea kan låta en angripare med skrivåtkomst till ett repository skicka en skadlig patch till diffpatch-API:t, placera en körbar Git-hook och köra kommandon som Gitea-tjänstekontot.",
-      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist är 28 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning. CISA:s tidsfrist var 28 augusti 2026; följ tillämplig BOD 26-04-vägledning eller sluta använda produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-60004"
       ],
