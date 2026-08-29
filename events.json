@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 22,
+  "generation": 23,
   "events": [
     {
       "id": "cisa:AA25-071A-update-2026-08-18",
@@ -45,9 +45,9 @@
       "type": "ai_security",
       "publication_class": "A",
       "occurred_at": "2026-08-28T14:00:00Z",
-      "updated_at": "2026-08-28T14:00:00Z",
+      "updated_at": "2026-08-29T21:01:16Z",
       "title": "Microsoft korrigerar informationsläcka i Copilot Chat i Edge",
-      "summary": "Microsoft har publicerat CVE-2026-58616 för en race condition i Copilot Chat i Edge. En angripare med låg behörighet kan lura en användare att öppna en specialutformad fil; känslig webbläsarinformation kan då läsas och skickas till angriparen. Microsoft anger CVSS 4,4 och ingen känd exploatering.",
+      "summary": "Microsoft har publicerat CVE-2026-58616 för en race condition i Copilot Chat i Edge. En angripare med låg behörighet kan utnyttja felet först efter användarinteraktion. Känslig information från webbläsaren kan då läsas och skickas till angriparen. Microsoft anger CVSS 4,4 och ingen känd exploatering.",
       "action": "Uppdatera Microsoft Edge till version 152.0.4191.53, som Microsoft anger som korrigerad version.",
       "cves": [
         "CVE-2026-58616"
