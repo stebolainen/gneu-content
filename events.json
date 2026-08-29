@@ -1,25 +1,7 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 23,
+  "generation": 24,
   "events": [
-    {
-      "id": "cisa:AA25-071A-update-2026-08-18",
-      "type": "threat_report",
-      "publication_class": "A",
-      "occurred_at": "2026-08-18T00:00:00Z",
-      "updated_at": "2026-08-18T00:00:00Z",
-      "title": "CISA uppdaterar gemensam varning om Medusa-ransomware",
-      "summary": "CISA, FBI och HHS har uppdaterat varningen om Medusa med uppgifter från FBI-utredningar till april 2026. Över 500 offer i flera kritiska sektorer hade då drabbats; uppdateringen utökar beskrivningen av aktörernas metoder, verktyg och utnyttjade sårbarheter.",
-      "action": "Åtgärda kända sårbarheter genom att hålla operativsystem, programvara och firmware uppdaterade, segmentera nätverk och hindra okända eller opålitliga källor från åtkomst till fjärrtjänster i interna system.",
-      "cves": [],
-      "sources": [
-        {
-          "id": "cisa-kev",
-          "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-071a"
-        }
-      ],
-      "confidence": "verified"
-    },
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
       "type": "patch",
