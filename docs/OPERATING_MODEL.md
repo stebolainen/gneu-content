@@ -134,9 +134,9 @@ En kopia av playbooks på `published` får inte antas vara aktuell.
 `published` är den aktuella publicerade content-staten. Produktionskonsumenten
 ska hämta från denna branch, inte från Adams arbetsbranch eller `main`.
 
-`published` ska kräva PR, required check `validate`, up-to-date branch och
-blockerad force-push/deletion. Varken Adam App eller Publisher App får ha
-ruleset-bypass.
+`published` ska kräva PR, required checks `validate` och `publisher-policy`,
+up-to-date branch och blockerad force-push/deletion. Varken Adam App eller
+Publisher App får ha ruleset-bypass.
 
 ### Adam-brancher
 
@@ -224,7 +224,7 @@ prioriterade source-signaler
   -> AVFÄRDAD/NO_CHANGE, eller publiceringsförslag
   -> lokal validator
   -> adam/genN-* och PR mot published
-  -> GitHub Actions validate
+  -> required GitHub Actions validate + trusted publisher-policy
   -> trusted Publisher Gate eller mänsklig redaktionell hantering
   -> published
   -> HTTPS pull
@@ -234,6 +234,32 @@ prioriterade source-signaler
 
 En ändrad feed är endast en signal. Den är inte i sig en kandidat eller ett
 publiceringsbeslut.
+
+## Required PR-head-policy
+
+Varje PR mot `published` ska få den separata GitHub Actions-checken
+`publisher-policy` på exakt aktuell PR-head. Workflowen använder
+`pull_request_target`, vilket gör att definition och exekverad kontrollkod
+kommer från betrodd default-branch `main`; PR-head checkas aldrig ut och dess
+kod importeras eller exekveras aldrig. PR-metadata, ändrade filer,
+`events.json` och `manifest.json` hämtas i stället som begränsad opålitlig data
+via exakta SHA:n. Workflowen har endast read-behörigheter, använder inga
+secrets, mintar inget token och kan inte mergea.
+
+För `adam/genN-*` återanvänder checken Publisher Gates autonoma contentpolicy:
+branch, aktuell base, exact head, filuppsättning, append-only, generation,
+class/confidence, native-source-policy samt published- och AI-hot-dubbletter.
+AI-hot hämtas publikt och alla fel blockerar. Rulesetet kräver separat
+`validate`; den finala Publisher Gate verifierar dessutom själv denna check på
+exakt head innan Publisher-token kan mintas.
+
+För `forvaltare/*` är enda generella passresultatet
+`PASS_EDITORIAL_MAINTENANCE`. Det kräver en same-repository PR från exakt
+aktuell `published`, endast modifierade `events.json` och `manifest.json`,
+generation exakt +1, giltigt manifest och betrodd validator. Andra branchspår
+blockeras. Den enda tekniska engångsvägen är exakt
+`forvaltare/install-publisher-policy-check`, som bara får installera en bytevis
+identisk kopia av den trusted workflowfil som redan finns på `main`.
 
 ## Autonom Publisher Gate
 
@@ -276,6 +302,8 @@ kontroller saknas.
 - Dry-run får inte minta Publisher-token eller mergea.
 - Gatefel, stale base, oklar head, fel filuppsättning eller saknad check ska
   blockera.
+- `validate` och `publisher-policy` ska båda krävas på senaste PR-head innan
+  någon normal GitHub UI-, CLI- eller API-merge kan genomföras.
 - Merge får inte använda admin-bypass.
 - Produktionsvalidering ska blockera aktivering av ogiltig payload.
 
@@ -338,7 +366,8 @@ Minimikrav före aktivering:
    jobbkonfigurationen och den lämnar inga persistenta credentials;
 8. source-state har avsiktligt bootstrapats;
 9. en full researchcykel har lyckats innan första ack;
-10. branch protection, required checks och App-bypass har live-verifierats;
+10. branch protection, båda required checks och App-bypass har
+    live-verifierats;
 11. Publisher Gate har först verifierats i dry-run;
 12. scheduler återaktiveras sist.
 

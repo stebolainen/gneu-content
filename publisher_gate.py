@@ -182,10 +182,13 @@ def run_trusted_validator(validator: Path, events: Path, manifest: Path) -> str:
         return proc.stdout.strip()
 
 
-def validate(args: argparse.Namespace) -> dict:
+def validate(
+    args: argparse.Namespace,
+    *,
+    require_validate_check: bool = True,
+) -> dict:
     pr = load_json(args.pr)
     files = load_json(args.files)
-    checks = load_json(args.checks)
     compare = load_json(args.compare)
 
     require(pr.get("state") == "open", "PR is not open")
@@ -218,18 +221,23 @@ def validate(args: argparse.Namespace) -> dict:
     for row in files:
         require(row.get("status") == "modified", f"{row.get('filename')}: must be modified, not added/deleted")
 
-    runs = checks.get("check_runs", [])
-    require(isinstance(runs, list), "check-runs payload invalid")
-    validate_runs = [
-        r for r in runs
-        if isinstance(r, dict)
-        and r.get("name") == "validate"
-        and r.get("head_sha") == head_sha
-        and r.get("status") == "completed"
-        and r.get("conclusion") == "success"
-        and r.get("app", {}).get("slug") == "github-actions"
-    ]
-    require(len(validate_runs) >= 1, "required validate check has not succeeded on current head")
+    if require_validate_check:
+        checks = load_json(args.checks)
+        runs = checks.get("check_runs", [])
+        require(isinstance(runs, list), "check-runs payload invalid")
+        validate_runs = [
+            r for r in runs
+            if isinstance(r, dict)
+            and r.get("name") == "validate"
+            and r.get("head_sha") == head_sha
+            and r.get("status") == "completed"
+            and r.get("conclusion") == "success"
+            and r.get("app", {}).get("slug") == "github-actions"
+        ]
+        require(
+            len(validate_runs) >= 1,
+            "required validate check has not succeeded on current head",
+        )
 
     base_events, base_manifest = verify_manifest(args.base_events, args.base_manifest, "base")
     head_events, head_manifest = verify_manifest(args.head_events, args.head_manifest, "head")

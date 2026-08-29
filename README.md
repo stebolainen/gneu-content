@@ -15,6 +15,8 @@ Den normativa arkitekturen finns i
   produktionen ska konsumera.
 - `adam/genN-*` innehåller Adams publiceringsförslag och går via PR mot
   `published`.
+- `forvaltare/*` innehåller mänskligt hanterad content-maintenance och går via
+  PR mot `published`.
 - `admin/*` innehåller tekniska ändringar och går via PR mot `main`.
 
 Ingen agent får pusha direkt till `main` eller `published`.
@@ -40,6 +42,7 @@ credential eller en ensam autonom beslutsväg.
 - `manifest.json` — generation, event count och SHA-256 för exakt `events.json`
 - `validate_content.py` — fristående content-validator
 - `publisher_gate.py` — trusted append-only gate för autonom class A-publicering
+- `publisher_policy_gate.py` — required PR-head-policy för Adam och Förvaltare
 - `hermes_source_gate.py` — deterministisk pre-run source gate
 - `hermes_adam_auth.py` — ephemeral Adam GitHub App-auth
 - `hermes_adam_github.py` — policybegränsad ephemeral Git/PR-adapter för Adam
@@ -49,6 +52,7 @@ credential eller en ensam autonom beslutsväg.
 - `docs/ADMIN_PLAYBOOK.md` — teknisk drift och recovery
 - `runtime/adam/` — versionshanterade SOUL-, cronprompt- och installationsmallar
 - `.github/workflows/validate.yml` — content validation
+- `.github/workflows/publisher-policy.yml` — read-only required PR-head-policy
 - `.github/workflows/publisher.yml` — Trusted Publisher Gate-workflow
 
 ## Contentvalidering
@@ -60,8 +64,9 @@ python3 validate_content.py --write-manifest
 python3 validate_content.py
 ```
 
-`published` ska skyddas med PR, required status check `validate`, up-to-date
-branch och blockerad force-push/deletion. Adam och Publisher får inte ha bypass.
+`published` ska skyddas med PR, required status checks `validate` och
+`publisher-policy`, up-to-date branch och blockerad force-push/deletion. Adam
+och Publisher får inte ha bypass.
 
 ## Publiceringsflöde
 
@@ -70,17 +75,25 @@ source-signal
   -> Adam research och förslag
   -> validator
   -> PR mot published
-  -> validate
+  -> required validate + trusted publisher-policy på exakt PR-head
   -> Trusted Publisher Gate eller mänsklig hantering
   -> published
   -> produktionspull och produktionsvalidering
 ```
 
+`publisher-policy` laddas genom `pull_request_target` från betrodd `main`, har
+endast read-behörigheter och hämtar PR-headens filer som data via exakt SHA.
+Adam-vägen återanvänder samma autonoma contentpolicy som final Publisher Gate.
+Förvaltarvägen tillåter endast explicit content-maintenance; okända branchspår
+blockeras.
+
 Endast exakt ett appendat event som enligt policy verkligen är class A och har
 verified confidence kan autopubliceras när samtliga Publisher Gate-invariants
-passerar. Gate och validator kontrollerar deklarerade fält och struktur men gör
-ingen semantisk källverifiering eller oberoende class A-bedömning. Class B,
-rättelser och uppdateringar kräver mänsklig redaktionell hantering.
+passerar. Den finala Publisher Gate kör en oberoende recheck, kräver lyckad
+`validate` på exakt head och mintar Publisher-token först därefter. Gate och
+validator kontrollerar deklarerade fält och struktur men gör ingen semantisk
+källverifiering eller oberoende class A-bedömning. Class B, rättelser och
+uppdateringar kräver mänsklig redaktionell hantering.
 
 Autopublish är fail-closed och avstängd tills
 `AUTOPUBLISH_ENABLED=true`. Se releasehistoriken i

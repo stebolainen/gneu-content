@@ -1,0 +1,153 @@
+name: publisher-policy
+
+on:
+  # pull_request_target loads this workflow from trusted default-branch main.
+  # All PR-head material is fetched by exact SHA and treated only as data.
+  pull_request_target:
+    branches:
+      - published
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: publisher-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  publisher-policy:
+    name: publisher-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Checkout trusted control plane
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collect untrusted PR data without checkout
+        id: collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=/tmp/gneu-publisher-policy
+          mkdir -p "$root"
+
+          if [[ ! "$PR" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Invalid PR number" >&2
+            exit 1
+          fi
+
+          gh api "repos/$REPO/pulls/$PR" > "$root/pr.json"
+
+          api_number="$(jq -r '.number' "$root/pr.json")"
+          head_sha="$(jq -r '.head.sha' "$root/pr.json")"
+          head_ref="$(jq -r '.head.ref' "$root/pr.json")"
+          if [[ "$api_number" != "$PR" ]]; then
+            echo "PR payload number mismatch" >&2
+            exit 1
+          fi
+          if [[ ! "$head_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid head SHA" >&2
+            exit 1
+          fi
+
+          base_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
+          if [[ ! "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid base SHA" >&2
+            exit 1
+          fi
+
+          gh api "repos/$REPO/pulls/$PR/files?per_page=100" > "$root/files.json"
+          gh api "repos/$REPO/compare/$base_sha...$head_sha" > "$root/compare.json"
+
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/events.json?ref=$base_sha" \
+            > "$root/base-events.json"
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/manifest.json?ref=$base_sha" \
+            > "$root/base-manifest.json"
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/events.json?ref=$head_sha" \
+            > "$root/head-events.json"
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/manifest.json?ref=$head_sha" \
+            > "$root/head-manifest.json"
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/.github/workflows/publisher-policy.yml?ref=$head_sha" \
+            > "$root/head-policy-workflow.yml"
+
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "head_ref=$head_ref" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch public AI-hot coverage
+        if: startsWith(steps.collect.outputs.head_ref, 'adam/')
+        env:
+          AIHOT_URL: https://gneu.se/data/aihot.json
+          AIHOT_MAX_BYTES: "2097152"
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=/tmp/gneu-publisher-policy
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            --proto '=https' \
+            --proto-redir '=https' \
+            --tlsv1.2 \
+            --connect-timeout 5 \
+            --max-time 15 \
+            --max-filesize "$AIHOT_MAX_BYTES" \
+            --output "$root/aihot.json" \
+            "${AIHOT_URL}?publisher_policy_run=${GITHUB_RUN_ID}"
+
+          test -s "$root/aihot.json"
+          bytes="$(wc -c < "$root/aihot.json")"
+          if (( bytes > AIHOT_MAX_BYTES )); then
+            echo "AI-hot coverage exceeds maximum size" >&2
+            exit 1
+          fi
+
+      - name: Trusted PR-head publication policy
+        env:
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ steps.collect.outputs.base_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=/tmp/gneu-publisher-policy
+          python3 publisher_policy_gate.py \
+            --repository "$REPO" \
+            --current-base-sha "$BASE_SHA" \
+            --pr "$root/pr.json" \
+            --files "$root/files.json" \
+            --compare "$root/compare.json" \
+            --base-events "$root/base-events.json" \
+            --base-manifest "$root/base-manifest.json" \
+            --head-events "$root/head-events.json" \
+            --head-manifest "$root/head-manifest.json" \
+            --aihot-coverage "$root/aihot.json" \
+            --trusted-validator ./validate_content.py \
+            --head-policy-workflow "$root/head-policy-workflow.yml" \
+            --trusted-policy-workflow ./.github/workflows/publisher-policy.yml
