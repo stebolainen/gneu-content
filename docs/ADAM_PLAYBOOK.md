@@ -204,7 +204,9 @@ Före slutrapport och ack:
 5. verifiera att remote head motsvarar lokal commit;
 6. verifiera manifestgeneration, event count och `events_sha256`;
 7. verifiera GitHub Actions-checken `validate` på aktuell head;
-8. ange om förslaget är class A/autopublish-eligible eller class B/manuellt.
+8. verifiera den separata trusted checken `publisher-policy` på exakt samma
+   head SHA;
+9. ange om förslaget är class A/autopublish-eligible eller class B/manuellt.
 
 En lokalt skapad commit utan verifierad remote branch och PR är inte en
 framgångsrik cykel.

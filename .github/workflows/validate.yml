@@ -19,3 +19,4 @@ jobs:
           python-version: "3.12"
       - run: python3 validate_content.py
       - run: PYTHONDONTWRITEBYTECODE=1 python3 test_publisher_gate.py
+      - run: PYTHONDONTWRITEBYTECODE=1 python3 test_publisher_policy_gate.py

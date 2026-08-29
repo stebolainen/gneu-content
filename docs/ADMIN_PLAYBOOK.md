@@ -104,7 +104,7 @@ Verifiera:
 ### `published`
 
 - PR krävs;
-- required check är exakt `validate`;
+- required checks är exakt `validate` och `publisher-policy`;
 - branch måste vara up to date;
 - inga Adam- eller Publisher-bypass actors finns;
 - Publisher använder aldrig `--admin`.
@@ -123,6 +123,8 @@ Verifiera:
 - workflows kör från avsedd betrodd branch;
 - PR-head exekveras inte som Publisher Gate-kod;
 - `validate` gäller exakt aktuell head;
+- `publisher-policy` kommer från trusted `main`, gäller exakt aktuell head och
+  har endast read-behörigheter;
 - senaste dry-run och relevanta checks är verifierade;
 - `AUTOPUBLISH_ENABLED` har avsedd state.
 
@@ -165,7 +167,8 @@ Sessionshistorik får återskapas genom dokumenten, inte genom gissning.
    tom session instrueras att läsa kontrollfiler från aktuell `origin/main`;
 10. koppla endast `grounded-citations` till jobbet; ta bort generell
    `github-auth`, `github-pr-workflow` och andra GitHub-authfallbacks;
-11. verifiera `published` ruleset, App-bypass och required checks live;
+11. verifiera `published` ruleset, App-bypass samt required checks `validate`
+    och `publisher-policy` live på aktuell head;
 12. bootstrapa source-state avsiktligt och verifiera full cold-start-cykel;
 13. kör Publisher `workflow_dispatch` med `dry_run=true` och verifiera att ingen
     merge skedde;
@@ -181,7 +184,8 @@ Sessionshistorik får återskapas genom dokumenten, inte genom gissning.
 - Adams App-secrets, App-installation, minsta permissions och owner-only
   filskydd ska vara verifierade;
 - live negativa adaptertester och cleanup ska passera utan persistent token;
-- `published` ruleset, App-bypass och required checks ska vara live-verifierade;
+- `published` ruleset, App-bypass samt required checks `validate` och
+  `publisher-policy` ska vara live-verifierade;
 - source-state/bootstrap och full cold-start ska vara verifierade;
 - Publisher dry-run ska passera utan merge;
 - cron ska förbli pausat tills samtliga punkter ovan passerat och aktiveras sist.
@@ -233,7 +237,7 @@ oförändrade källor.
 
 1. håll `AUTOPUBLISH_ENABLED` av;
 2. verifiera trusted `main` och gate-tester;
-3. verifiera ruleset och required checks live;
+3. verifiera ruleset och båda required checks live;
 4. verifiera Publisher App-installation och permissions;
 5. kör `workflow_dispatch` med `dry_run=true`;
 6. kontrollera att ingen token mintades och ingen merge skedde;
