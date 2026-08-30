@@ -47,6 +47,7 @@ tas över. Stoppa en skrivande ändring om den inte säkert kan isoleras.
 Minsta kontrollpaket för nuvarande repository är:
 
 ```bash
+PYTHONDONTWRITEBYTECODE=1 python3 test_admin_auth_policy.py
 PYTHONDONTWRITEBYTECODE=1 python3 test_hermes_source_gate.py
 PYTHONDONTWRITEBYTECODE=1 python3 test_hermes_adam_auth.py
 PYTHONDONTWRITEBYTECODE=1 python3 test_hermes_adam_github.py
@@ -86,6 +87,49 @@ Kontrollera minst:
 
 Skriv aldrig ut `.env`, private keys, App JWT, installation-token,
 Git credentials eller andra profilers authfiler.
+
+### Profilsäker Adam-auth-status
+
+Adam-auth får aldrig bedömas med Admin-profilens `HERMES_HOME`, default
+`HERMES_HOME` eller utan explicit `HERMES_HOME`. Endast
+`HERMES_HOME=/root/.hermes/profiles/gneu` är giltig profilkontext för Adams
+auth-helper. Status ska hämtas utan mint med exakt den installerade, betrodda
+runtime-helpern:
+
+```bash
+HERMES_HOME=/root/.hermes/profiles/gneu \
+/usr/bin/python3 -I \
+/root/.hermes/profiles/gneu/scripts/gneu-content-adam-auth.py status
+```
+
+Ett `auth_required`, `configured=false`, saknat App ID eller saknad private key
+från någon invocation utan exakt ovanstående `HERMES_HOME` är **OGILTIG
+EVIDENS**. Sådan evidens får inte användas för att pausa
+`gneu-content-watch`, rotera eller reprovisionera credentials, deklarera
+credential-loss, starta recovery eller på annat sätt ändra Adams runtime-state.
+
+En automatisk fail-closed-paus av Adam på auth-grund får ske endast efter att
+den exakta profilspecifika statuskontrollen ovan själv har gett ett non-ready
+resultat. Före pausen ska Admin kunna dokumentera:
+
+- att exakt `HERMES_HOME=/root/.hermes/profiles/gneu` användes;
+- helper-pathen
+  `/root/.hermes/profiles/gneu/scripts/gneu-content-adam-auth.py`;
+- status `ready`, `auth_required` eller `error`;
+- `configured` som `true` eller `false`;
+- App ID- och private-key-förekomst samt valideringsstatus endast som boolean
+  eller annan icke-hemlig metadata.
+
+Dokumentationen får aldrig exponera credentials. Admin får aldrig läsa
+private-key-innehåll, skriva ut App ID- eller private-key-värden när de inte
+behövs, använda eller kopiera Adams credential, minta Adams token manuellt
+eller använda Adams GitHub-identitet för Admin-operationer.
+
+Den befintliga fail-closed-principen gäller fortsatt: en verifierad non-ready
+status från den exakta kontrollen får pausa Adam. Ett tekniskt fel i själva den
+profilspecifika kontrollen ska också behandlas fail-closed som `error`, men är
+inte bevisad credential-loss och får inte rapporteras som sådan när kontrollen
+är ofullständig.
 
 ## GitHub-policy review
 
