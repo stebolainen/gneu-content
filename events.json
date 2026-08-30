@@ -1,14 +1,14 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 24,
+  "generation": 25,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
       "type": "patch",
       "publication_class": "A",
       "occurred_at": "2026-08-24T14:00:00Z",
-      "updated_at": "2026-08-28T14:23:06Z",
-      "title": "Microsoft kompletterar CVE-2026-47292 med paketinformation",
+      "updated_at": "2026-08-30T18:59:58Z",
+      "title": "Uppdatera VS Code-tillägget MSSQL till version 1.43.0 eller senare",
       "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Versioner av Visual Studio Code-tillägget MSSQL från 1.0.0 men äldre än 1.43.0 anges som sårbara; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
       "action": "Uppdatera Visual Studio Code-tillägget MSSQL till version 1.43.0 eller senare enligt Microsofts angivna korrigerade version.",
       "cves": [
