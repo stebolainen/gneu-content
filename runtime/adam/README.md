@@ -25,7 +25,11 @@ Kopiera endast från en verifierad checkout av aktuell origin/main. Installera i
 
 Auth-status kontrolleras utan mint med:
 
-/usr/bin/python3 -I /root/.hermes/profiles/gneu/scripts/gneu-content-adam-auth.py status
+```bash
+HERMES_HOME=/root/.hermes/profiles/gneu \
+/usr/bin/python3 -I \
+/root/.hermes/profiles/gneu/scripts/gneu-content-adam-auth.py status
+```
 
 Ready kräver owner-only credentialdirectory, numeriskt canonical App ID och en lokalt validerbar private key. Statuskommandot gör inget GitHub-anrop och skapar ingen token.
 
@@ -75,7 +79,28 @@ aldrig.
    ersätter hela skill-listan och tar därmed bort `github-auth` och
    `github-pr-workflow`:
 
-   `HERMES_HOME=/root/.hermes/profiles/gneu hermes cron edit <job-id> --prompt "$(cat runtime/adam/gneu-content-watch.prompt.md)" --skill grounded-citations --script gneu-content-source-gate.py --workdir /root/gneu-content --agent`
+   ```bash
+   PROMPT_SENTINEL='__GNEU_PROMPT_SENTINEL__'
+   PROMPT="$(cat runtime/adam/gneu-content-watch.prompt.md; printf '%s' "$PROMPT_SENTINEL")"
+   PROMPT="${PROMPT%$PROMPT_SENTINEL}"
+
+   HERMES_HOME=/root/.hermes/profiles/gneu \
+   hermes cron edit <job-id> \
+     --prompt "$PROMPT" \
+     --skill grounded-citations \
+     --script gneu-content-source-gate.py \
+     --workdir /root/gneu-content \
+     --agent
+
+   unset PROMPT PROMPT_SENTINEL
+   ```
+
+   Sentineln måste läggas till efter promptfilens sista byte innan command
+   substitution och tas bort först efteråt. Direkt `$(cat <promptfil>)` får
+   inte användas för exakt promptinstallation eftersom shell command
+   substitution tar bort avslutande newline-tecken. Read-back ska fortsatt
+   kräva exakt promptmatchning, inklusive avslutande LF; innehållet får inte
+   normaliseras med `strip`, `rstrip` eller motsvarande.
 
 6. Verifiera med
    `HERMES_HOME=/root/.hermes/profiles/gneu hermes cron list --all` att jobbet
