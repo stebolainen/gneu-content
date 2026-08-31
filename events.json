@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 26,
+  "generation": 25,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -18,27 +18,6 @@
         {
           "id": "msrc",
           "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-47292"
-        }
-      ],
-      "confidence": "verified"
-    },
-    {
-      "id": "cisa-kev:CVE-2023-49105-added-2026-08-27",
-      "type": "vulnerability",
-      "publication_class": "A",
-      "occurred_at": "2026-08-27T00:00:00Z",
-      "updated_at": "2026-08-31T09:00:54Z",
-      "title": "CISA listar exploaterad autentiseringsbrist i ownCloud",
-      "summary": "CISA lade den 27 augusti till CVE-2023-49105 i katalogen över kända exploaterade sårbarheter. Felet i ownCloud gör att en angripare som känner till användarnamnet kan läsa, ändra eller radera filer utan autentisering när offret saknar en konfigurerad signeringsnyckel.",
-      "action": "Tillämpa leverantörens mitigeringar. CISA anger den 30 augusti 2026 som förfallodatum i katalogen.",
-      "cves": [
-        "CVE-2023-49105"
-      ],
-      "deadline": "2026-08-30",
-      "sources": [
-        {
-          "id": "cisa-kev",
-          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
