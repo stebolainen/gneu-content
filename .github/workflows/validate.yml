@@ -21,3 +21,4 @@ jobs:
       - run: PYTHONDONTWRITEBYTECODE=1 python3 test_admin_auth_policy.py
       - run: PYTHONDONTWRITEBYTECODE=1 python3 test_publisher_gate.py
       - run: PYTHONDONTWRITEBYTECODE=1 python3 test_publisher_policy_gate.py
+      - run: PYTHONDONTWRITEBYTECODE=1 python3 test_publisher_benign_skip.py

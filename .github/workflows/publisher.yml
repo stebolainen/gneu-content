@@ -49,7 +49,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.dry_run)
       }}
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
 
     steps:
       - name: Checkout trusted control plane
@@ -63,7 +63,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Pick oldest Adam PR
+      - name: List Adam candidates oldest first
         id: pick
         env:
           GH_TOKEN: ${{ github.token }}
@@ -71,76 +71,40 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pr="$(
+          set -f
+          mkdir -p /tmp/gneu-publisher
+
+          found="$(
             gh pr list \
               --repo "$REPO" \
               --base published \
               --state open \
               --limit 50 \
               --json number,headRefName,createdAt \
-              --jq '[.[] | select(.headRefName | startswith("adam/"))] | sort_by(.createdAt) | .[0].number // empty'
+              --jq '[.[] | select(.headRefName | startswith("adam/"))] | sort_by(.createdAt) | .[].number'
           )"
 
-          if [[ -z "$pr" ]]; then
+          candidates=()
+          for pr in $found; do
+            if [[ ! "$pr" =~ ^[1-9][0-9]*$ ]]; then
+              echo "Invalid PR number" >&2
+              exit 1
+            fi
+            candidates+=("$pr")
+            if (( ${#candidates[@]} >= 10 )); then
+              break
+            fi
+          done
+
+          if (( ${#candidates[@]} == 0 )); then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "NO_PR"
             exit 0
           fi
 
-          if [[ ! "$pr" =~ ^[0-9]+$ ]]; then
-            echo "Invalid PR number" >&2
-            exit 1
-          fi
-
           echo "found=true" >> "$GITHUB_OUTPUT"
-          echo "number=$pr" >> "$GITHUB_OUTPUT"
-          echo "Selected PR #$pr"
-
-      - name: Collect untrusted PR data without checkout
-        if: steps.pick.outputs.found == 'true'
-        id: collect
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ steps.pick.outputs.number }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/gneu-publisher
-
-          gh api "repos/$REPO/pulls/$PR" > /tmp/gneu-publisher/pr.json
-
-          head_sha="$(jq -r '.head.sha' /tmp/gneu-publisher/pr.json)"
-          if [[ ! "$head_sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Invalid head SHA" >&2
-            exit 1
-          fi
-
-          base_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
-          if [[ ! "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Invalid base SHA" >&2
-            exit 1
-          fi
-
-          gh api "repos/$REPO/pulls/$PR/files?per_page=100" > /tmp/gneu-publisher/files.json
-          gh api "repos/$REPO/commits/$head_sha/check-runs?per_page=100" > /tmp/gneu-publisher/checks.json
-          gh api "repos/$REPO/compare/$base_sha...$head_sha" > /tmp/gneu-publisher/compare.json
-
-          gh api -H "Accept: application/vnd.github.raw+json" \
-            "repos/$REPO/contents/events.json?ref=$base_sha" \
-            > /tmp/gneu-publisher/base-events.json
-          gh api -H "Accept: application/vnd.github.raw+json" \
-            "repos/$REPO/contents/manifest.json?ref=$base_sha" \
-            > /tmp/gneu-publisher/base-manifest.json
-          gh api -H "Accept: application/vnd.github.raw+json" \
-            "repos/$REPO/contents/events.json?ref=$head_sha" \
-            > /tmp/gneu-publisher/head-events.json
-          gh api -H "Accept: application/vnd.github.raw+json" \
-            "repos/$REPO/contents/manifest.json?ref=$head_sha" \
-            > /tmp/gneu-publisher/head-manifest.json
-
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "candidates=${candidates[*]}" >> "$GITHUB_OUTPUT"
+          echo "Candidate queue: ${candidates[*]}"
 
       - name: Fetch public AI-hot coverage
         if: steps.pick.outputs.found == 'true'
@@ -163,32 +127,126 @@ jobs:
 
           echo "AIHOT_COVERAGE_FETCH: PASS ($bytes bytes)"
 
-      - name: Trusted publisher gate
+      - name: Evaluate candidate queue
+        id: queue
         if: steps.pick.outputs.found == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          BASE_SHA: ${{ steps.collect.outputs.base_sha }}
+          CANDIDATES: ${{ steps.pick.outputs.candidates }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 publisher_gate.py \
-            --repository "$REPO" \
-            --current-base-sha "$BASE_SHA" \
-            --pr /tmp/gneu-publisher/pr.json \
-            --files /tmp/gneu-publisher/files.json \
-            --checks /tmp/gneu-publisher/checks.json \
-            --compare /tmp/gneu-publisher/compare.json \
-            --base-events /tmp/gneu-publisher/base-events.json \
-            --base-manifest /tmp/gneu-publisher/base-manifest.json \
-            --head-events /tmp/gneu-publisher/head-events.json \
-            --head-manifest /tmp/gneu-publisher/head-manifest.json \
-            --aihot-coverage /tmp/gneu-publisher/aihot.json \
-            --trusted-validator ./validate_content.py \
-            --json-out /tmp/gneu-publisher/decision.json
+          set -f
+          root=/tmp/gneu-publisher
+
+          base_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
+          if [[ ! "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid base SHA" >&2
+            exit 1
+          fi
+
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/events.json?ref=$base_sha" \
+            > "$root/base-events.json"
+          gh api -H "Accept: application/vnd.github.raw+json" \
+            "repos/$REPO/contents/manifest.json?ref=$base_sha" \
+            > "$root/base-manifest.json"
+
+          chosen=""
+          chosen_sha=""
+
+          for pr in $CANDIDATES; do
+            if [[ ! "$pr" =~ ^[1-9][0-9]*$ ]]; then
+              echo "Invalid PR number" >&2
+              exit 1
+            fi
+
+            echo "::group::candidate PR #$pr"
+
+            # Untrusted PR material, fetched as data only. Never checked out.
+            gh api "repos/$REPO/pulls/$pr" > "$root/pr.json"
+
+            api_number="$(jq -r '.number' "$root/pr.json")"
+            if [[ "$api_number" != "$pr" ]]; then
+              echo "PR payload number mismatch" >&2
+              exit 1
+            fi
+
+            head_sha="$(jq -r '.head.sha' "$root/pr.json")"
+            if [[ ! "$head_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Invalid head SHA" >&2
+              exit 1
+            fi
+
+            gh api "repos/$REPO/pulls/$pr/files?per_page=100" > "$root/files.json"
+            gh api "repos/$REPO/commits/$head_sha/check-runs?per_page=100" > "$root/checks.json"
+            gh api "repos/$REPO/compare/$base_sha...$head_sha" > "$root/compare.json"
+            gh api -H "Accept: application/vnd.github.raw+json" \
+              "repos/$REPO/contents/events.json?ref=$head_sha" \
+              > "$root/head-events.json"
+            gh api -H "Accept: application/vnd.github.raw+json" \
+              "repos/$REPO/contents/manifest.json?ref=$head_sha" \
+              > "$root/head-manifest.json"
+
+            rc=0
+            python3 publisher_gate.py \
+              --repository "$REPO" \
+              --current-base-sha "$base_sha" \
+              --pr "$root/pr.json" \
+              --files "$root/files.json" \
+              --checks "$root/checks.json" \
+              --compare "$root/compare.json" \
+              --base-events "$root/base-events.json" \
+              --base-manifest "$root/base-manifest.json" \
+              --head-events "$root/head-events.json" \
+              --head-manifest "$root/head-manifest.json" \
+              --aihot-coverage "$root/aihot.json" \
+              --trusted-validator ./validate_content.py \
+              --json-out "$root/decision.json" || rc=$?
+
+            echo "::endgroup::"
+
+            case "$rc" in
+              0)
+                decision_pr="$(jq -r '.pr_number' "$root/decision.json")"
+                decision_sha="$(jq -r '.head_sha' "$root/decision.json")"
+                if [[ "$decision_pr" != "$pr" || "$decision_sha" != "$head_sha" ]]; then
+                  echo "Gate decision does not match evaluated candidate" >&2
+                  exit 1
+                fi
+                chosen="$decision_pr"
+                chosen_sha="$decision_sha"
+                echo "ACTIONABLE: PR #$chosen @ $chosen_sha"
+                break
+                ;;
+              3)
+                echo "NOOP_STALE: PR #$pr has no net diff; trying next candidate"
+                ;;
+              4)
+                echo "POLICY_SKIP: PR #$pr declined by content policy; trying next candidate"
+                ;;
+              *)
+                # Real failure: malformed metadata, integrity, validator,
+                # security or unknown class. Fail closed, do not continue.
+                echo "Publisher gate failed for PR #$pr (exit $rc)" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          if [[ -n "$chosen" ]]; then
+            echo "actionable=true" >> "$GITHUB_OUTPUT"
+            echo "number=$chosen" >> "$GITHUB_OUTPUT"
+            echo "head_sha=$chosen_sha" >> "$GITHUB_OUTPUT"
+          else
+            echo "actionable=false" >> "$GITHUB_OUTPUT"
+            echo "NO_ACTIONABLE_CANDIDATE"
+          fi
 
       - name: Dry-run result
         if: >-
-          steps.pick.outputs.found == 'true' &&
+          steps.queue.outputs.actionable == 'true' &&
           github.event_name == 'workflow_dispatch' &&
           inputs.dry_run
         run: |
@@ -198,7 +256,7 @@ jobs:
       - name: Mint short-lived publisher token
         id: app-token
         if: >-
-          steps.pick.outputs.found == 'true' &&
+          steps.queue.outputs.actionable == 'true' &&
           vars.AUTOPUBLISH_ENABLED == 'true' &&
           !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         uses: actions/create-github-app-token@v3
@@ -212,14 +270,14 @@ jobs:
 
       - name: Merge exact validated head
         if: >-
-          steps.pick.outputs.found == 'true' &&
+          steps.queue.outputs.actionable == 'true' &&
           vars.AUTOPUBLISH_ENABLED == 'true' &&
           !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
-          PR: ${{ steps.pick.outputs.number }}
-          HEAD_SHA: ${{ steps.collect.outputs.head_sha }}
+          PR: ${{ steps.queue.outputs.number }}
+          HEAD_SHA: ${{ steps.queue.outputs.head_sha }}
         shell: bash
         run: |
           set -euo pipefail

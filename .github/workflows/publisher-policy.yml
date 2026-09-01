@@ -137,6 +137,8 @@ jobs:
         run: |
           set -euo pipefail
           root=/tmp/gneu-publisher-policy
+
+          rc=0
           python3 publisher_policy_gate.py \
             --repository "$REPO" \
             --current-base-sha "$BASE_SHA" \
@@ -150,4 +152,20 @@ jobs:
             --aihot-coverage "$root/aihot.json" \
             --trusted-validator ./validate_content.py \
             --head-policy-workflow "$root/head-policy-workflow.yml" \
-            --trusted-policy-workflow ./.github/workflows/publisher-policy.yml
+            --trusted-policy-workflow ./.github/workflows/publisher-policy.yml || rc=$?
+
+          # Exit 3 is NOOP_STALE: the PR has no net diff against current
+          # published, so it cannot change anything and is not a failure.
+          # Every other non-zero code, POLICY_SKIP included, keeps this
+          # required check red so the PR stays unmergeable.
+          case "$rc" in
+            0)
+              ;;
+            3)
+              echo "NOOP_STALE: no net diff against current published"
+              ;;
+            *)
+              echo "publisher-policy blocked this PR (exit $rc)" >&2
+              exit 1
+              ;;
+          esac

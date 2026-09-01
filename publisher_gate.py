@@ -33,12 +33,58 @@ NATIVE_SOURCE_IDS = {"msrc", "cert-se"}
 CISA_KEV_PATH = "/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
 
+# Deterministic outcome contract shared by the autonomous publisher and the
+# required PR-head policy check.
+#
+#   ACTIONABLE   the candidate passed every check and may be published
+#   NOOP_STALE   the candidate has no net diff against current published
+#   POLICY_SKIP  an expected editorial coverage decision declined the candidate
+#   BLOCKED      a real error: malformed data, integrity, validator or security
+#
+# NOOP_STALE and POLICY_SKIP are benign for the autonomous publisher: they are
+# terminal for that one candidate and must not fail the workflow.
+OUTCOME_ACTIONABLE = "ACTIONABLE"
+OUTCOME_NOOP_STALE = "NOOP_STALE"
+OUTCOME_POLICY_SKIP = "POLICY_SKIP"
+OUTCOME_BLOCKED = "BLOCKED"
+
+EXIT_ACTIONABLE = 0
+EXIT_BLOCKED = 2
+EXIT_NOOP_STALE = 3
+EXIT_POLICY_SKIP = 4
+
+SKIP_EXIT_CODES = {
+    OUTCOME_NOOP_STALE: EXIT_NOOP_STALE,
+    OUTCOME_POLICY_SKIP: EXIT_POLICY_SKIP,
+}
+
+
 class GateError(RuntimeError):
     pass
 
 
+class GateSkip(GateError):
+    """A deterministic benign outcome for exactly one candidate.
+
+    Deliberately a subclass of ``GateError`` so that any consumer which does
+    not distinguish outcomes keeps failing closed and never publishes.
+    """
+
+    def __init__(self, outcome: str, message: str) -> None:
+        super().__init__(message)
+        if outcome not in SKIP_EXIT_CODES:
+            raise GateError(f"unknown benign outcome: {outcome}")
+        self.outcome = outcome
+
+
 def fail(message: str) -> None:
     raise GateError(message)
+
+
+def require_policy(condition: bool, message: str) -> None:
+    """An expected editorial coverage decision, not a technical failure."""
+    if not condition:
+        raise GateSkip(OUTCOME_POLICY_SKIP, message)
 
 
 def load_json(path: Path):
@@ -135,6 +181,61 @@ def extract_aihot_coverage(data: dict) -> tuple[set[str], set[str], set[str]]:
     return urls, cves, advisories
 
 
+def read_bounded(path: Path, limit: int, label: str) -> bytes:
+    """Read a bounded untrusted file, failing closed on size or IO problems."""
+    try:
+        require(path.is_file(), f"{label}: file missing")
+        require(path.stat().st_size <= limit, f"{label}: file too large")
+        return path.read_bytes()
+    except OSError as exc:
+        fail(f"{label}: unavailable: {exc}")
+
+
+def detect_noop_stale(args: argparse.Namespace, files: list, compare: dict) -> None:
+    """Classify a PR whose net diff against current published is empty.
+
+    A revert-of-its-own-commit branch is legitimately uninteresting rather than
+    broken: there is nothing to publish, so it must not be merged, must not
+    fail the workflow and must not hold up the next candidate.
+
+    This is deliberately narrow. It fires only when every independent piece of
+    evidence agrees that the net diff is empty. Evidence that disagrees is an
+    inconsistency in untrusted API data and stays a hard failure.
+    """
+    if files:
+        return
+
+    status = str(compare.get("status") or "")
+    if status not in {"identical", "ahead"}:
+        return
+
+    compare_files = compare.get("files", [])
+    require(isinstance(compare_files, list), "compare files payload must be list")
+    require(
+        not compare_files,
+        "PR files payload is empty but compare reports changed files",
+    )
+    require(
+        int(compare.get("behind_by", -1)) == 0,
+        "head is behind/diverged from current published",
+    )
+
+    base_events = read_bounded(args.base_events, MAX_RAW_BYTES, "base events.json")
+    head_events = read_bounded(args.head_events, MAX_RAW_BYTES, "head events.json")
+    base_manifest = read_bounded(args.base_manifest, 64 * 1024, "base manifest.json")
+    head_manifest = read_bounded(args.head_manifest, 64 * 1024, "head manifest.json")
+
+    require(
+        base_events == head_events and base_manifest == head_manifest,
+        "PR reports no changed files but head content differs from published",
+    )
+
+    raise GateSkip(
+        OUTCOME_NOOP_STALE,
+        "no net diff against current published base",
+    )
+
+
 def verify_manifest(events_path: Path, manifest_path: Path, label: str) -> tuple[dict, dict]:
     require(events_path.stat().st_size <= MAX_RAW_BYTES, f"{label}: events.json too large")
     require(manifest_path.stat().st_size <= 64 * 1024, f"{label}: manifest.json too large")
@@ -210,11 +311,13 @@ def validate(
     require(re.fullmatch(r"[0-9a-f]{40}", current_base_sha) is not None, "invalid current base SHA")
     require(str(base.get("sha") or "") == current_base_sha, "PR base SHA is not current published")
 
+    require(isinstance(files, list), "files payload must be list")
+    detect_noop_stale(args, files, compare)
+
     require(compare.get("status") == "ahead", "head must be strictly ahead of current published")
     require(int(compare.get("behind_by", -1)) == 0, "head is behind/diverged from current published")
     require(int(compare.get("ahead_by", 0)) >= 1, "head contains no new commit")
 
-    require(isinstance(files, list), "files payload must be list")
     names = {str(x.get("filename")) for x in files if isinstance(x, dict)}
     require(names == ALLOWED_FILES, "changed files must be exactly events.json and manifest.json")
     require(len(files) == 2, "PR must change exactly two files")
@@ -277,7 +380,7 @@ def validate(
             if parsed.path.rstrip("/") == CISA_KEV_PATH:
                 native_hits.append("cisa-kev")
 
-    require(
+    require_policy(
         not native_hits,
         "native source already covered by gneu.se: "
         + ", ".join(sorted(set(native_hits))),
@@ -299,7 +402,7 @@ def validate(
     new_cves = {str(cve).upper() for cve in new_cves_raw}
     duplicate_cves = sorted(base_cves & new_cves)
 
-    require(
+    require_policy(
         not duplicate_cves,
         "CVE already covered by published content: "
         + ", ".join(duplicate_cves),
@@ -330,7 +433,7 @@ def validate(
     }
 
     duplicate_source_urls = sorted(base_source_urls & new_source_urls)
-    require(
+    require_policy(
         not duplicate_source_urls,
         "primary source URL already covered by published content: "
         + ", ".join(duplicate_source_urls),
@@ -343,14 +446,14 @@ def validate(
     aihot_urls, aihot_cves, aihot_advisories = extract_aihot_coverage(aihot)
 
     cross_urls = sorted(new_source_urls & aihot_urls)
-    require(
+    require_policy(
         not cross_urls,
         "primary source URL already covered by AI-hot: "
         + ", ".join(cross_urls),
     )
 
     cross_cves = sorted(new_cves & aihot_cves)
-    require(
+    require_policy(
         not cross_cves,
         "CVE already covered by AI-hot: "
         + ", ".join(cross_cves),
@@ -362,7 +465,7 @@ def validate(
     }
     cross_advisories = sorted(new_advisories & aihot_advisories)
 
-    require(
+    require_policy(
         not cross_advisories,
         "advisory already covered by AI-hot: "
         + ", ".join(cross_advisories),
@@ -379,6 +482,8 @@ def validate(
 
     return {
         "decision": "PASS_AUTOPUBLISH",
+        "outcome": OUTCOME_ACTIONABLE,
+        "notify_human": False,
         "pr_number": int(pr["number"]),
         "head_sha": head_sha,
         "head_ref": head_ref,
@@ -389,6 +494,50 @@ def validate(
         "events_sha256": str(head_manifest["events_sha256"]),
         "validator": validator_output,
     }
+
+
+def pr_context(path: Path) -> dict:
+    """Best-effort PR identity for a skip payload. Never raises."""
+    context: dict = {}
+    try:
+        pr = json.loads(path.read_text(encoding="utf-8"))
+        number = pr.get("number")
+        head_sha = str(pr.get("head", {}).get("sha") or "")
+        head_ref = str(pr.get("head", {}).get("ref") or "")
+    except Exception:
+        return context
+
+    if isinstance(number, int):
+        context["pr_number"] = number
+    if re.fullmatch(r"[0-9a-f]{40}", head_sha):
+        context["head_sha"] = head_sha
+    if head_ref and len(head_ref) <= 100 and head_ref.isprintable():
+        context["head_ref"] = head_ref
+    return context
+
+
+def skip_payload(exc: GateSkip, pr_path: Path) -> dict:
+    """Machine-readable benign outcome.
+
+    ``notify_human`` is the contract for the notifier: a benign skip is a
+    decision no human can or needs to act on, so it must never raise a
+    "PR needs your attention" message.
+    """
+    payload = {
+        "decision": exc.outcome,
+        "outcome": exc.outcome,
+        "reason": str(exc),
+        "notify_human": False,
+    }
+    payload.update(pr_context(pr_path))
+    return payload
+
+
+def emit(result: dict, json_out: Path | None) -> None:
+    payload = json.dumps(result, ensure_ascii=False, sort_keys=True)
+    print(payload)
+    if json_out:
+        json_out.write_text(payload + "\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -410,15 +559,17 @@ def main() -> int:
 
     try:
         result = validate(args)
+    except GateSkip as exc:
+        # Expected, deterministic and terminal for this candidate only.
+        print(f"{exc.outcome}: {exc}", file=sys.stderr)
+        emit(skip_payload(exc, args.pr), args.json_out)
+        return SKIP_EXIT_CODES[exc.outcome]
     except GateError as exc:
         print("BLOCKED:", exc, file=sys.stderr)
-        return 2
+        return EXIT_BLOCKED
 
-    payload = json.dumps(result, ensure_ascii=False, sort_keys=True)
-    print(payload)
-    if args.json_out:
-        args.json_out.write_text(payload + "\n", encoding="utf-8")
-    return 0
+    emit(result, args.json_out)
+    return EXIT_ACTIONABLE
 
 
 if __name__ == "__main__":
