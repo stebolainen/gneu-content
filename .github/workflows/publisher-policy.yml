@@ -154,18 +154,42 @@ jobs:
             --head-policy-workflow "$root/head-policy-workflow.yml" \
             --trusted-policy-workflow ./.github/workflows/publisher-policy.yml || rc=$?
 
-          # Exit 3 is NOOP_STALE: the PR has no net diff against current
-          # published, so it cannot change anything and is not a failure.
-          # Every other non-zero code, POLICY_SKIP included, keeps this
-          # required check red so the PR stays unmergeable.
+          # This is the merge boundary, not the autonomous publisher, so the
+          # question here is only "may this PR reach published?".
+          #
+          # GitHub counts a required check whose conclusion is success,
+          # neutral or skipped as satisfied. There is therefore no conclusion
+          # this workflow could report for POLICY_SKIP or NEEDS_HUMAN that
+          # both looks non-failing and still blocks the merge, and emitting a
+          # neutral conclusion would need write access to the Checks API,
+          # which this job deliberately does not hold. Blocking behaviour is
+          # kept, and the log line says which class it is so it does not read
+          # as a system fault.
+          #
+          # Only ACTIONABLE and NOOP_STALE pass. NOOP_STALE is safe to pass
+          # because its head content is byte-identical to published, so
+          # merging it cannot change events.json or manifest.json.
           case "$rc" in
             0)
+              echo "ACTIONABLE: PR satisfies the publication policy"
               ;;
             3)
               echo "NOOP_STALE: no net diff against current published"
               ;;
+            4)
+              echo "POLICY_SKIP: declined by content policy; not publishable" >&2
+              exit 1
+              ;;
+            5)
+              echo "NEEDS_HUMAN: reserved for human editorial handling; not autopublishable" >&2
+              exit 1
+              ;;
+            2)
+              echo "BLOCKED: cannot safely evaluate this PR" >&2
+              exit 1
+              ;;
             *)
-              echo "publisher-policy blocked this PR (exit $rc)" >&2
+              echo "Unknown publisher-policy exit code $rc" >&2
               exit 1
               ;;
           esac

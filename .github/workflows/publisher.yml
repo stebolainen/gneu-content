@@ -72,16 +72,42 @@ jobs:
         run: |
           set -euo pipefail
           set -f
-          mkdir -p /tmp/gneu-publisher
+          root=/tmp/gneu-publisher
+          mkdir -p "$root"
+
+          # Bounded listing. LIST_LIMIT bounds what we ask GitHub for and
+          # MAX_CANDIDATES bounds what one run will evaluate. Hitting either
+          # bound is reported explicitly and fails the run: a candidate must
+          # never be silently dropped because a list was truncated.
+          LIST_LIMIT=100
+          MAX_CANDIDATES=25
+
+          gh pr list \
+            --repo "$REPO" \
+            --base published \
+            --state open \
+            --limit "$LIST_LIMIT" \
+            --json number,headRefName,createdAt \
+            > "$root/open-prs.json"
+
+          total="$(jq 'length' "$root/open-prs.json")"
+          if [[ ! "$total" =~ ^[0-9]+$ ]]; then
+            echo "Could not count open PRs" >&2
+            exit 1
+          fi
+
+          if (( total >= LIST_LIMIT )); then
+            echo "BLOCKED: open PR listing hit the $LIST_LIMIT bound and may be truncated" >&2
+            echo "Resolve the PR backlog before the publisher can run safely." >&2
+            exit 1
+          fi
 
           found="$(
-            gh pr list \
-              --repo "$REPO" \
-              --base published \
-              --state open \
-              --limit 50 \
-              --json number,headRefName,createdAt \
-              --jq '[.[] | select(.headRefName | startswith("adam/"))] | sort_by(.createdAt) | .[].number'
+            jq -r '
+              [.[] | select(.headRefName | startswith("adam/"))]
+              | sort_by(.createdAt)
+              | .[].number
+            ' "$root/open-prs.json"
           )"
 
           candidates=()
@@ -91,10 +117,13 @@ jobs:
               exit 1
             fi
             candidates+=("$pr")
-            if (( ${#candidates[@]} >= 10 )); then
-              break
-            fi
           done
+
+          if (( ${#candidates[@]} > MAX_CANDIDATES )); then
+            echo "BLOCKED: ${#candidates[@]} Adam candidates exceeds the $MAX_CANDIDATES evaluation bound" >&2
+            echo "Refusing to evaluate a partial queue; triage the backlog first." >&2
+            exit 1
+          fi
 
           if (( ${#candidates[@]} == 0 )); then
             echo "found=false" >> "$GITHUB_OUTPUT"
@@ -104,7 +133,7 @@ jobs:
 
           echo "found=true" >> "$GITHUB_OUTPUT"
           echo "candidates=${candidates[*]}" >> "$GITHUB_OUTPUT"
-          echo "Candidate queue: ${candidates[*]}"
+          echo "Candidate queue (${#candidates[@]}): ${candidates[*]}"
 
       - name: Fetch public AI-hot coverage
         if: steps.pick.outputs.found == 'true'
@@ -155,6 +184,7 @@ jobs:
 
           chosen=""
           chosen_sha=""
+          needs_human=()
 
           for pr in $CANDIDATES; do
             if [[ ! "$pr" =~ ^[1-9][0-9]*$ ]]; then
@@ -209,8 +239,13 @@ jobs:
 
             case "$rc" in
               0)
+                decision_outcome="$(jq -r '.outcome' "$root/decision.json")"
                 decision_pr="$(jq -r '.pr_number' "$root/decision.json")"
                 decision_sha="$(jq -r '.head_sha' "$root/decision.json")"
+                if [[ "$decision_outcome" != "ACTIONABLE" ]]; then
+                  echo "Gate exited 0 without an ACTIONABLE decision" >&2
+                  exit 1
+                fi
                 if [[ "$decision_pr" != "$pr" || "$decision_sha" != "$head_sha" ]]; then
                   echo "Gate decision does not match evaluated candidate" >&2
                   exit 1
@@ -226,9 +261,17 @@ jobs:
               4)
                 echo "POLICY_SKIP: PR #$pr declined by content policy; trying next candidate"
                 ;;
+              5)
+                # Understood, not publishable, and a person is notified from
+                # the decision payload. It must not hold up other candidates.
+                reason="$(jq -r '.reason_code // "NEEDS_HUMAN"' "$root/decision.json")"
+                echo "NEEDS_HUMAN [$reason]: PR #$pr awaits a human; trying next candidate"
+                needs_human+=("$pr")
+                ;;
               *)
-                # Real failure: malformed metadata, integrity, validator,
-                # security or unknown class. Fail closed, do not continue.
+                # We cannot safely say what happened: malformed metadata,
+                # integrity, validator, security or an unknown state.
+                # Fail closed and stop the queue.
                 echo "Publisher gate failed for PR #$pr (exit $rc)" >&2
                 exit 1
                 ;;
@@ -242,6 +285,10 @@ jobs:
           else
             echo "actionable=false" >> "$GITHUB_OUTPUT"
             echo "NO_ACTIONABLE_CANDIDATE"
+          fi
+
+          if (( ${#needs_human[@]} > 0 )); then
+            echo "Awaiting human review: ${needs_human[*]}"
           fi
 
       - name: Dry-run result

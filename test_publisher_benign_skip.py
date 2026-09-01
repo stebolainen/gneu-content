@@ -153,6 +153,11 @@ class Candidate:
             deepcopy(event),
         ]
 
+    def make_stale_base(self) -> None:
+        """Valid metadata, but the candidate sits on an older published base."""
+        self.pr["base"]["sha"] = "e" * 40
+        self.compare = {"status": "diverged", "behind_by": 3, "ahead_by": 1}
+
     def make_noop(self) -> None:
         """Model PR #45: commit plus revert, so the net diff is empty."""
         self.head_events = deepcopy(self.base_events)
@@ -250,29 +255,57 @@ class Candidate:
 def run_publisher_queue(candidates: list[Candidate]) -> dict:
     """Model the workflow queue exactly as publisher.yml wires exit codes.
 
-    ACTIONABLE stops the queue, NOOP_STALE and POLICY_SKIP advance to the next
-    candidate, and anything else fails closed without evaluating the rest.
+    ACTIONABLE stops the queue; NOOP_STALE, POLICY_SKIP and NEEDS_HUMAN all
+    advance to the next candidate; anything else fails closed without
+    evaluating the rest.
     """
     skipped: list[int] = []
+    notified: list[int] = []
+    evaluated: list[int] = []
     for candidate in candidates:
+        evaluated.append(candidate.number)
         code, decision = candidate.run_cli()
         if code == gate.EXIT_ACTIONABLE:
+            if decision.get("outcome") != gate.OUTCOME_ACTIONABLE:
+                return {
+                    "result": "failed",
+                    "pr_number": candidate.number,
+                    "exit_code": code,
+                    "skipped": skipped,
+                    "notified": notified,
+                    "evaluated": evaluated,
+                }
             return {
                 "result": "published",
                 "pr_number": decision["pr_number"],
                 "head_sha": decision["head_sha"],
                 "skipped": skipped,
+                "notified": notified,
+                "evaluated": evaluated,
             }
-        if code in (gate.EXIT_NOOP_STALE, gate.EXIT_POLICY_SKIP):
+        if code in (
+            gate.EXIT_NOOP_STALE,
+            gate.EXIT_POLICY_SKIP,
+            gate.EXIT_NEEDS_HUMAN,
+        ):
             skipped.append(candidate.number)
+            if decision.get("notify_human"):
+                notified.append(candidate.number)
             continue
         return {
             "result": "failed",
             "pr_number": candidate.number,
             "exit_code": code,
             "skipped": skipped,
+            "notified": notified,
+            "evaluated": evaluated,
         }
-    return {"result": "no_actionable_candidate", "skipped": skipped}
+    return {
+        "result": "no_actionable_candidate",
+        "skipped": skipped,
+        "notified": notified,
+        "evaluated": evaluated,
+    }
 
 
 class OutcomeContractTests(unittest.TestCase):
@@ -309,7 +342,7 @@ class OutcomeContractTests(unittest.TestCase):
         candidate.make_noop()
         candidate.write()
 
-        with self.assertRaises(gate.GateSkip) as caught:
+        with self.assertRaises(gate.GateOutcome) as caught:
             gate.validate(candidate.args())
         self.assertEqual(caught.exception.outcome, gate.OUTCOME_NOOP_STALE)
 
@@ -321,7 +354,7 @@ class OutcomeContractTests(unittest.TestCase):
     def test_noop_stale_is_a_gate_error_subclass(self) -> None:
         # Any consumer that does not know the outcome contract must still
         # fail closed rather than treat a skip as permission to publish.
-        self.assertTrue(issubclass(gate.GateSkip, gate.GateError))
+        self.assertTrue(issubclass(gate.GateOutcome, gate.GateError))
 
     # 3. A CISA KEV proposal already covered natively by gneu.se.
     def test_native_kev_coverage_is_policy_skip(self) -> None:
@@ -329,7 +362,7 @@ class OutcomeContractTests(unittest.TestCase):
         candidate.append_event(KEV_EVENT)
         candidate.write()
 
-        with self.assertRaises(gate.GateSkip) as caught:
+        with self.assertRaises(gate.GateOutcome) as caught:
             gate.validate(candidate.args())
         self.assertEqual(caught.exception.outcome, gate.OUTCOME_POLICY_SKIP)
         self.assertIn(
@@ -369,7 +402,7 @@ class OutcomeContractTests(unittest.TestCase):
                 candidate = self.candidate(f"cov-{len(label)}", number=60)
                 mutate(candidate)
                 candidate.write()
-                with self.assertRaises(gate.GateSkip) as caught:
+                with self.assertRaises(gate.GateOutcome) as caught:
                     gate.validate(candidate.args())
                 self.assertEqual(
                     caught.exception.outcome, gate.OUTCOME_POLICY_SKIP
@@ -386,7 +419,7 @@ class OutcomeContractTests(unittest.TestCase):
         }]
         candidate.write()
 
-        with self.assertRaises(gate.GateSkip) as caught:
+        with self.assertRaises(gate.GateOutcome) as caught:
             gate.validate(candidate.args())
         self.assertEqual(caught.exception.outcome, gate.OUTCOME_POLICY_SKIP)
         self.assertIn("CVE already covered by AI-hot", str(caught.exception))
@@ -545,16 +578,18 @@ class NotifierContractTests(unittest.TestCase):
         self.assertEqual(decision["outcome"], gate.OUTCOME_ACTIONABLE)
         self.assertIn("notify_human", decision)
 
-    def test_blocked_decision_writes_no_benign_payload(self) -> None:
-        # A real failure must never leave a decision file a notifier or a
-        # merge step could mistake for a passing result.
+    def test_blocked_decision_is_a_technical_error(self) -> None:
+        # A real failure must never leave a decision a notifier or a merge
+        # step could mistake for a passing result.
         candidate = self.candidate("broken", 98)
         candidate.pr["head"]["repo"]["full_name"] = "attacker/fork"
         candidate.write()
         code, decision = candidate.run_cli()
         self.assertEqual(code, gate.EXIT_BLOCKED)
-        self.assertEqual(decision, {})
-        self.assertFalse((candidate.root / "decision.json").exists())
+        self.assertEqual(decision["outcome"], gate.OUTCOME_BLOCKED)
+        self.assertIs(decision["technical_error"], True)
+        self.assertIs(decision["notify_human"], True)
+        self.assertNotEqual(decision["outcome"], gate.OUTCOME_ACTIONABLE)
 
 
 class WorkflowWiringTests(unittest.TestCase):
@@ -603,11 +638,383 @@ class WorkflowWiringTests(unittest.TestCase):
         # Exit 3 (NOOP_STALE) is green; everything else, POLICY_SKIP included,
         # keeps the required check red so the PR cannot be merged manually.
         self.assertIn("NOOP_STALE: no net diff against current published", workflow)
-        self.assertIn("publisher-policy blocked this PR (exit $rc)", workflow)
+        self.assertIn("Unknown publisher-policy exit code $rc", workflow)
 
         case_block = workflow[workflow.index('case "$rc" in'):]
         arms = re.findall(r"^\s{12}(\S+)\)$", case_block, re.M)
-        self.assertEqual(arms, ["0", "3", "*"])
+        self.assertEqual(arms, ["0", "3", "4", "5", "2", "*"])
+
+        # Only ACTIONABLE and NOOP_STALE may leave the step successfully.
+        for arm in ("4", "5", "2", "*"):
+            body = case_block.split(f"\n            {arm})\n", 1)[1]
+            self.assertIn("exit 1", body.split(";;", 1)[0])
+
+
+class NeedsHumanTests(unittest.TestCase):
+    """NEEDS_HUMAN: understood, not publishable, a person must act."""
+
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="needs-human-test-")
+        self.root = Path(self.temp.name)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def candidate(self, name: str, *, number: int = 70) -> Candidate:
+        return Candidate(
+            self.root / name,
+            head_ref=f"adam/gen3-{name}",
+            number=number,
+            head_sha=HEAD_SHA,
+        )
+
+    def assert_needs_human(self, candidate: Candidate, reason_code: str) -> dict:
+        with self.assertRaises(gate.GateOutcome) as caught:
+            gate.validate(candidate.args())
+        self.assertEqual(caught.exception.outcome, gate.OUTCOME_NEEDS_HUMAN)
+        self.assertEqual(caught.exception.reason_code, reason_code)
+
+        code, decision = candidate.run_cli()
+        self.assertEqual(code, gate.EXIT_NEEDS_HUMAN)
+        self.assertEqual(code, 5)
+        self.assertEqual(decision["outcome"], gate.OUTCOME_NEEDS_HUMAN)
+        self.assertEqual(decision["reason_code"], reason_code)
+        self.assertIs(decision["notify_human"], True)
+        self.assertIs(decision["technical_error"], False)
+        return decision
+
+    # 1. Explicit human-review policy.
+    def test_class_b_needs_human(self) -> None:
+        candidate = self.candidate("classb")
+        candidate.append_event({
+            **deepcopy(CLEAN_EVENT), "publication_class": "B",
+        })
+        candidate.write()
+        self.assert_needs_human(candidate, "CLASS_B_EDITORIAL")
+
+    def test_confidence_below_threshold_needs_human(self) -> None:
+        candidate = self.candidate("confidence")
+        candidate.append_event({
+            **deepcopy(CLEAN_EVENT),
+            "confidence": "corroborated",
+            "sources": [
+                {"id": "uk-ncsc", "url": "https://www.ncsc.gov.uk/news/a"},
+                {"id": "cert-eu", "url": "https://cert.europa.eu/news/b"},
+            ],
+        })
+        candidate.write()
+        self.assert_needs_human(candidate, "UNVERIFIED_CONFIDENCE")
+
+    def test_multiple_appended_events_needs_human(self) -> None:
+        candidate = self.candidate("multi")
+        extra = {
+            **deepcopy(CLEAN_EVENT),
+            "id": "uk-ncsc:CVE-2026-33333",
+            "cves": ["CVE-2026-33333"],
+            "sources": [{
+                "id": "uk-ncsc",
+                "url": "https://www.ncsc.gov.uk/news/second-advisory",
+            }],
+        }
+        candidate.head_events["events"] = [
+            deepcopy(PRIOR_EVENT), deepcopy(CLEAN_EVENT), extra,
+        ]
+        candidate.write()
+        self.assert_needs_human(candidate, "MULTIPLE_EVENTS")
+
+    def test_draft_pr_needs_human(self) -> None:
+        candidate = self.candidate("draft")
+        candidate.pr["draft"] = True
+        candidate.write()
+        self.assert_needs_human(candidate, "DRAFT_PR")
+
+    # 2. Stale but otherwise valid PR.
+    def test_stale_base_needs_human_and_is_benign_for_the_workflow(self) -> None:
+        candidate = self.candidate("stale", number=71)
+        candidate.make_stale_base()
+        candidate.write()
+        decision = self.assert_needs_human(candidate, "STALE_BASE")
+        self.assertEqual(decision["pr_number"], 71)
+
+        # Benign for the workflow: the queue continues, and neither a token
+        # nor a merge can follow a non-zero exit code.
+        result = run_publisher_queue([candidate])
+        self.assertEqual(result["result"], "no_actionable_candidate")
+        self.assertEqual(result["notified"], [71])
+
+    # 3. Malformed base metadata is never a review case.
+    def test_malformed_base_metadata_is_blocked(self) -> None:
+        cases = {
+            "missing base sha": lambda c: c.pr["base"].pop("sha"),
+            "short base sha": lambda c: c.pr["base"].update({"sha": "abc"}),
+            "non-hex base sha": lambda c: c.pr["base"].update({"sha": "z" * 40}),
+            "base sha not a string": lambda c: c.pr["base"].update({"sha": 12345}),
+            "draft flag not boolean": lambda c: c.pr.update({"draft": "no"}),
+        }
+        for label, mutate in cases.items():
+            with self.subTest(label):
+                candidate = self.candidate(f"bad-{len(label)}", number=72)
+                mutate(candidate)
+                candidate.write()
+                code, decision = candidate.run_cli()
+                self.assertEqual(code, gate.EXIT_BLOCKED)
+                self.assertEqual(decision["outcome"], gate.OUTCOME_BLOCKED)
+                self.assertIs(decision["technical_error"], True)
+
+    def test_unknown_values_are_blocked_not_needs_human(self) -> None:
+        # "We do not recognise this" is never "a human should review this".
+        cases = {
+            "unknown publication_class": lambda c: c.append_event({
+                **deepcopy(CLEAN_EVENT), "publication_class": "C",
+            }),
+            "unknown confidence": lambda c: c.append_event({
+                **deepcopy(CLEAN_EVENT), "confidence": "probably-fine",
+            }),
+        }
+        for label, mutate in cases.items():
+            with self.subTest(label):
+                candidate = self.candidate(f"unknown-{len(label)}", number=73)
+                mutate(candidate)
+                candidate.write()
+                code, decision = candidate.run_cli()
+                self.assertEqual(code, gate.EXIT_BLOCKED)
+                self.assertIs(decision["technical_error"], True)
+
+    def test_removing_or_rewriting_published_events_is_blocked(self) -> None:
+        # Integrity violations are never an editorial review case, even
+        # though a multi-event append is.
+        cases = {
+            "published event removed": lambda c: c.head_events.update(
+                {"events": [deepcopy(CLEAN_EVENT)]}
+            ),
+            "published event rewritten": lambda c: c.head_events["events"][0].update(
+                {"title": "MUTATED"}
+            ),
+        }
+        for label, mutate in cases.items():
+            with self.subTest(label):
+                candidate = self.candidate(f"integrity-{len(label)}", number=74)
+                mutate(candidate)
+                candidate.write()
+                code, decision = candidate.run_cli()
+                self.assertEqual(code, gate.EXIT_BLOCKED)
+                self.assertIs(decision["technical_error"], True)
+
+
+class QueueOrderTests(unittest.TestCase):
+    """Queue behaviour across the full outcome contract."""
+
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="queue-order-test-")
+        self.root = Path(self.temp.name)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def candidate(self, name: str, *, number: int, head_sha: str) -> Candidate:
+        return Candidate(
+            self.root / name,
+            head_ref=f"adam/gen3-{name}",
+            number=number,
+            head_sha=head_sha,
+        )
+
+    def needs_human_candidate(self, name: str, number: int, sha: str) -> Candidate:
+        candidate = self.candidate(name, number=number, head_sha=sha)
+        candidate.append_event({
+            **deepcopy(CLEAN_EVENT), "publication_class": "B",
+        })
+        candidate.write()
+        return candidate
+
+    def policy_skip_candidate(self, name: str, number: int, sha: str) -> Candidate:
+        candidate = self.candidate(name, number=number, head_sha=sha)
+        candidate.append_event(KEV_EVENT)
+        candidate.write()
+        return candidate
+
+    # 4. NEEDS_HUMAN must not head-of-line block an unrelated ACTIONABLE PR.
+    def test_needs_human_does_not_block_next_candidate(self) -> None:
+        first = self.needs_human_candidate("classb", 80, "c" * 40)
+        second = self.candidate("clean", number=81, head_sha="d" * 40).write()
+
+        result = run_publisher_queue([first, second])
+        self.assertEqual(result["result"], "published")
+        self.assertEqual(result["pr_number"], 81)
+        self.assertEqual(result["skipped"], [80])
+        self.assertEqual(result["notified"], [80])
+
+    # 5. POLICY_SKIP then NEEDS_HUMAN then ACTIONABLE.
+    def test_queue_walks_past_both_benign_and_human_outcomes(self) -> None:
+        first = self.policy_skip_candidate("kev", 82, "c" * 40)
+        second = self.needs_human_candidate("classb", 83, "d" * 40)
+        third = self.candidate("clean", number=84, head_sha="e" * 40).write()
+
+        result = run_publisher_queue([first, second, third])
+        self.assertEqual(result["result"], "published")
+        self.assertEqual(result["pr_number"], 84)
+        self.assertEqual(result["skipped"], [82, 83])
+        # Only the human-review candidate raises a person.
+        self.assertEqual(result["notified"], [83])
+
+    # 6. A hard failure before an ACTIONABLE candidate stops everything.
+    def test_hard_failure_stops_queue_before_actionable(self) -> None:
+        broken = self.candidate("broken", number=85, head_sha="c" * 40)
+        broken.pr["head"]["repo"]["full_name"] = "attacker/fork"
+        broken.write()
+        actionable = self.candidate("clean", number=86, head_sha="d" * 40).write()
+
+        result = run_publisher_queue([broken, actionable])
+        self.assertEqual(result["result"], "failed")
+        self.assertEqual(result["pr_number"], 85)
+        self.assertEqual(result["exit_code"], gate.EXIT_BLOCKED)
+        # The later ACTIONABLE candidate was never evaluated or published.
+        self.assertEqual(result["evaluated"], [85])
+        self.assertNotIn(86, result["evaluated"])
+
+    # 7. More candidates than the old hard-coded limit of 10.
+    def test_more_than_ten_candidates_have_no_silent_starvation(self) -> None:
+        candidates = [
+            self.policy_skip_candidate(f"kev{i}", 100 + i, f"{i:040x}")
+            for i in range(12)
+        ]
+        actionable = self.candidate(
+            "clean", number=200, head_sha="f" * 40
+        ).write()
+        candidates.append(actionable)
+
+        result = run_publisher_queue(candidates)
+        self.assertEqual(result["result"], "published")
+        self.assertEqual(result["pr_number"], 200)
+        self.assertEqual(len(result["skipped"]), 12)
+        self.assertEqual(len(result["evaluated"]), 13)
+
+    # 8. An unknown exit code must fail closed.
+    def test_unknown_exit_code_fails_closed(self) -> None:
+        codes = [1, 6, 42, 127]
+        for code in codes:
+            with self.subTest(code=code):
+                self.assertNotIn(code, gate.NON_ACTIONABLE_EXIT_CODES.values())
+                self.assertNotEqual(code, gate.EXIT_ACTIONABLE)
+
+        workflow = (ROOT / ".github/workflows/publisher.yml").read_text(
+            encoding="utf-8"
+        )
+        case_block = workflow[workflow.index('case "$rc" in'):]
+        arms = re.findall(r"^\s{14}(\S+)\)$", case_block, re.M)
+        self.assertEqual(arms, ["0", "3", "4", "5", "*"])
+        self.assertIn("Publisher gate failed for PR #$pr (exit $rc)", case_block)
+
+
+class QueueBoundTests(unittest.TestCase):
+    """Truncation must be explicit, never silent starvation."""
+
+    def setUp(self) -> None:
+        self.workflow = (ROOT / ".github/workflows/publisher.yml").read_text(
+            encoding="utf-8"
+        )
+
+    def test_listing_bound_is_detected_and_blocks(self) -> None:
+        self.assertIn("LIST_LIMIT=100", self.workflow)
+        self.assertIn("MAX_CANDIDATES=25", self.workflow)
+        self.assertIn(
+            "open PR listing hit the $LIST_LIMIT bound and may be truncated",
+            self.workflow,
+        )
+        self.assertIn(
+            "exceeds the $MAX_CANDIDATES evaluation bound", self.workflow
+        )
+
+    def test_no_silent_cap_remains(self) -> None:
+        # The old silent break at candidate 10 must be gone.
+        self.assertNotIn("(( ${#candidates[@]} >= 10 ))", self.workflow)
+        self.assertNotIn("candidates[@]} >= 10", self.workflow)
+
+    def test_bound_breach_stops_before_any_candidate_is_evaluated(self) -> None:
+        pick = self.workflow[
+            self.workflow.index("List Adam candidates oldest first"):
+            self.workflow.index("Fetch public AI-hot coverage")
+        ]
+        # Both bound checks live in the listing step, before any gate runs.
+        self.assertIn("may be truncated", pick)
+        self.assertIn("evaluation bound", pick)
+        self.assertNotIn("publisher_gate.py", pick)
+
+
+class NotifyContractTests(unittest.TestCase):
+    """9-12: exactly which outcomes reach a person, and when a token may exist."""
+
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="notify-contract-test-")
+        self.root = Path(self.temp.name)
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def candidate(self, name: str, number: int = 90) -> Candidate:
+        return Candidate(
+            self.root / name,
+            head_ref=f"adam/gen3-{name}",
+            number=number,
+            head_sha=HEAD_SHA,
+        )
+
+    def test_notify_matrix(self) -> None:
+        noop = self.candidate("noop")
+        noop.make_noop()
+        noop.write()
+
+        skip = self.candidate("kev")
+        skip.append_event(KEV_EVENT)
+        skip.write()
+
+        human = self.candidate("classb")
+        human.append_event({**deepcopy(CLEAN_EVENT), "publication_class": "B"})
+        human.write()
+
+        actionable = self.candidate("clean").write()
+
+        expected = [
+            ("NOOP_STALE", noop, gate.EXIT_NOOP_STALE, False),
+            ("POLICY_SKIP", skip, gate.EXIT_POLICY_SKIP, False),
+            ("NEEDS_HUMAN", human, gate.EXIT_NEEDS_HUMAN, True),
+            ("ACTIONABLE", actionable, gate.EXIT_ACTIONABLE, False),
+        ]
+        for label, candidate, exit_code, notify in expected:
+            with self.subTest(label):
+                code, decision = candidate.run_cli()
+                self.assertEqual(code, exit_code)
+                self.assertEqual(decision["outcome"], label)
+                self.assertIs(decision["notify_human"], notify)
+                self.assertIs(decision["technical_error"], False)
+
+    def test_only_needs_human_notifies_among_non_actionable(self) -> None:
+        self.assertEqual(gate.NOTIFY_OUTCOMES, {gate.OUTCOME_NEEDS_HUMAN})
+
+    # 12. A Publisher token may only exist after an ACTIONABLE decision.
+    def test_token_is_gated_on_the_actionable_decision(self) -> None:
+        workflow = (ROOT / ".github/workflows/publisher.yml").read_text(
+            encoding="utf-8"
+        )
+        queue = workflow.index("Evaluate candidate queue")
+        mint = workflow.index("Mint short-lived publisher token")
+        merge = workflow.index("Merge exact validated head")
+        self.assertLess(queue, mint)
+        self.assertLess(mint, merge)
+
+        # actionable is only ever set true on the exit-0 arm, which also
+        # verifies the decision says ACTIONABLE for this exact candidate.
+        queue_step = workflow[queue:mint]
+        self.assertIn("Gate exited 0 without an ACTIONABLE decision", queue_step)
+        self.assertIn("Gate decision does not match evaluated candidate", queue_step)
+        self.assertEqual(queue_step.count('echo "actionable=true"'), 1)
+
+        mint_step = workflow[mint:merge]
+        self.assertIn("steps.queue.outputs.actionable == 'true' &&", mint_step)
+        self.assertIn("PUBLISHER_APP_PRIVATE_KEY", mint_step)
+        # No token material may appear before the gate has run.
+        self.assertNotIn("PUBLISHER_APP_PRIVATE_KEY", workflow[:queue])
+        self.assertNotIn("app-token", workflow[:queue])
 
 
 if __name__ == "__main__":

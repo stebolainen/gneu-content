@@ -26,6 +26,9 @@ publisher_policy_gate = load_module(
     ROOT / "publisher_policy_gate.py",
 )
 PolicyGateError = publisher_policy_gate.publisher_gate.GateError
+# publisher_policy_gate imports publisher_gate itself, so assertions about
+# gate classes must use that same module object, not the one loaded above.
+PolicyGate = publisher_policy_gate.publisher_gate
 
 
 PRIOR_EVENT = {
@@ -267,21 +270,34 @@ class PublisherPolicyGateTests(unittest.TestCase):
                 self.fixture.aihot = deepcopy(EMPTY_AIHOT)
                 self.fixture.head_events["events"][-1] = deepcopy(NEW_EVENT)
 
-    def test_stale_base_blocks(self) -> None:
+    def test_stale_base_needs_a_human_and_still_blocks(self) -> None:
         self.fixture.pr["base"]["sha"] = "c" * 40
-        self.assert_blocked("PR base SHA is not current published")
+        with self.assertRaises(PolicyGateError) as caught:
+            self.validate()
+        self.assertIsInstance(caught.exception, PolicyGate.GateOutcome)
+        self.assertEqual(
+            caught.exception.outcome, PolicyGate.OUTCOME_NEEDS_HUMAN
+        )
+        self.assertEqual(caught.exception.reason_code, "STALE_BASE")
+        self.assertIn("needs a rebase", str(caught.exception))
 
     def test_altered_existing_event_blocks(self) -> None:
         self.fixture.head_events["events"][0]["title"] = "Ändrad titel"
         self.assert_blocked("existing published events are immutable in autopublish")
 
-    def test_more_than_one_appended_event_blocks(self) -> None:
+    def test_more_than_one_appended_event_needs_a_human(self) -> None:
         extra = deepcopy(NEW_EVENT)
         extra["id"] = "uk-ncsc:CVE-2026-12346"
         extra["cves"] = ["CVE-2026-12346"]
         extra["sources"][0]["url"] = "https://www.ncsc.gov.uk/news/another-event"
         self.fixture.head_events["events"].append(extra)
-        self.assert_blocked("autopublish permits exactly one appended event")
+        with self.assertRaises(PolicyGateError) as caught:
+            self.validate()
+        self.assertIsInstance(caught.exception, PolicyGate.GateOutcome)
+        self.assertEqual(
+            caught.exception.outcome, PolicyGate.OUTCOME_NEEDS_HUMAN
+        )
+        self.assertEqual(caught.exception.reason_code, "MULTIPLE_EVENTS")
 
     def test_invalid_and_unrecognized_branches_block(self) -> None:
         for branch in ("adam/not-a-generation", "feature/human-change"):

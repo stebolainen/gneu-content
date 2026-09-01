@@ -237,19 +237,24 @@ def main() -> int:
 
     try:
         result = validate(args)
-    except publisher_gate.GateSkip as exc:
+    except publisher_gate.GateOutcome as exc:
         # This is the required merge gate, not the autonomous publisher. Only
         # an empty net diff may report a passing check here: it cannot publish
-        # anything. An expected coverage decision still has to keep the check
-        # red, otherwise a policy-blocked PR would become manually mergeable.
+        # anything. POLICY_SKIP and NEEDS_HUMAN still have to keep the check
+        # red, because GitHub counts a neutral or skipped required check as
+        # satisfied and the PR would become manually mergeable.
         print(json.dumps(
-            publisher_gate.skip_payload(exc, args.pr),
+            publisher_gate.outcome_payload(exc, args.pr),
             ensure_ascii=False,
             sort_keys=True,
         ))
-        return publisher_gate.SKIP_EXIT_CODES[exc.outcome]
+        return publisher_gate.NON_ACTIONABLE_EXIT_CODES[exc.outcome]
     except publisher_gate.GateError as exc:
-        print("BLOCKED:", exc)
+        print(json.dumps(
+            publisher_gate.blocked_payload(exc, args.pr),
+            ensure_ascii=False,
+            sort_keys=True,
+        ))
         return publisher_gate.EXIT_BLOCKED
 
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

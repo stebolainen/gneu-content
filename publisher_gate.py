@@ -30,6 +30,9 @@ ADVISORY_RE = re.compile(r"\bAA\d{2}-\d{3}[A-Z]\b", re.I)
 # These source families are already represented natively by gneu.se and must
 # not be duplicated as autonomous Class A events.
 NATIVE_SOURCE_IDS = {"msrc", "cert-se"}
+# Mirrors the trusted validator. A value outside this set is unknown, not a
+# known-but-lower confidence, so it is BLOCKED rather than NEEDS_HUMAN.
+KNOWN_CONFIDENCE = {"verified", "corroborated"}
 CISA_KEV_PATH = "/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
 
@@ -39,52 +42,81 @@ CISA_KEV_PATH = "/sites/default/files/feeds/known_exploited_vulnerabilities.json
 #   ACTIONABLE   the candidate passed every check and may be published
 #   NOOP_STALE   the candidate has no net diff against current published
 #   POLICY_SKIP  an expected editorial coverage decision declined the candidate
-#   BLOCKED      a real error: malformed data, integrity, validator or security
+#   NEEDS_HUMAN  we know exactly what the candidate is, and policy reserves it
+#                for a human editor
+#   BLOCKED      we cannot safely continue: malformed, contradictory or
+#                untrustworthy data, an integrity violation, or an unknown state
 #
-# NOOP_STALE and POLICY_SKIP are benign for the autonomous publisher: they are
-# terminal for that one candidate and must not fail the workflow.
+# The dividing line is knowledge, not severity. NEEDS_HUMAN means the candidate
+# is understood and deliberately not autopublishable. BLOCKED means we cannot
+# be sure what we are looking at, so we stop. An unrecognised value is always
+# BLOCKED and never NEEDS_HUMAN.
+#
+# NOOP_STALE, POLICY_SKIP and NEEDS_HUMAN are all terminal for exactly one
+# candidate and must never fail the publisher workflow. Only NEEDS_HUMAN
+# notifies a person.
 OUTCOME_ACTIONABLE = "ACTIONABLE"
 OUTCOME_NOOP_STALE = "NOOP_STALE"
 OUTCOME_POLICY_SKIP = "POLICY_SKIP"
+OUTCOME_NEEDS_HUMAN = "NEEDS_HUMAN"
 OUTCOME_BLOCKED = "BLOCKED"
 
 EXIT_ACTIONABLE = 0
 EXIT_BLOCKED = 2
 EXIT_NOOP_STALE = 3
 EXIT_POLICY_SKIP = 4
+EXIT_NEEDS_HUMAN = 5
 
-SKIP_EXIT_CODES = {
+# Terminal, non-BLOCKED outcomes. The publisher may move to the next candidate
+# on any of these; none of them may mint a token or merge.
+NON_ACTIONABLE_EXIT_CODES = {
     OUTCOME_NOOP_STALE: EXIT_NOOP_STALE,
     OUTCOME_POLICY_SKIP: EXIT_POLICY_SKIP,
+    OUTCOME_NEEDS_HUMAN: EXIT_NEEDS_HUMAN,
 }
+
+# Only an understood candidate that a person must handle raises a person.
+NOTIFY_OUTCOMES = {OUTCOME_NEEDS_HUMAN}
 
 
 class GateError(RuntimeError):
     pass
 
 
-class GateSkip(GateError):
-    """A deterministic benign outcome for exactly one candidate.
+class GateOutcome(GateError):
+    """A deterministic terminal outcome for exactly one candidate.
 
     Deliberately a subclass of ``GateError`` so that any consumer which does
     not distinguish outcomes keeps failing closed and never publishes.
     """
 
-    def __init__(self, outcome: str, message: str) -> None:
+    def __init__(self, outcome: str, reason_code: str, message: str) -> None:
         super().__init__(message)
-        if outcome not in SKIP_EXIT_CODES:
-            raise GateError(f"unknown benign outcome: {outcome}")
+        if outcome not in NON_ACTIONABLE_EXIT_CODES:
+            raise GateError(f"unknown gate outcome: {outcome}")
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]{2,47}", reason_code):
+            raise GateError(f"invalid reason code: {reason_code}")
         self.outcome = outcome
+        self.reason_code = reason_code
 
 
 def fail(message: str) -> None:
     raise GateError(message)
 
 
-def require_policy(condition: bool, message: str) -> None:
+def policy_skip(reason_code: str, message: str) -> None:
     """An expected editorial coverage decision, not a technical failure."""
+    raise GateOutcome(OUTCOME_POLICY_SKIP, reason_code, message)
+
+
+def needs_human(reason_code: str, message: str) -> None:
+    """An understood candidate that policy reserves for a human editor."""
+    raise GateOutcome(OUTCOME_NEEDS_HUMAN, reason_code, message)
+
+
+def require_policy(condition: bool, reason_code: str, message: str) -> None:
     if not condition:
-        raise GateSkip(OUTCOME_POLICY_SKIP, message)
+        policy_skip(reason_code, message)
 
 
 def load_json(path: Path):
@@ -215,10 +247,14 @@ def detect_noop_stale(args: argparse.Namespace, files: list, compare: dict) -> N
         not compare_files,
         "PR files payload is empty but compare reports changed files",
     )
-    require(
-        int(compare.get("behind_by", -1)) == 0,
-        "head is behind/diverged from current published",
-    )
+    # A head that is behind current published is the stale-base case, which is
+    # classified separately. Hand it on rather than treating it as a no-op.
+    try:
+        behind_by = int(compare.get("behind_by", -1))
+    except (TypeError, ValueError):
+        fail("compare behind_by is not an integer")
+    if behind_by != 0:
+        return
 
     base_events = read_bounded(args.base_events, MAX_RAW_BYTES, "base events.json")
     head_events = read_bounded(args.head_events, MAX_RAW_BYTES, "head events.json")
@@ -230,8 +266,9 @@ def detect_noop_stale(args: argparse.Namespace, files: list, compare: dict) -> N
         "PR reports no changed files but head content differs from published",
     )
 
-    raise GateSkip(
+    raise GateOutcome(
         OUTCOME_NOOP_STALE,
+        "NO_NET_DIFF",
         "no net diff against current published base",
     )
 
@@ -293,7 +330,6 @@ def validate(
     compare = load_json(args.compare)
 
     require(pr.get("state") == "open", "PR is not open")
-    require(pr.get("draft") is False, "PR is draft")
     require(pr.get("base", {}).get("ref") == "published", "base must be published")
 
     head = pr.get("head", {})
@@ -306,13 +342,31 @@ def validate(
     require(match is not None, "head branch must match adam/genN-description")
 
     head_sha = str(head.get("sha") or "")
+    base_sha = str(base.get("sha") or "")
     current_base_sha = str(args.current_base_sha or "")
     require(re.fullmatch(r"[0-9a-f]{40}", head_sha) is not None, "invalid head SHA")
     require(re.fullmatch(r"[0-9a-f]{40}", current_base_sha) is not None, "invalid current base SHA")
-    require(str(base.get("sha") or "") == current_base_sha, "PR base SHA is not current published")
+    # Base metadata we cannot verify is never a human-review case.
+    require(re.fullmatch(r"[0-9a-f]{40}", base_sha) is not None, "invalid PR base SHA")
+
+    # The trust boundary is settled by here, so a draft is a known editorial
+    # state rather than an untrustworthy one.
+    require(isinstance(pr.get("draft"), bool), "PR draft flag is not boolean")
+    if pr["draft"]:
+        needs_human("DRAFT_PR", "PR is a draft and needs a human to mark it ready")
 
     require(isinstance(files, list), "files payload must be list")
     detect_noop_stale(args, files, compare)
+
+    # Valid metadata that deterministically shows an old base. We know exactly
+    # what this is: the candidate must be rebased by a person. It is never
+    # merged and never mints a token, and the published ruleset independently
+    # requires an up-to-date branch.
+    if base_sha != current_base_sha:
+        needs_human(
+            "STALE_BASE",
+            "PR base SHA is not current published; candidate needs a rebase",
+        )
 
     require(compare.get("status") == "ahead", "head must be strictly ahead of current published")
     require(int(compare.get("behind_by", -1)) == 0, "head is behind/diverged from current published")
@@ -352,13 +406,52 @@ def validate(
 
     before = base_events["events"]
     after = head_events["events"]
-    require(len(after) == len(before) + 1, "autopublish permits exactly one appended event")
-    require(after[:-1] == before, "existing published events are immutable in autopublish")
+
+    # Integrity first. Removing or rewriting published history is never a
+    # review case; it means the candidate cannot be trusted at all.
+    require(
+        len(after) >= len(before),
+        "published events must not be removed in autopublish",
+    )
+    require(
+        after[:len(before)] == before,
+        "existing published events are immutable in autopublish",
+    )
+
+    appended = len(after) - len(before)
+    require(appended >= 1, "head contains no appended event")
+    if appended > 1:
+        # Purely additive, published history intact: a known editorial shape
+        # that policy reserves for a human.
+        needs_human(
+            "MULTIPLE_EVENTS",
+            f"autopublish permits one appended event; head appends {appended}",
+        )
 
     new_event = after[-1]
     require(isinstance(new_event, dict), "new event must be object")
-    require(new_event.get("publication_class") == "A", "autopublish permits publication_class A only")
-    require(new_event.get("confidence", "verified") == "verified", "autopublish requires verified confidence")
+
+    publication_class = new_event.get("publication_class")
+    require(
+        publication_class in {"A", "B"},
+        "unknown publication_class",
+    )
+    if publication_class == "B":
+        needs_human(
+            "CLASS_B_EDITORIAL",
+            "publication_class B requires human editorial handling",
+        )
+
+    confidence = new_event.get("confidence", "verified")
+    require(
+        confidence in KNOWN_CONFIDENCE,
+        "unknown confidence value",
+    )
+    if confidence != "verified":
+        needs_human(
+            "UNVERIFIED_CONFIDENCE",
+            f"confidence {confidence} is below the autopublish threshold",
+        )
 
     sources = new_event.get("sources", [])
     require(isinstance(sources, list), "new event sources must be list")
@@ -382,6 +475,7 @@ def validate(
 
     require_policy(
         not native_hits,
+        "NATIVE_SOURCE_COVERED",
         "native source already covered by gneu.se: "
         + ", ".join(sorted(set(native_hits))),
     )
@@ -404,6 +498,7 @@ def validate(
 
     require_policy(
         not duplicate_cves,
+        "CVE_COVERED_PUBLISHED",
         "CVE already covered by published content: "
         + ", ".join(duplicate_cves),
     )
@@ -435,6 +530,7 @@ def validate(
     duplicate_source_urls = sorted(base_source_urls & new_source_urls)
     require_policy(
         not duplicate_source_urls,
+        "SOURCE_URL_COVERED_PUBLISHED",
         "primary source URL already covered by published content: "
         + ", ".join(duplicate_source_urls),
     )
@@ -448,6 +544,7 @@ def validate(
     cross_urls = sorted(new_source_urls & aihot_urls)
     require_policy(
         not cross_urls,
+        "SOURCE_URL_COVERED_AIHOT",
         "primary source URL already covered by AI-hot: "
         + ", ".join(cross_urls),
     )
@@ -455,6 +552,7 @@ def validate(
     cross_cves = sorted(new_cves & aihot_cves)
     require_policy(
         not cross_cves,
+        "CVE_COVERED_AIHOT",
         "CVE already covered by AI-hot: "
         + ", ".join(cross_cves),
     )
@@ -467,6 +565,7 @@ def validate(
 
     require_policy(
         not cross_advisories,
+        "ADVISORY_COVERED_AIHOT",
         "advisory already covered by AI-hot: "
         + ", ".join(cross_advisories),
     )
@@ -483,7 +582,9 @@ def validate(
     return {
         "decision": "PASS_AUTOPUBLISH",
         "outcome": OUTCOME_ACTIONABLE,
+        "reason_code": "ACTIONABLE",
         "notify_human": False,
+        "technical_error": False,
         "pr_number": int(pr["number"]),
         "head_sha": head_sha,
         "head_ref": head_ref,
@@ -516,18 +617,34 @@ def pr_context(path: Path) -> dict:
     return context
 
 
-def skip_payload(exc: GateSkip, pr_path: Path) -> dict:
-    """Machine-readable benign outcome.
+def outcome_payload(exc: GateOutcome, pr_path: Path) -> dict:
+    """Machine-readable terminal outcome for one candidate.
 
-    ``notify_human`` is the contract for the notifier: a benign skip is a
-    decision no human can or needs to act on, so it must never raise a
-    "PR needs your attention" message.
+    ``notify_human`` is the contract for the notifier. A benign skip is a
+    decision nobody can or needs to act on and must stay silent; NEEDS_HUMAN
+    is the one non-publishable outcome a person genuinely has to see.
     """
     payload = {
         "decision": exc.outcome,
         "outcome": exc.outcome,
+        "reason_code": exc.reason_code,
         "reason": str(exc),
-        "notify_human": False,
+        "notify_human": exc.outcome in NOTIFY_OUTCOMES,
+        "technical_error": False,
+    }
+    payload.update(pr_context(pr_path))
+    return payload
+
+
+def blocked_payload(exc: GateError, pr_path: Path) -> dict:
+    """A state we cannot safely act on. Always a technical error."""
+    payload = {
+        "decision": OUTCOME_BLOCKED,
+        "outcome": OUTCOME_BLOCKED,
+        "reason_code": "BLOCKED",
+        "reason": str(exc),
+        "notify_human": True,
+        "technical_error": True,
     }
     payload.update(pr_context(pr_path))
     return payload
@@ -559,13 +676,14 @@ def main() -> int:
 
     try:
         result = validate(args)
-    except GateSkip as exc:
-        # Expected, deterministic and terminal for this candidate only.
-        print(f"{exc.outcome}: {exc}", file=sys.stderr)
-        emit(skip_payload(exc, args.pr), args.json_out)
-        return SKIP_EXIT_CODES[exc.outcome]
+    except GateOutcome as exc:
+        # Understood, deterministic and terminal for this candidate only.
+        print(f"{exc.outcome} [{exc.reason_code}]: {exc}", file=sys.stderr)
+        emit(outcome_payload(exc, args.pr), args.json_out)
+        return NON_ACTIONABLE_EXIT_CODES[exc.outcome]
     except GateError as exc:
         print("BLOCKED:", exc, file=sys.stderr)
+        emit(blocked_payload(exc, args.pr), args.json_out)
         return EXIT_BLOCKED
 
     emit(result, args.json_out)
