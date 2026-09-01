@@ -21,10 +21,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publisher-policy:
-    name: publisher-policy
+  # Trusted classification. Produces a bounded (outcome, reason_code) pair or
+  # fails. It never mutates anything and holds no write permission.
+  classify:
+    name: publisher-classify
     runs-on: ubuntu-latest
     timeout-minutes: 4
+    outputs:
+      outcome: ${{ steps.classify.outputs.outcome }}
+      reason_code: ${{ steps.classify.outputs.reason_code }}
 
     steps:
       - name: Checkout trusted control plane
@@ -130,6 +135,7 @@ jobs:
           fi
 
       - name: Trusted PR-head publication policy
+        id: classify
         env:
           REPO: ${{ github.repository }}
           BASE_SHA: ${{ steps.collect.outputs.base_sha }}
@@ -152,44 +158,99 @@ jobs:
             --aihot-coverage "$root/aihot.json" \
             --trusted-validator ./validate_content.py \
             --head-policy-workflow "$root/head-policy-workflow.yml" \
-            --trusted-policy-workflow ./.github/workflows/publisher-policy.yml || rc=$?
+            --trusted-policy-workflow ./.github/workflows/publisher-policy.yml \
+            > "$root/decision.json" || rc=$?
 
-          # This is the merge boundary, not the autonomous publisher, so the
-          # question here is only "may this PR reach published?".
-          #
+          cat "$root/decision.json"
+
+          # Fail-closed classification. Anything the classifier cannot fully
+          # verify makes this job fail, so no publisher-outcome check is
+          # published at all. A missing outcome check is itself the signal.
+          python3 publisher_outcome.py \
+            --exit-code "$rc" \
+            --decision "$root/decision.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+  # Non-required, read-only carrier. Its NAME publishes the trusted
+  # classification for this exact PR head SHA, which is what external
+  # consumers read through the check-runs API. It mutates nothing and must
+  # never be added to the required checks for published.
+  publisher-outcome:
+    name: publisher-outcome / ${{ needs.classify.outputs.outcome }} / ${{ needs.classify.outputs.reason_code }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: classify
+    if: >-
+      needs.classify.result == 'success' &&
+      needs.classify.outputs.outcome != '' &&
+      needs.classify.outputs.reason_code != ''
+    steps:
+      - name: Carry trusted classification
+        env:
+          OUTCOME: ${{ needs.classify.outputs.outcome }}
+          REASON_CODE: ${{ needs.classify.outputs.reason_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "publisher-outcome / $OUTCOME / $REASON_CODE"
+
+  # The required check. This is the merge boundary and the only job whose
+  # conclusion may open the publication path.
+  publisher-policy:
+    name: publisher-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: classify
+    # always() so a failed or skipped classification still produces an
+    # explicit red required check. A skipped required check counts as
+    # satisfied, so this job must never be skipped.
+    if: ${{ always() }}
+    steps:
+      - name: Enforce publication policy
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          OUTCOME: ${{ needs.classify.outputs.outcome }}
+          REASON_CODE: ${{ needs.classify.outputs.reason_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$CLASSIFY_RESULT" != "success" ]]; then
+            echo "BLOCKED: classification did not complete ($CLASSIFY_RESULT)" >&2
+            exit 1
+          fi
+
           # GitHub counts a required check whose conclusion is success,
           # neutral or skipped as satisfied. There is therefore no conclusion
-          # this workflow could report for POLICY_SKIP or NEEDS_HUMAN that
+          # this job could report for POLICY_SKIP, NEEDS_HUMAN or BLOCKED that
           # both looks non-failing and still blocks the merge, and emitting a
           # neutral conclusion would need write access to the Checks API,
-          # which this job deliberately does not hold. Blocking behaviour is
-          # kept, and the log line says which class it is so it does not read
-          # as a system fault.
+          # which this workflow deliberately does not hold. Blocking behaviour
+          # is kept; the publisher-outcome check carries the nuance instead.
           #
-          # Only ACTIONABLE and NOOP_STALE pass. NOOP_STALE is safe to pass
-          # because its head content is byte-identical to published, so
-          # merging it cannot change events.json or manifest.json.
-          case "$rc" in
-            0)
-              echo "ACTIONABLE: PR satisfies the publication policy"
+          # NOOP_STALE may pass because its head content is byte-identical to
+          # published, so merging it cannot change events.json or manifest.json.
+          case "$OUTCOME" in
+            ACTIONABLE)
+              echo "ACTIONABLE [$REASON_CODE]: PR satisfies the publication policy"
               ;;
-            3)
-              echo "NOOP_STALE: no net diff against current published"
+            NOOP_STALE)
+              echo "NOOP_STALE [$REASON_CODE]: no net diff against current published"
               ;;
-            4)
-              echo "POLICY_SKIP: declined by content policy; not publishable" >&2
+            POLICY_SKIP)
+              echo "POLICY_SKIP [$REASON_CODE]: declined by content policy; not publishable" >&2
               exit 1
               ;;
-            5)
-              echo "NEEDS_HUMAN: reserved for human editorial handling; not autopublishable" >&2
+            NEEDS_HUMAN)
+              echo "NEEDS_HUMAN [$REASON_CODE]: reserved for human editorial handling" >&2
               exit 1
               ;;
-            2)
-              echo "BLOCKED: cannot safely evaluate this PR" >&2
+            BLOCKED)
+              echo "BLOCKED [$REASON_CODE]: cannot safely evaluate this PR" >&2
               exit 1
               ;;
             *)
-              echo "Unknown publisher-policy exit code $rc" >&2
+              echo "BLOCKED: unknown outcome '$OUTCOME'" >&2
               exit 1
               ;;
           esac

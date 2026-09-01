@@ -78,6 +78,61 @@ NON_ACTIONABLE_EXIT_CODES = {
 # Only an understood candidate that a person must handle raises a person.
 NOTIFY_OUTCOMES = {OUTCOME_NEEDS_HUMAN}
 
+# The complete, bounded reason vocabulary. These strings are published in a
+# check-run name, so they must never be derived from PR title, body, labels or
+# any other untrusted input. A code outside this registry is a programming
+# error and is rejected at construction time.
+REASON_CODES = {
+    OUTCOME_ACTIONABLE: {
+        "APPEND_ONLY",
+        "EDITORIAL_MAINTENANCE",
+        "TRUSTED_WORKFLOW_INSTALL",
+    },
+    OUTCOME_NOOP_STALE: {
+        "NO_NET_DIFF",
+    },
+    OUTCOME_POLICY_SKIP: {
+        "DRAFT_PR",
+        "NATIVE_SOURCE_COVERED",
+        "CVE_COVERED_PUBLISHED",
+        "SOURCE_URL_COVERED_PUBLISHED",
+        "SOURCE_URL_COVERED_AIHOT",
+        "CVE_COVERED_AIHOT",
+        "ADVISORY_COVERED_AIHOT",
+    },
+    OUTCOME_NEEDS_HUMAN: {
+        "STALE_BASE",
+        "CLASS_B_EDITORIAL",
+        "UNVERIFIED_CONFIDENCE",
+        "MULTIPLE_EVENTS",
+    },
+    OUTCOME_BLOCKED: {
+        "GATE_BLOCKED",
+        "CLASSIFIER_FAILURE",
+    },
+}
+
+# Check-run names are built from these, so keep the shape strict and short.
+REASON_CODE_RE = re.compile(r"[A-Z][A-Z0-9_]{2,39}")
+OUTCOME_EXIT_CODES = {
+    OUTCOME_ACTIONABLE: EXIT_ACTIONABLE,
+    OUTCOME_BLOCKED: EXIT_BLOCKED,
+    OUTCOME_NOOP_STALE: EXIT_NOOP_STALE,
+    OUTCOME_POLICY_SKIP: EXIT_POLICY_SKIP,
+    OUTCOME_NEEDS_HUMAN: EXIT_NEEDS_HUMAN,
+}
+
+
+def valid_reason_code(outcome: str, reason_code: str) -> bool:
+    """True only for a code this gate can actually produce for that outcome."""
+    if outcome not in REASON_CODES:
+        return False
+    if not isinstance(reason_code, str):
+        return False
+    if REASON_CODE_RE.fullmatch(reason_code) is None:
+        return False
+    return reason_code in REASON_CODES[outcome]
+
 
 class GateError(RuntimeError):
     pass
@@ -94,8 +149,8 @@ class GateOutcome(GateError):
         super().__init__(message)
         if outcome not in NON_ACTIONABLE_EXIT_CODES:
             raise GateError(f"unknown gate outcome: {outcome}")
-        if not re.fullmatch(r"[A-Z][A-Z0-9_]{2,47}", reason_code):
-            raise GateError(f"invalid reason code: {reason_code}")
+        if not valid_reason_code(outcome, reason_code):
+            raise GateError(f"invalid reason code: {outcome}/{reason_code}")
         self.outcome = outcome
         self.reason_code = reason_code
 
@@ -350,10 +405,12 @@ def validate(
     require(re.fullmatch(r"[0-9a-f]{40}", base_sha) is not None, "invalid PR base SHA")
 
     # The trust boundary is settled by here, so a draft is a known editorial
-    # state rather than an untrustworthy one.
+    # state rather than an untrustworthy one. A draft is the author saying
+    # "not ready for review yet", so nobody needs to be notified: it is a
+    # benign skip, not a human-review request.
     require(isinstance(pr.get("draft"), bool), "PR draft flag is not boolean")
     if pr["draft"]:
-        needs_human("DRAFT_PR", "PR is a draft and needs a human to mark it ready")
+        policy_skip("DRAFT_PR", "PR is a draft and is not offered for review")
 
     require(isinstance(files, list), "files payload must be list")
     detect_noop_stale(args, files, compare)
@@ -582,7 +639,7 @@ def validate(
     return {
         "decision": "PASS_AUTOPUBLISH",
         "outcome": OUTCOME_ACTIONABLE,
-        "reason_code": "ACTIONABLE",
+        "reason_code": "APPEND_ONLY",
         "notify_human": False,
         "technical_error": False,
         "pr_number": int(pr["number"]),
@@ -641,7 +698,7 @@ def blocked_payload(exc: GateError, pr_path: Path) -> dict:
     payload = {
         "decision": OUTCOME_BLOCKED,
         "outcome": OUTCOME_BLOCKED,
-        "reason_code": "BLOCKED",
+        "reason_code": "GATE_BLOCKED",
         "reason": str(exc),
         "notify_human": True,
         "technical_error": True,

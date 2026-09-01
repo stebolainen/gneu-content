@@ -409,6 +409,46 @@ class OutcomeContractTests(unittest.TestCase):
                 )
                 self.assertIn(reason, str(caught.exception))
 
+    def test_draft_pr_is_a_silent_policy_skip(self) -> None:
+        # A draft is the author saying "not ready for review yet". It must not
+        # publish, must not fail the workflow and must not notify anyone.
+        candidate = self.candidate("draft", number=62)
+        candidate.pr["draft"] = True
+        candidate.write()
+
+        with self.assertRaises(gate.GateOutcome) as caught:
+            gate.validate(candidate.args())
+        self.assertEqual(caught.exception.outcome, gate.OUTCOME_POLICY_SKIP)
+        self.assertEqual(caught.exception.reason_code, "DRAFT_PR")
+
+        code, decision = candidate.run_cli()
+        self.assertEqual(code, gate.EXIT_POLICY_SKIP)
+        self.assertIs(decision["notify_human"], False)
+        self.assertIs(decision["technical_error"], False)
+
+    def test_draft_pr_does_not_block_next_candidate(self) -> None:
+        first = self.candidate("draft-first", number=63)
+        first.pr["draft"] = True
+        first.write()
+        second = self.candidate("clean-after-draft", number=64)
+        second.head_sha = "d" * 40
+        second.pr["head"]["sha"] = second.head_sha
+        second.checks["check_runs"][0]["head_sha"] = second.head_sha
+        second.write()
+
+        result = run_publisher_queue([first, second])
+        self.assertEqual(result["result"], "published")
+        self.assertEqual(result["pr_number"], 64)
+        self.assertEqual(result["notified"], [])
+
+    def test_malformed_draft_flag_is_blocked(self) -> None:
+        candidate = self.candidate("draft-bad", number=65)
+        candidate.pr["draft"] = "yes"
+        candidate.write()
+        code, decision = candidate.run_cli()
+        self.assertEqual(code, gate.EXIT_BLOCKED)
+        self.assertIs(decision["technical_error"], True)
+
     def test_aihot_cross_surface_overlap_is_policy_skip(self) -> None:
         candidate = self.candidate("aihot", number=61)
         candidate.aihot = deepcopy(EMPTY_AIHOT)
@@ -631,23 +671,31 @@ class WorkflowWiringTests(unittest.TestCase):
         )
         self.assertIn('--match-head-commit "$HEAD_SHA"', workflow[merge:])
 
-    def test_policy_workflow_passes_only_noop_stale(self) -> None:
+    def test_policy_workflow_passes_only_actionable_and_noop_stale(self) -> None:
         workflow = (ROOT / ".github/workflows/publisher-policy.yml").read_text(
             encoding="utf-8"
         )
-        # Exit 3 (NOOP_STALE) is green; everything else, POLICY_SKIP included,
-        # keeps the required check red so the PR cannot be merged manually.
-        self.assertIn("NOOP_STALE: no net diff against current published", workflow)
-        self.assertIn("Unknown publisher-policy exit code $rc", workflow)
-
-        case_block = workflow[workflow.index('case "$rc" in'):]
+        enforce = workflow[workflow.index("  publisher-policy:"):]
+        case_block = enforce[enforce.index('case "$OUTCOME" in'):]
         arms = re.findall(r"^\s{12}(\S+)\)$", case_block, re.M)
-        self.assertEqual(arms, ["0", "3", "4", "5", "2", "*"])
-
-        # Only ACTIONABLE and NOOP_STALE may leave the step successfully.
-        for arm in ("4", "5", "2", "*"):
+        self.assertEqual(
+            arms,
+            ["ACTIONABLE", "NOOP_STALE", "POLICY_SKIP", "NEEDS_HUMAN", "BLOCKED", "*"],
+        )
+        # Only ACTIONABLE and NOOP_STALE may leave the required check green.
+        for arm in ("POLICY_SKIP", "NEEDS_HUMAN", "BLOCKED", "*"):
             body = case_block.split(f"\n            {arm})\n", 1)[1]
             self.assertIn("exit 1", body.split(";;", 1)[0])
+        for arm in ("ACTIONABLE", "NOOP_STALE"):
+            body = case_block.split(f"\n            {arm})\n", 1)[1]
+            self.assertNotIn("exit 1", body.split(";;", 1)[0])
+
+        # A skipped required check counts as satisfied, so the enforcement job
+        # must run even when classification failed.
+        self.assertIn("if: ${{ always() }}", enforce)
+        self.assertIn(
+            'if [[ "$CLASSIFY_RESULT" != "success" ]]; then', enforce
+        )
 
 
 class NeedsHumanTests(unittest.TestCase):
@@ -722,11 +770,6 @@ class NeedsHumanTests(unittest.TestCase):
         candidate.write()
         self.assert_needs_human(candidate, "MULTIPLE_EVENTS")
 
-    def test_draft_pr_needs_human(self) -> None:
-        candidate = self.candidate("draft")
-        candidate.pr["draft"] = True
-        candidate.write()
-        self.assert_needs_human(candidate, "DRAFT_PR")
 
     # 2. Stale but otherwise valid PR.
     def test_stale_base_needs_human_and_is_benign_for_the_workflow(self) -> None:
@@ -749,7 +792,6 @@ class NeedsHumanTests(unittest.TestCase):
             "short base sha": lambda c: c.pr["base"].update({"sha": "abc"}),
             "non-hex base sha": lambda c: c.pr["base"].update({"sha": "z" * 40}),
             "base sha not a string": lambda c: c.pr["base"].update({"sha": 12345}),
-            "draft flag not boolean": lambda c: c.pr.update({"draft": "no"}),
         }
         for label, mutate in cases.items():
             with self.subTest(label):

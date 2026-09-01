@@ -127,7 +127,9 @@ def validate_trusted_workflow_install(
     return {
         "decision": "PASS_TRUSTED_WORKFLOW_INSTALL",
         "outcome": publisher_gate.OUTCOME_ACTIONABLE,
+        "reason_code": "TRUSTED_WORKFLOW_INSTALL",
         "notify_human": False,
+        "technical_error": False,
         "pr_number": int(pr["number"]),
         "head_sha": head_sha,
         "head_ref": head_ref,
@@ -187,7 +189,9 @@ def validate_editorial_maintenance(
     return {
         "decision": "PASS_EDITORIAL_MAINTENANCE",
         "outcome": publisher_gate.OUTCOME_ACTIONABLE,
+        "reason_code": "EDITORIAL_MAINTENANCE",
         "notify_human": False,
+        "technical_error": False,
         "pr_number": int(pr["number"]),
         "head_sha": head_sha,
         "head_ref": head_ref,
