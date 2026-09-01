@@ -64,6 +64,9 @@ def validate_pr_envelope(
         "PR base SHA is not current published",
     )
 
+    publisher_gate.require(isinstance(files, list), "files payload must be list")
+    publisher_gate.detect_noop_stale(args, files, compare)
+
     publisher_gate.require(
         compare.get("status") == "ahead",
         "head must be strictly ahead of current published",
@@ -77,7 +80,6 @@ def validate_pr_envelope(
         "head contains no new commit",
     )
 
-    publisher_gate.require(isinstance(files, list), "files payload must be list")
     return head_ref, head_sha, files
 
 
@@ -124,6 +126,10 @@ def validate_trusted_workflow_install(
 
     return {
         "decision": "PASS_TRUSTED_WORKFLOW_INSTALL",
+        "outcome": publisher_gate.OUTCOME_ACTIONABLE,
+        "reason_code": "TRUSTED_WORKFLOW_INSTALL",
+        "notify_human": False,
+        "technical_error": False,
         "pr_number": int(pr["number"]),
         "head_sha": head_sha,
         "head_ref": head_ref,
@@ -182,6 +188,10 @@ def validate_editorial_maintenance(
 
     return {
         "decision": "PASS_EDITORIAL_MAINTENANCE",
+        "outcome": publisher_gate.OUTCOME_ACTIONABLE,
+        "reason_code": "EDITORIAL_MAINTENANCE",
+        "notify_human": False,
+        "technical_error": False,
         "pr_number": int(pr["number"]),
         "head_sha": head_sha,
         "head_ref": head_ref,
@@ -231,12 +241,28 @@ def main() -> int:
 
     try:
         result = validate(args)
+    except publisher_gate.GateOutcome as exc:
+        # This is the required merge gate, not the autonomous publisher. Only
+        # an empty net diff may report a passing check here: it cannot publish
+        # anything. POLICY_SKIP and NEEDS_HUMAN still have to keep the check
+        # red, because GitHub counts a neutral or skipped required check as
+        # satisfied and the PR would become manually mergeable.
+        print(json.dumps(
+            publisher_gate.outcome_payload(exc, args.pr),
+            ensure_ascii=False,
+            sort_keys=True,
+        ))
+        return publisher_gate.NON_ACTIONABLE_EXIT_CODES[exc.outcome]
     except publisher_gate.GateError as exc:
-        print("BLOCKED:", exc)
-        return 2
+        print(json.dumps(
+            publisher_gate.blocked_payload(exc, args.pr),
+            ensure_ascii=False,
+            sort_keys=True,
+        ))
+        return publisher_gate.EXIT_BLOCKED
 
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 0
+    return publisher_gate.EXIT_ACTIONABLE
 
 
 if __name__ == "__main__":
