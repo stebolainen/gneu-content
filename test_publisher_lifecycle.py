@@ -627,7 +627,7 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, self.workflow)
 
-    def test_initial_rollout_forces_scheduled_dry_run(self) -> None:
+    def test_trigger_modes_and_live_mutation_guard(self) -> None:
         start = self.workflow.index("          dry_run=false")
         end = self.workflow.index(
             '          if ! "${TOKENLESS_EXEC[@]}"',
@@ -654,7 +654,7 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
 
         scheduled = evaluate("schedule", "")
         self.assertEqual(scheduled.returncode, 0, scheduled.stderr)
-        self.assertEqual(scheduled.stdout, "true")
+        self.assertEqual(scheduled.stdout, "false")
 
         safe_dispatch = evaluate("workflow_dispatch", "true")
         self.assertEqual(safe_dispatch.returncode, 0, safe_dispatch.stderr)
@@ -669,8 +669,13 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
 
         close_case = self.workflow.rsplit('            case "$action" in', 1)[1]
         dry_run_guard = close_case.index('if [[ "$dry_run" == "true" ]]')
+        live_else = close_case.index("                else", dry_run_guard)
         patch = close_case.index("--method PATCH")
-        self.assertLess(dry_run_guard, patch)
+        close_fi = close_case.index("                fi", patch)
+        self.assertLess(dry_run_guard, live_else)
+        self.assertLess(live_else, patch)
+        self.assertLess(patch, close_fi)
+        self.assertNotIn("--method PATCH", close_case[dry_run_guard:live_else])
 
     def test_trusted_main_only_and_no_pr_head_checkout(self) -> None:
         self.assertIn("github.ref == 'refs/heads/main'", self.workflow)

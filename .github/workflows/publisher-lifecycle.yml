@@ -189,7 +189,7 @@ jobs:
               exit 1
             fi
           elif [[ "$EVENT_NAME" == "schedule" ]]; then
-            dry_run=true
+            dry_run=false
           else
             echo "BLOCKED: unsupported trigger" >&2
             exit 1
