@@ -310,6 +310,14 @@ Auth-, validator-, workflow-, ruleset- och Publisher Gate-ändringar är
 säkerhetsrelevanta och kräver uttryckligt godkännande. De får inte smygas in i
 en content- eller dokumentationsändring.
 
+### Admin GitHub App-broker
+
+Den versionshanterade brokern, Admin-wrappern och den deterministiska
+installations- och hashverifieringsproceduren finns i
+[`runtime/admin/README.md`](../runtime/admin/README.md). Runtimekopiorna får
+endast installeras efter merge från exakt verifierad `origin/main` och får
+aldrig handredigeras.
+
 ## Incidenter
 
 Behandla minst följande som tekniska säkerhetsincidenter eller driftincidenter:
