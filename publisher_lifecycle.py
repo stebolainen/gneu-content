@@ -293,7 +293,7 @@ def main() -> int:
     bind.add_argument("--control-sha", required=True)
     bind.add_argument("--workflow", required=True)
     bind.add_argument("--workflow-ref", required=True)
-    bind.add_argument("--out", type=Path, required=True)
+    bind.add_argument("--out", type=Path)
 
     verify = sub.add_parser("verify")
     verify.add_argument("--binding", type=Path, required=True)
@@ -320,7 +320,8 @@ def main() -> int:
                 workflow=args.workflow,
                 workflow_ref=args.workflow_ref,
             )
-            write_json(args.out, data)
+            if args.out is not None:
+                write_json(args.out, data)
         else:
             binding = load_json_bounded(args.binding, "lifecycle binding")
             current_pr = load_json_bounded(args.current_pr, "current PR metadata")

@@ -130,6 +130,34 @@ class LifecycleOutcomeMatrixTests(unittest.TestCase):
                 workflow_ref=lifecycle.TRUSTED_WORKFLOW_REF,
             )
 
+    def test_malformed_pr_number_and_shas_fail_closed(self) -> None:
+        valid = {
+            "exit_code": publisher_gate.EXIT_POLICY_SKIP,
+            "decision": decision("POLICY_SKIP", "NATIVE_SOURCE_COVERED"),
+            "repository": REPOSITORY,
+            "pr_number": 48,
+            "head_sha": HEAD_SHA,
+            "head_ref": HEAD_REF,
+            "base_sha": PUBLISHED_SHA,
+            "published_sha": PUBLISHED_SHA,
+            "control_sha": CONTROL_SHA,
+            "workflow": lifecycle.TRUSTED_WORKFLOW,
+            "workflow_ref": lifecycle.TRUSTED_WORKFLOW_REF,
+        }
+        cases = (
+            ("pr_number", 0),
+            ("pr_number", True),
+            ("head_sha", "not-a-sha"),
+            ("base_sha", "d" * 39),
+            ("published_sha", "D" * 40),
+            ("control_sha", ""),
+        )
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                malformed = {**valid, field: value}
+                with self.assertRaises(lifecycle.LifecycleError):
+                    lifecycle.create_binding(**malformed)
+
     def test_old_outcome_cannot_override_fresh_actionable_gate(self) -> None:
         # Model an old publisher-outcome saying terminal POLICY_SKIP. Lifecycle
         # never consumes it: the newly supplied trusted gate result wins.
@@ -236,6 +264,10 @@ class ExactBindingAndRaceTests(unittest.TestCase):
         metadata = current_pr()
         metadata["state"] = "closed"
         self.assertEqual(verify(self.bound, metadata)["action"], "BENIGN_SKIP")
+
+    def test_different_pr_number_cannot_redirect_close(self) -> None:
+        with self.assertRaises(lifecycle.LifecycleError):
+            verify(self.bound, current_pr(pr=49))
 
     def test_draft_now_stays_open(self) -> None:
         metadata = current_pr()
@@ -379,6 +411,17 @@ class LifecycleCliTests(unittest.TestCase):
             )
             self.assertEqual(bind_proc.returncode, 0, bind_proc.stderr)
 
+            stdout_proc = subprocess.run(
+                bind_proc.args[:-2],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                timeout=30,
+                env=common_env,
+            )
+            self.assertEqual(stdout_proc.returncode, 0, stdout_proc.stderr)
+            self.assertEqual(json.loads(stdout_proc.stdout)["action"], "CLOSE")
+
             verify_proc = subprocess.run(
                 [
                     sys.executable,
@@ -433,13 +476,28 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
         self.assertIn("publisher_policy_gate.py", self.workflow)
         self.assertIn("publisher_lifecycle.py bind", self.workflow)
         self.assertIn("publisher_lifecycle.py verify", self.workflow)
-        self.assertIn('cp ./validate_content.py "$validator_root/validate_content.py"',
-                      self.workflow)
-        self.assertIn('python3 "$validator_root/validate_content.py"', self.workflow)
-        self.assertGreaterEqual(
-            self.workflow.count("env -u GH_TOKEN -u GITHUB_TOKEN"),
-            4,
+        self.assertIn(
+            'cp ./validate_content.py "$validator_root/validate_content.py"',
+            self.workflow,
         )
+        self.assertIn("readonly -a TOKENLESS_EXEC=(", self.workflow)
+        self.assertIn("/usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN", self.workflow)
+        self.assertIn(
+            "/usr/bin/sudo --non-interactive --user=nobody --",
+            self.workflow,
+        )
+        self.assertIn("/usr/bin/env -i HOME=/tmp", self.workflow)
+        sensitive_invocations = (
+            '/usr/bin/python3 "$validator_root/validate_content.py"',
+            "/usr/bin/python3 publisher_policy_gate.py",
+            "/usr/bin/python3 publisher_lifecycle.py bind",
+            "/usr/bin/python3 publisher_lifecycle.py verify",
+        )
+        for invocation in sensitive_invocations:
+            self.assertEqual(self.workflow.count(invocation), 1)
+        self.assertIn('install -d -m 0755 "$ROOT/bindings"', self.workflow)
+        self.assertNotIn('install -d -m 1777', self.workflow)
+        self.assertEqual(self.workflow.count('${TOKENLESS_EXEC[@]}'), 5)
         self.assertIn("--control-sha \"$CONTROL_SHA\"", self.workflow)
         self.assertIn("--base-sha \"$base_sha\"", self.workflow)
         self.assertIn("--workflow \"$WORKFLOW_NAME\"", self.workflow)

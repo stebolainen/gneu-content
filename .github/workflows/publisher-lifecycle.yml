@@ -61,6 +61,17 @@ jobs:
           readonly MAX_CANDIDATES=25
           readonly AIHOT_MAX_BYTES=2097152
           readonly ROOT=/tmp/gneu-publisher-lifecycle
+          # env -u alone is not an OS isolation boundary: a same-UID child can
+          # read its token-bearing parent environment through /proc. Run every
+          # validator/classifier/binding process as an unprivileged UID with a
+          # new empty environment. The parent retains GH_TOKEN only for the
+          # explicitly enumerated API reads and final close mutation.
+          readonly -a TOKENLESS_EXEC=(
+            /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN
+            /usr/bin/sudo --non-interactive --user=nobody --
+            /usr/bin/env -i HOME=/tmp LANG=C.UTF-8 PATH=/usr/bin:/bin
+            PYTHONDONTWRITEBYTECODE=1
+          )
           readonly PR_METADATA_JQ='{
             number: .number,
             state: .state,
@@ -118,7 +129,12 @@ jobs:
             exit 1
           fi
 
-          mkdir -p "$ROOT/bindings"
+          if ! "${TOKENLESS_EXEC[@]}" /usr/bin/true; then
+            echo "BLOCKED: unprivileged tokenless execution unavailable" >&2
+            exit 1
+          fi
+          mkdir -p "$ROOT"
+          install -d -m 0755 "$ROOT/bindings"
           : > "$ROOT/close-candidates.tsv"
           {
             echo "| PR | head | outcome | reason | action |"
@@ -258,8 +274,8 @@ jobs:
             cp ./validate_content.py "$validator_root/validate_content.py"
             cp "$candidate/head-events.json" "$validator_root/events.json"
             cp "$candidate/head-manifest.json" "$validator_root/manifest.json"
-            if ! env -u GH_TOKEN -u GITHUB_TOKEN PYTHONDONTWRITEBYTECODE=1 \
-              python3 "$validator_root/validate_content.py" \
+            if ! "${TOKENLESS_EXEC[@]}" \
+              /usr/bin/python3 "$validator_root/validate_content.py" \
               > "$candidate/validator.log" 2>&1; then
               echo "KEEP_OPEN PR #$pr OUTCOME=BLOCKED REASON=TRUSTED_VALIDATOR_REJECTED"
               printf '| %s | `%s` | BLOCKED | TRUSTED_VALIDATOR_REJECTED | BLOCKED |\n' \
@@ -269,7 +285,7 @@ jobs:
             fi
 
             gate_rc=0
-            env -u GH_TOKEN -u GITHUB_TOKEN python3 publisher_policy_gate.py \
+            "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_policy_gate.py \
               --repository "$REPO" \
               --current-base-sha "$published_sha" \
               --pr "$candidate/pr.json" \
@@ -286,7 +302,7 @@ jobs:
               > "$candidate/decision.json" || gate_rc=$?
 
             binding="$ROOT/bindings/pr-$pr.json"
-            if ! env -u GH_TOKEN -u GITHUB_TOKEN python3 publisher_lifecycle.py bind \
+            if ! "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_lifecycle.py bind \
               --exit-code "$gate_rc" \
               --decision "$candidate/decision.json" \
               --repository "$REPO" \
@@ -298,7 +314,7 @@ jobs:
               --control-sha "$CONTROL_SHA" \
               --workflow "$WORKFLOW_NAME" \
               --workflow-ref "$WORKFLOW_REF" \
-              --out "$binding"; then
+              > "$binding"; then
               echo "BLOCKED PR #$pr REASON=INVALID_TRUSTED_DECISION" >&2
               printf '| %s | `%s` | BLOCKED | INVALID_TRUSTED_DECISION | BLOCKED |\n' \
                 "$pr" "${head_sha:0:12}" >> "$GITHUB_STEP_SUMMARY"
@@ -349,14 +365,12 @@ jobs:
             gh api "repos/$REPO/pulls/$pr" \
               --jq "$PR_METADATA_JQ" > "$preclose/pr.json"
             current_published_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
-            : > "$preclose/output"
-            env -u GH_TOKEN -u GITHUB_TOKEN python3 publisher_lifecycle.py verify \
+            "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_lifecycle.py verify \
               --binding "$binding" \
               --current-pr "$preclose/pr.json" \
               --current-published-sha "$current_published_sha" \
               --repository "$REPO" \
               --control-sha "$CONTROL_SHA" \
-              --github-output "$preclose/output" \
               > "$preclose/result.json"
 
             action="$(jq -r '.action' "$preclose/result.json")"
