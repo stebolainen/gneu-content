@@ -1,0 +1,485 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import base64
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+API = "https://api.github.com"
+API_VERSION = "2026-03-10"
+
+OWNER = "stebolainen"
+REPO = "gneu-content"
+
+PROFILE_DIRS = {
+    "gneu-admin": Path("/root/.hermes/profiles/gneu-admin"),
+    "gneu-forvaltare": Path("/root/.hermes/profiles/gneu-forvaltare"),
+}
+
+TOKEN_PERMISSIONS = {
+    "gneu-admin": {
+        "contents": "write",
+        "pull_requests": "write",
+        "workflows": "write",
+    },
+    "gneu-forvaltare": {
+        "contents": "write",
+        "pull_requests": "write",
+    },
+}
+
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def secret_paths(profile: str):
+    root = PROFILE_DIRS.get(profile)
+    if root is None:
+        raise RuntimeError("Ogiltig profil")
+
+    sec = root / "secrets" / "github-app"
+    app_id = sec / "app-id"
+    private_key = sec / "private-key.pem"
+
+    if not app_id.is_file():
+        raise RuntimeError(f"App ID saknas för {profile}")
+    if not private_key.is_file():
+        raise RuntimeError(f"Private key saknas för {profile}")
+
+    return app_id, private_key
+
+
+def make_jwt(profile: str) -> str:
+    app_id_file, key_file = secret_paths(profile)
+
+    app_id = app_id_file.read_text(encoding="utf-8").strip()
+    if not app_id.isdigit():
+        raise RuntimeError("App ID är ogiltigt")
+
+    now = int(time.time())
+
+    header = {
+        "alg": "RS256",
+        "typ": "JWT",
+    }
+
+    payload = {
+        "iat": now - 60,
+        "exp": now + 540,
+        "iss": app_id,
+    }
+
+    encoded_header = b64url(
+        json.dumps(header, separators=(",", ":")).encode("utf-8")
+    )
+    encoded_payload = b64url(
+        json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    )
+
+    unsigned = f"{encoded_header}.{encoded_payload}"
+
+    proc = subprocess.run(
+        [
+            "openssl",
+            "dgst",
+            "-sha256",
+            "-sign",
+            str(key_file),
+            "-binary",
+        ],
+        input=unsigned.encode("ascii"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    if proc.returncode != 0:
+        raise RuntimeError("Kunde inte signera GitHub App JWT")
+
+    return f"{unsigned}.{b64url(proc.stdout)}"
+
+
+def github_request(method: str, path: str, bearer: str, body=None):
+    data = None
+    if body is not None:
+        data = json.dumps(body, separators=(",", ":")).encode("utf-8")
+
+    req = urllib.request.Request(
+        API + path,
+        data=data,
+        method=method,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {bearer}",
+            "X-GitHub-Api-Version": API_VERSION,
+            "User-Agent": "gneu-hermes-github-app",
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            raw = response.read()
+            if not raw:
+                return None
+            return json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", "replace")
+        try:
+            message = json.loads(raw).get("message", "GitHub API error")
+        except Exception:
+            message = "GitHub API error"
+
+        raise RuntimeError(
+            f"GitHub API HTTP {exc.code}: {message}"
+        ) from None
+
+
+def installation(profile: str):
+    jwt = make_jwt(profile)
+
+    return github_request(
+        "GET",
+        f"/repos/{OWNER}/{REPO}/installation",
+        jwt,
+    )
+
+
+def mint(profile: str):
+    inst = installation(profile)
+
+    installation_id = inst.get("id")
+    if not installation_id:
+        raise RuntimeError("Installation ID saknas")
+
+    jwt = make_jwt(profile)
+
+    result = github_request(
+        "POST",
+        f"/app/installations/{installation_id}/access_tokens",
+        jwt,
+        {
+            "repositories": [REPO],
+            "permissions": dict(TOKEN_PERMISSIONS[profile]),
+        },
+    )
+
+    token = str(result.get("token") or "")
+    if not token:
+        raise RuntimeError("GitHub returnerade ingen installation token")
+
+    return token, result, inst
+
+
+def revoke(token: str):
+    try:
+        github_request(
+            "DELETE",
+            "/installation/token",
+            token,
+        )
+    except Exception:
+        # Token är kortlivad även om explicit revoke skulle misslyckas.
+        pass
+
+
+def validate_token_permissions(profile: str, permissions: dict):
+    expected = TOKEN_PERMISSIONS[profile]
+
+    for name, level in expected.items():
+        actual = permissions.get(name)
+        if actual != level:
+            raise RuntimeError(
+                "Installation token har fel permission "
+                f"{name}: förväntat {level}, fick {actual or 'saknas'}"
+            )
+
+    if (
+        profile == "gneu-forvaltare"
+        and permissions.get("workflows") == "write"
+    ):
+        raise RuntimeError(
+            "Installation token ger oväntat workflows: write till gneu-forvaltare"
+        )
+
+
+def check(profile: str):
+    token = ""
+    try:
+        token, result, inst = mint(profile)
+
+        repos = github_request(
+            "GET",
+            "/installation/repositories",
+            token,
+        )
+
+        names = [
+            r.get("full_name")
+            for r in (repos or {}).get("repositories", [])
+        ]
+
+        if f"{OWNER}/{REPO}" not in names:
+            raise RuntimeError(
+                f"Installation token saknar {OWNER}/{REPO}"
+            )
+
+        perms = result.get("permissions") or {}
+        validate_token_permissions(profile, perms)
+
+        print(f"profile: {profile}")
+        print(f"app: {inst.get('app_slug', 'ok')}")
+        print(f"installation: {inst.get('id')}")
+        print(f"repository: {OWNER}/{REPO}")
+        print(f"contents: {perms.get('contents', 'saknas')}")
+        print(f"pull_requests: {perms.get('pull_requests', 'saknas')}")
+        print(f"workflows: {perms.get('workflows', 'saknas')}")
+        print(f"expires_at: {result.get('expires_at', 'ok')}")
+        print("token: OK (värdet visas inte)")
+
+    finally:
+        if token:
+            revoke(token)
+
+
+BRANCH_PREFIXES = {
+    "gneu-admin": "admin/",
+    "gneu-forvaltare": "forvaltare/",
+}
+
+PR_BASES = {
+    "gneu-admin": "main",
+    "gneu-forvaltare": "published",
+}
+
+
+def _flag_value(args, flag):
+    for i, arg in enumerate(args):
+        if arg == flag and i + 1 < len(args):
+            return args[i + 1]
+        if arg.startswith(flag + "="):
+            return arg.split("=", 1)[1]
+    return None
+
+
+def _validate_branch(profile: str, branch: str):
+    prefix = BRANCH_PREFIXES[profile]
+
+    branch = str(branch).strip()
+    if branch.startswith("refs/heads/"):
+        branch = branch[len("refs/heads/"):]
+
+    if (
+        not branch.startswith(prefix)
+        or branch == prefix
+        or ".." in branch
+        or branch.startswith("/")
+        or branch.endswith("/")
+        or not all(c.isalnum() or c in "._/-" for c in branch)
+    ):
+        raise RuntimeError(
+            f"Policy blockerar branch '{branch}'. Tillåtet prefix: {prefix}"
+        )
+
+    return branch
+
+
+def authorize_command(profile: str, command):
+    if not command:
+        raise RuntimeError("Kommando saknas")
+
+    exe = Path(command[0]).name
+    args = list(command[1:])
+
+    if exe == "git":
+        if not args:
+            raise RuntimeError("Git-operation saknas")
+
+        op = args[0]
+
+        # Läsande nätverksoperationer.
+        if op in {"ls-remote", "fetch"}:
+            return
+
+        if op != "push":
+            raise RuntimeError(
+                f"Git-operation '{op}' är inte tillåten genom credential-wrappern"
+            )
+
+        push_args = args[1:]
+
+        forbidden = (
+            "--force", "-f", "--force-with-lease",
+            "--mirror", "--all", "--tags",
+        )
+        for arg in push_args:
+            if any(arg == x or arg.startswith(x + "=") for x in forbidden):
+                raise RuntimeError("Force/bred Git-push är blockerad")
+
+        delete = "--delete" in push_args or "-d" in push_args
+
+        safe_options = {
+            "-u", "--set-upstream",
+            "--dry-run",
+            "--porcelain",
+            "--verbose", "-v",
+            "--delete", "-d",
+        }
+
+        positional = []
+        for arg in push_args:
+            if arg in safe_options:
+                continue
+            if arg.startswith("-"):
+                raise RuntimeError(f"Otillåtet git push-argument: {arg}")
+            positional.append(arg)
+
+        if len(positional) != 2:
+            raise RuntimeError(
+                "Tillåten push-form är: git push [options] origin <branch/refspec>"
+            )
+
+        remote, refspec = positional
+
+        if remote != "origin":
+            raise RuntimeError("Endast Git-remote 'origin' är tillåten")
+
+        if ":" in refspec:
+            source, destination = refspec.split(":", 1)
+            if not destination:
+                raise RuntimeError("Push-destination saknas")
+            if not source and not delete:
+                raise RuntimeError("Implicit branch-radering är blockerad")
+            branch = destination
+        else:
+            branch = refspec
+
+        _validate_branch(profile, branch)
+        return
+
+    if exe == "gh":
+        if len(args) < 2 or args[0] != "pr":
+            raise RuntimeError("Endast begränsade 'gh pr'-operationer är tillåtna")
+
+        operation = args[1]
+
+        repo = _flag_value(args, "--repo")
+        if repo and repo != f"{OWNER}/{REPO}":
+            raise RuntimeError("Endast stebolainen/gneu-content är tillåtet")
+
+        if operation in {"list", "view", "status", "checks"}:
+            return
+
+        if operation == "create":
+            base = _flag_value(args, "--base")
+            head = _flag_value(args, "--head")
+
+            if base != PR_BASES[profile]:
+                raise RuntimeError(
+                    f"PR base måste vara {PR_BASES[profile]}"
+                )
+
+            if not head:
+                raise RuntimeError("PR måste ange --head explicit")
+
+            _validate_branch(profile, head)
+            return
+
+        raise RuntimeError(
+            f"'gh pr {operation}' är blockerad. Merge/close/edit är inte tillåtet."
+        )
+
+    raise RuntimeError(
+        f"Programmet '{exe}' får inte använda GitHub-credential-wrappern"
+    )
+
+
+def execute(profile: str, command):
+    authorize_command(profile, command)
+
+    token = ""
+
+    try:
+        token, _, _ = mint(profile)
+
+        env = os.environ.copy()
+
+        # GitHub CLI använder dessa utan att token sparas i gh-config.
+        env["GH_TOKEN"] = token
+        env["GITHUB_TOKEN"] = token
+
+        # Git över HTTPS får token via temporär processmiljö.
+        # Token hamnar inte i remote-URL eller .gitconfig.
+        basic = base64.b64encode(
+            f"x-access-token:{token}".encode("utf-8")
+        ).decode("ascii")
+
+        try:
+            count = int(env.get("GIT_CONFIG_COUNT", "0"))
+        except ValueError:
+            count = 0
+
+        env["GIT_CONFIG_COUNT"] = str(count + 1)
+        env[f"GIT_CONFIG_KEY_{count}"] = (
+            "http.https://github.com/.extraheader"
+        )
+        env[f"GIT_CONFIG_VALUE_{count}"] = (
+            f"AUTHORIZATION: Basic {basic}"
+        )
+
+        proc = subprocess.run(
+            command,
+            env=env,
+            check=False,
+        )
+
+        return proc.returncode
+
+    finally:
+        if token:
+            revoke(token)
+
+
+def main():
+    if len(sys.argv) < 3:
+        print(
+            "usage: gneu-github-app PROFILE check | "
+            "exec -- COMMAND...",
+            file=sys.stderr,
+        )
+        return 2
+
+    profile = sys.argv[1]
+    action = sys.argv[2]
+
+    if profile not in PROFILE_DIRS:
+        print("Ogiltig profil", file=sys.stderr)
+        return 2
+
+    try:
+        if action == "check":
+            check(profile)
+            return 0
+
+        if action == "exec":
+            command = sys.argv[3:]
+            if command and command[0] == "--":
+                command = command[1:]
+            return execute(profile, command)
+
+        raise RuntimeError("Ogiltig operation")
+
+    except Exception as exc:
+        print(f"FEL: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
