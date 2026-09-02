@@ -1,0 +1,417 @@
+name: publisher-lifecycle
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run classification and exact binding without closing PRs"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: gneu-publisher-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  lifecycle:
+    if: >-
+      github.repository == 'stebolainen/gneu-content' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout trusted control plane
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Reclassify and enforce bounded lifecycle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CONTROL_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_DRY_RUN: ${{ inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -f
+
+          readonly EXPECTED_REPO="stebolainen/gneu-content"
+          readonly TRUSTED_WORKFLOW="publisher-lifecycle"
+          readonly TRUSTED_WORKFLOW_REF="$EXPECTED_REPO/.github/workflows/publisher-lifecycle.yml@refs/heads/main"
+          readonly LIST_LIMIT=100
+          readonly MAX_CANDIDATES=25
+          readonly AIHOT_MAX_BYTES=2097152
+          readonly ROOT=/tmp/gneu-publisher-lifecycle
+          # env -u alone is not an OS isolation boundary: a same-UID child can
+          # read its token-bearing parent environment through /proc. Run every
+          # validator/classifier/binding process as an unprivileged UID with a
+          # new empty environment. The parent retains GH_TOKEN only for the
+          # explicitly enumerated API reads and final close mutation.
+          readonly -a TOKENLESS_EXEC=(
+            /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN
+            /usr/bin/sudo --non-interactive --user=nobody --
+            /usr/bin/env -i HOME=/tmp LANG=C.UTF-8 PATH=/usr/bin:/bin
+            PYTHONDONTWRITEBYTECODE=1
+          )
+          readonly PR_METADATA_JQ='{
+            number: .number,
+            state: .state,
+            draft: .draft,
+            base: {
+              ref: .base.ref,
+              sha: .base.sha,
+              repo: {full_name: .base.repo.full_name}
+            },
+            head: {
+              ref: .head.ref,
+              sha: .head.sha,
+              repo: {full_name: .head.repo.full_name}
+            }
+          }'
+          readonly FILES_JQ='[.[] | {filename: .filename, status: .status}]'
+          readonly COMPARE_JQ='{
+            status: .status,
+            behind_by: .behind_by,
+            ahead_by: .ahead_by,
+            files: [(.files // [])[] | {filename: .filename, status: .status}]
+          }'
+
+          if [[ "$REPO" != "$EXPECTED_REPO" ]]; then
+            echo "BLOCKED: unexpected repository" >&2
+            exit 1
+          fi
+          if [[ ! "$CONTROL_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "BLOCKED: invalid trusted control SHA" >&2
+            exit 1
+          fi
+          if [[ "$WORKFLOW_SHA" != "$CONTROL_SHA" ]]; then
+            echo "BLOCKED: workflow SHA does not match trusted control SHA" >&2
+            exit 1
+          fi
+          if [[ "$WORKFLOW_NAME" != "$TRUSTED_WORKFLOW" || "$WORKFLOW_REF" != "$TRUSTED_WORKFLOW_REF" ]]; then
+            echo "BLOCKED: unexpected trusted workflow provenance" >&2
+            exit 1
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$CONTROL_SHA" ]]; then
+            echo "BLOCKED: checkout does not match trusted workflow SHA" >&2
+            exit 1
+          fi
+
+          dry_run=false
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$DISPATCH_DRY_RUN" == "true" ]]; then
+              dry_run=true
+            elif [[ "$DISPATCH_DRY_RUN" != "false" ]]; then
+              echo "BLOCKED: invalid dry_run input" >&2
+              exit 1
+            fi
+          elif [[ "$EVENT_NAME" == "schedule" ]]; then
+            dry_run=true
+          else
+            echo "BLOCKED: unsupported trigger" >&2
+            exit 1
+          fi
+
+          if ! "${TOKENLESS_EXEC[@]}" /usr/bin/true; then
+            echo "BLOCKED: unprivileged tokenless execution unavailable" >&2
+            exit 1
+          fi
+          mkdir -p "$ROOT"
+          install -d -m 0755 "$ROOT/bindings"
+          : > "$ROOT/close-candidates.tsv"
+          {
+            echo "| PR | head | outcome | reason | action |"
+            echo "|---:|:-----|:--------|:-------|:-------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          gh pr list \
+            --repo "$REPO" \
+            --base published \
+            --state open \
+            --limit "$LIST_LIMIT" \
+            --json number,headRefName,createdAt \
+            > "$ROOT/open-prs.json"
+
+          total="$(jq 'length' "$ROOT/open-prs.json")"
+          if [[ ! "$total" =~ ^[0-9]+$ ]]; then
+            echo "BLOCKED: could not count open PRs" >&2
+            exit 1
+          fi
+          if (( total >= LIST_LIMIT )); then
+            echo "BLOCKED: open PR listing hit LIST_LIMIT=$LIST_LIMIT" >&2
+            exit 1
+          fi
+
+          jq -r '
+            [.[] | select(.headRefName | startswith("adam/"))]
+            | sort_by(.createdAt)
+            | .[].number
+          ' "$ROOT/open-prs.json" > "$ROOT/candidates.txt"
+
+          candidate_count="$(jq -s 'length' "$ROOT/candidates.txt")"
+          if [[ ! "$candidate_count" =~ ^[0-9]+$ ]]; then
+            echo "BLOCKED: could not count lifecycle candidates" >&2
+            exit 1
+          fi
+          if (( candidate_count > MAX_CANDIDATES )); then
+            echo "BLOCKED: $candidate_count candidates exceeds MAX_CANDIDATES=$MAX_CANDIDATES" >&2
+            exit 1
+          fi
+          if (( candidate_count == 0 )); then
+            echo "NO_CANDIDATES"
+            exit 0
+          fi
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            --proto '=https' \
+            --proto-redir '=https' \
+            --tlsv1.2 \
+            --connect-timeout 5 \
+            --max-time 15 \
+            --max-filesize "$AIHOT_MAX_BYTES" \
+            --output "$ROOT/aihot.json" \
+            "https://gneu.se/data/aihot.json?publisher_lifecycle_run=${GITHUB_RUN_ID}"
+          test -s "$ROOT/aihot.json"
+          aihot_bytes="$(wc -c < "$ROOT/aihot.json")"
+          if (( aihot_bytes > AIHOT_MAX_BYTES )); then
+            echo "BLOCKED: AI-hot coverage exceeds maximum size" >&2
+            exit 1
+          fi
+
+          blocked=0
+          while IFS= read -r pr; do
+            if [[ ! "$pr" =~ ^[1-9][0-9]*$ ]]; then
+              echo "BLOCKED: invalid PR number" >&2
+              exit 1
+            fi
+
+            candidate="$ROOT/candidate-$pr"
+            mkdir -p "$candidate"
+
+            # Untrusted PR content is fetched by exact SHA and remains data.
+            # No PR title, body or labels are fetched or used.
+            gh api "repos/$REPO/pulls/$pr" \
+              --jq "$PR_METADATA_JQ" > "$candidate/pr.json"
+            api_number="$(jq -r '.number' "$candidate/pr.json")"
+            head_sha="$(jq -r '.head.sha' "$candidate/pr.json")"
+            head_ref="$(jq -r '.head.ref' "$candidate/pr.json")"
+            base_sha="$(jq -r '.base.sha' "$candidate/pr.json")"
+            if [[ "$api_number" != "$pr" ]]; then
+              echo "BLOCKED: PR number mismatch" >&2
+              exit 1
+            fi
+            if [[ ! "$head_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "BLOCKED: invalid head SHA for PR #$pr" >&2
+              exit 1
+            fi
+            if [[ ! "$head_ref" =~ ^adam/gen[1-9][0-9]*-[a-z0-9][a-z0-9._-]{0,79}$ ]]; then
+              echo "BLOCKED: invalid Adam namespace for PR #$pr" >&2
+              exit 1
+            fi
+            if [[ ! "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "BLOCKED: invalid classified base SHA for PR #$pr" >&2
+              exit 1
+            fi
+
+            published_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
+            if [[ ! "$published_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "BLOCKED: invalid published SHA" >&2
+              exit 1
+            fi
+
+            gh api "repos/$REPO/pulls/$pr/files?per_page=100" \
+              --jq "$FILES_JQ" > "$candidate/files.json"
+            file_count="$(jq 'length' "$candidate/files.json")"
+            if [[ ! "$file_count" =~ ^[0-9]+$ ]] || (( file_count >= 100 )); then
+              echo "BLOCKED: PR file listing invalid or truncated for #$pr" >&2
+              exit 1
+            fi
+            gh api "repos/$REPO/compare/$published_sha...$head_sha" \
+              --jq "$COMPARE_JQ" > "$candidate/compare.json"
+            gh api -H "Accept: application/vnd.github.raw+json" \
+              "repos/$REPO/contents/events.json?ref=$published_sha" \
+              > "$candidate/base-events.json"
+            gh api -H "Accept: application/vnd.github.raw+json" \
+              "repos/$REPO/contents/manifest.json?ref=$published_sha" \
+              > "$candidate/base-manifest.json"
+            gh api -H "Accept: application/vnd.github.raw+json" \
+              "repos/$REPO/contents/events.json?ref=$head_sha" \
+              > "$candidate/head-events.json"
+            gh api -H "Accept: application/vnd.github.raw+json" \
+              "repos/$REPO/contents/manifest.json?ref=$head_sha" \
+              > "$candidate/head-manifest.json"
+            gh api -H "Accept: application/vnd.github.raw+json" \
+              "repos/$REPO/contents/.github/workflows/publisher-policy.yml?ref=$head_sha" \
+              > "$candidate/head-policy-workflow.yml"
+
+            # Run the validator from trusted main for every candidate. Some
+            # terminal policy outcomes are intentionally decided before the
+            # gate's normal ACTIONABLE validation stage, so lifecycle performs
+            # this independent validation before it may bind a close decision.
+            validator_root="$candidate/trusted-validator"
+            mkdir -p "$validator_root"
+            cp ./validate_content.py "$validator_root/validate_content.py"
+            cp "$candidate/head-events.json" "$validator_root/events.json"
+            cp "$candidate/head-manifest.json" "$validator_root/manifest.json"
+            if ! "${TOKENLESS_EXEC[@]}" \
+              /usr/bin/python3 "$validator_root/validate_content.py" \
+              > "$candidate/validator.log" 2>&1; then
+              echo "KEEP_OPEN PR #$pr OUTCOME=BLOCKED REASON=TRUSTED_VALIDATOR_REJECTED"
+              printf '| %s | `%s` | BLOCKED | TRUSTED_VALIDATOR_REJECTED | BLOCKED |\n' \
+                "$pr" "${head_sha:0:12}" >> "$GITHUB_STEP_SUMMARY"
+              blocked=1
+              continue
+            fi
+
+            gate_rc=0
+            "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_policy_gate.py \
+              --repository "$REPO" \
+              --current-base-sha "$published_sha" \
+              --pr "$candidate/pr.json" \
+              --files "$candidate/files.json" \
+              --compare "$candidate/compare.json" \
+              --base-events "$candidate/base-events.json" \
+              --base-manifest "$candidate/base-manifest.json" \
+              --head-events "$candidate/head-events.json" \
+              --head-manifest "$candidate/head-manifest.json" \
+              --aihot-coverage "$ROOT/aihot.json" \
+              --trusted-validator ./validate_content.py \
+              --head-policy-workflow "$candidate/head-policy-workflow.yml" \
+              --trusted-policy-workflow ./.github/workflows/publisher-policy.yml \
+              > "$candidate/decision.json" || gate_rc=$?
+
+            binding="$ROOT/bindings/pr-$pr.json"
+            if ! "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_lifecycle.py bind \
+              --exit-code "$gate_rc" \
+              --decision "$candidate/decision.json" \
+              --repository "$REPO" \
+              --pr-number "$pr" \
+              --head-sha "$head_sha" \
+              --head-ref "$head_ref" \
+              --base-sha "$base_sha" \
+              --published-sha "$published_sha" \
+              --control-sha "$CONTROL_SHA" \
+              --workflow "$WORKFLOW_NAME" \
+              --workflow-ref "$WORKFLOW_REF" \
+              > "$binding"; then
+              echo "BLOCKED PR #$pr REASON=INVALID_TRUSTED_DECISION" >&2
+              printf '| %s | `%s` | BLOCKED | INVALID_TRUSTED_DECISION | BLOCKED |\n' \
+                "$pr" "${head_sha:0:12}" >> "$GITHUB_STEP_SUMMARY"
+              blocked=1
+              continue
+            fi
+
+            outcome="$(jq -r '.outcome' "$binding")"
+            reason_code="$(jq -r '.reason_code' "$binding")"
+            action="$(jq -r '.action' "$binding")"
+            case "$action" in
+              CLOSE)
+                printf '%s\t%s\n' "$pr" "$binding" >> "$ROOT/close-candidates.tsv"
+                ;;
+              KEEP_OPEN)
+                echo "KEEP_OPEN PR #$pr OUTCOME=$outcome REASON=$reason_code"
+                printf '| %s | `%s` | %s | %s | KEEP_OPEN |\n' \
+                  "$pr" "${head_sha:0:12}" "$outcome" "$reason_code" \
+                  >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              BLOCKED)
+                echo "KEEP_OPEN PR #$pr OUTCOME=$outcome REASON=$reason_code"
+                printf '| %s | `%s` | %s | %s | BLOCKED |\n' \
+                  "$pr" "${head_sha:0:12}" "$outcome" "$reason_code" \
+                  >> "$GITHUB_STEP_SUMMARY"
+                blocked=1
+                ;;
+              *)
+                echo "BLOCKED: unknown lifecycle action" >&2
+                exit 1
+                ;;
+            esac
+          done < "$ROOT/candidates.txt"
+
+          # Never mutate a partial queue when any fresh classification failed.
+          if (( blocked != 0 )); then
+            echo "BLOCKED: at least one candidate could not be classified safely" >&2
+            exit 1
+          fi
+
+          while IFS=$'\t' read -r pr binding; do
+            [[ -n "$pr" ]] || continue
+            preclose="$ROOT/preclose-$pr"
+            mkdir -p "$preclose"
+
+            # Exact mutable state is fetched again immediately before the one
+            # possible PATCH. The binding script fails closed on malformed data.
+            gh api "repos/$REPO/pulls/$pr" \
+              --jq "$PR_METADATA_JQ" > "$preclose/pr.json"
+            current_published_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
+            "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_lifecycle.py verify \
+              --binding "$binding" \
+              --current-pr "$preclose/pr.json" \
+              --current-published-sha "$current_published_sha" \
+              --repository "$REPO" \
+              --control-sha "$CONTROL_SHA" \
+              > "$preclose/result.json"
+
+            action="$(jq -r '.action' "$preclose/result.json")"
+            action_reason="$(jq -r '.action_reason' "$preclose/result.json")"
+            head_sha="$(jq -r '.head_sha' "$preclose/result.json")"
+            outcome="$(jq -r '.outcome' "$preclose/result.json")"
+            reason_code="$(jq -r '.reason_code' "$preclose/result.json")"
+
+            case "$action" in
+              CLOSE)
+                if [[ "$dry_run" == "true" ]]; then
+                  echo "WOULD_AUTO_CLOSE PR #$pr HEAD=$head_sha OUTCOME=$outcome REASON=$reason_code"
+                  summary_action="WOULD_CLOSE"
+                else
+                  # Sole permitted GitHub mutation in this workflow.
+                  gh api --method PATCH "repos/$REPO/pulls/$pr" -f state=closed > /dev/null
+                  echo "AUTO_CLOSE PR #$pr HEAD=$head_sha OUTCOME=$outcome REASON=$reason_code"
+                  summary_action="AUTO_CLOSE"
+                fi
+                ;;
+              DEFER)
+                echo "DEFER PR #$pr REASON=$action_reason"
+                summary_action="DEFER"
+                ;;
+              KEEP_OPEN|BENIGN_SKIP)
+                echo "KEEP_OPEN PR #$pr OUTCOME=$outcome REASON=$reason_code"
+                summary_action="$action"
+                ;;
+              BLOCKED)
+                echo "KEEP_OPEN PR #$pr OUTCOME=$outcome REASON=$reason_code"
+                summary_action="BLOCKED"
+                ;;
+              *)
+                echo "BLOCKED: invalid pre-close action" >&2
+                exit 1
+                ;;
+            esac
+
+            printf '| %s | `%s` | %s | %s | %s |\n' \
+              "$pr" "${head_sha:0:12}" "$outcome" "$reason_code" "$summary_action" \
+              >> "$GITHUB_STEP_SUMMARY"
+          done < "$ROOT/close-candidates.tsv"
