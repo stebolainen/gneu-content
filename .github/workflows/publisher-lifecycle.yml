@@ -61,6 +61,15 @@ jobs:
           readonly MAX_CANDIDATES=25
           readonly AIHOT_MAX_BYTES=2097152
           readonly ROOT=/tmp/gneu-publisher-lifecycle
+          readonly TRUSTED_ROOT="$ROOT/trusted"
+          readonly -a TRUSTED_FILES=(
+            "publisher_policy_gate.py:publisher_policy_gate.py"
+            "publisher_gate.py:publisher_gate.py"
+            "publisher_lifecycle.py:publisher_lifecycle.py"
+            "publisher_outcome.py:publisher_outcome.py"
+            "validate_content.py:validate_content.py"
+            ".github/workflows/publisher-policy.yml:publisher-policy.yml"
+          )
           # env -u alone is not an OS isolation boundary: a same-UID child can
           # read its token-bearing parent environment through /proc. Run every
           # validator/classifier/binding process as an unprivileged UID with a
@@ -116,6 +125,61 @@ jobs:
             exit 1
           fi
 
+          # Keep the checkout private. Before starting any UID 65534 child,
+          # stage only exact tracked control-SHA blobs in a separately
+          # traversable tree which nobody can modify.
+          if [[ -e "$ROOT" || -L "$ROOT" ]]; then
+            echo "BLOCKED: trusted staging root already exists" >&2
+            exit 1
+          fi
+          install -d -m 0755 "$ROOT" "$TRUSTED_ROOT"
+          if [[
+            "$(stat -c '%a' "$ROOT")" != "755" ||
+            "$(stat -c '%a' "$TRUSTED_ROOT")" != "755" ||
+            "$(stat -c '%u' "$ROOT")" == "65534" ||
+            "$(stat -c '%u' "$TRUSTED_ROOT")" == "65534"
+          ]]; then
+            echo "BLOCKED: trusted staging directory ownership or mode invalid" >&2
+            exit 1
+          fi
+
+          for trusted_entry in "${TRUSTED_FILES[@]}"; do
+            source_path="${trusted_entry%%:*}"
+            destination_name="${trusted_entry##*:}"
+            destination_path="$TRUSTED_ROOT/$destination_name"
+
+            if [[ ! -f "$source_path" || -L "$source_path" ]]; then
+              echo "BLOCKED: trusted source path invalid: $source_path" >&2
+              exit 1
+            fi
+            if ! git ls-files --error-unmatch -- "$source_path" > /dev/null; then
+              echo "BLOCKED: trusted source is not tracked: $source_path" >&2
+              exit 1
+            fi
+            if ! expected_blob="$(git rev-parse "$CONTROL_SHA:$source_path")"; then
+              echo "BLOCKED: trusted source missing from control SHA: $source_path" >&2
+              exit 1
+            fi
+            if [[ "$(git hash-object -- "$source_path")" != "$expected_blob" ]]; then
+              echo "BLOCKED: trusted source differs from control SHA: $source_path" >&2
+              exit 1
+            fi
+
+            install -m 0644 -- "$source_path" "$destination_path"
+            if [[ ! -f "$destination_path" || -L "$destination_path" ]]; then
+              echo "BLOCKED: trusted destination path invalid: $destination_name" >&2
+              exit 1
+            fi
+            if [[
+              "$(stat -c '%a' "$destination_path")" != "644" ||
+              "$(stat -c '%u' "$destination_path")" == "65534" ||
+              "$(git hash-object -- "$destination_path")" != "$expected_blob"
+            ]]; then
+              echo "BLOCKED: trusted destination verification failed: $destination_name" >&2
+              exit 1
+            fi
+          done
+
           dry_run=false
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             if [[ "$DISPATCH_DRY_RUN" == "true" ]]; then
@@ -131,11 +195,17 @@ jobs:
             exit 1
           fi
 
-          if ! "${TOKENLESS_EXEC[@]}" /usr/bin/true; then
-            echo "BLOCKED: unprivileged tokenless execution unavailable" >&2
+          if ! "${TOKENLESS_EXEC[@]}" /usr/bin/bash -c '
+            test "$(id -u)" = "65534"
+            for trusted_path in "$@"; do
+              test -r "$trusted_path"
+              test ! -w "$trusted_path"
+              test ! -L "$trusted_path"
+            done
+          ' tokenless-staging "$TRUSTED_ROOT" "$TRUSTED_ROOT"/*; then
+            echo "BLOCKED: unprivileged trusted-code staging unavailable" >&2
             exit 1
           fi
-          mkdir -p "$ROOT"
           install -d -m 0755 "$ROOT/bindings"
           : > "$ROOT/close-candidates.tsv"
           {
@@ -272,10 +342,11 @@ jobs:
             # gate's normal ACTIONABLE validation stage, so lifecycle performs
             # this independent validation before it may bind a close decision.
             validator_root="$candidate/trusted-validator"
-            mkdir -p "$validator_root"
-            cp ./validate_content.py "$validator_root/validate_content.py"
-            cp "$candidate/head-events.json" "$validator_root/events.json"
-            cp "$candidate/head-manifest.json" "$validator_root/manifest.json"
+            install -d -m 0755 "$validator_root"
+            install -m 0644 "$TRUSTED_ROOT/validate_content.py" \
+              "$validator_root/validate_content.py"
+            install -m 0644 "$candidate/head-events.json" "$validator_root/events.json"
+            install -m 0644 "$candidate/head-manifest.json" "$validator_root/manifest.json"
             if ! "${TOKENLESS_EXEC[@]}" \
               /usr/bin/python3 "$validator_root/validate_content.py" \
               > "$candidate/validator.log" 2>&1; then
@@ -287,7 +358,8 @@ jobs:
             fi
 
             gate_rc=0
-            "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_policy_gate.py \
+            "${TOKENLESS_EXEC[@]}" \
+              /usr/bin/python3 "$TRUSTED_ROOT/publisher_policy_gate.py" \
               --repository "$REPO" \
               --current-base-sha "$published_sha" \
               --pr "$candidate/pr.json" \
@@ -298,13 +370,14 @@ jobs:
               --head-events "$candidate/head-events.json" \
               --head-manifest "$candidate/head-manifest.json" \
               --aihot-coverage "$ROOT/aihot.json" \
-              --trusted-validator ./validate_content.py \
+              --trusted-validator "$TRUSTED_ROOT/validate_content.py" \
               --head-policy-workflow "$candidate/head-policy-workflow.yml" \
-              --trusted-policy-workflow ./.github/workflows/publisher-policy.yml \
+              --trusted-policy-workflow "$TRUSTED_ROOT/publisher-policy.yml" \
               > "$candidate/decision.json" || gate_rc=$?
 
             binding="$ROOT/bindings/pr-$pr.json"
-            if ! "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_lifecycle.py bind \
+            if ! "${TOKENLESS_EXEC[@]}" \
+              /usr/bin/python3 "$TRUSTED_ROOT/publisher_lifecycle.py" bind \
               --exit-code "$gate_rc" \
               --decision "$candidate/decision.json" \
               --repository "$REPO" \
@@ -367,7 +440,8 @@ jobs:
             gh api "repos/$REPO/pulls/$pr" \
               --jq "$PR_METADATA_JQ" > "$preclose/pr.json"
             current_published_sha="$(gh api "repos/$REPO/git/ref/heads/published" --jq '.object.sha')"
-            "${TOKENLESS_EXEC[@]}" /usr/bin/python3 publisher_lifecycle.py verify \
+            "${TOKENLESS_EXEC[@]}" \
+              /usr/bin/python3 "$TRUSTED_ROOT/publisher_lifecycle.py" verify \
               --binding "$binding" \
               --current-pr "$preclose/pr.json" \
               --current-published-sha "$current_published_sha" \

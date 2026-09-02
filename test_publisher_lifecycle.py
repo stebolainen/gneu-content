@@ -443,6 +443,169 @@ class LifecycleCliTests(unittest.TestCase):
             self.assertEqual(json.loads(verify_proc.stdout)["action"], "CLOSE")
 
 
+class TokenlessTrustedStagingTests(unittest.TestCase):
+    def test_private_checkout_stages_nonwritable_trusted_runtime(self) -> None:
+        trusted_sources = (
+            "publisher_policy_gate.py",
+            "publisher_gate.py",
+            "publisher_lifecycle.py",
+            "publisher_outcome.py",
+            "validate_content.py",
+            ".github/workflows/publisher-policy.yml",
+        )
+        tokenless_prefix = [
+            "/usr/bin/env", "-u", "GH_TOKEN", "-u", "GITHUB_TOKEN",
+            "/usr/bin/sudo", "--non-interactive", "--user=nobody", "--",
+            "/usr/bin/env", "-i", "HOME=/tmp", "LANG=C.UTF-8",
+            "PATH=/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE=1",
+        ]
+
+        with tempfile.TemporaryDirectory(
+            prefix="gneu-tokenless-staging-", dir="/tmp"
+        ) as temp:
+            root = Path(temp)
+            root.chmod(0o755)
+            private_checkout = root / "private-checkout"
+            private_checkout.mkdir(mode=0o700)
+            trusted_root = root / "trusted"
+            trusted_root.mkdir(mode=0o755)
+            self.assertEqual(trusted_root.stat().st_mode & 0o777, 0o755)
+            self.assertNotEqual(trusted_root.stat().st_uid, 65534)
+            data_root = root / "data"
+            data_root.mkdir(mode=0o755)
+            pr_head = root / "pr-head"
+            pr_head.mkdir(mode=0o777)
+            marker = pr_head / "executed"
+            (pr_head / "sitecustomize.py").write_text(
+                "from pathlib import Path\n"
+                f"Path({str(marker)!r}).write_text('executed')\n",
+                encoding="utf-8",
+            )
+            (pr_head / "sitecustomize.py").chmod(0o644)
+
+            for source_name in trusted_sources:
+                source = ROOT / source_name
+                private_destination = private_checkout / Path(source_name).name
+                private_destination.write_bytes(source.read_bytes())
+                private_destination.chmod(0o644)
+                trusted_destination = trusted_root / Path(source_name).name
+                subprocess.run(
+                    [
+                        "/usr/bin/install", "-m", "0644",
+                        str(source), str(trusted_destination),
+                    ],
+                    check=True,
+                )
+                self.assertFalse(trusted_destination.is_symlink())
+                self.assertEqual(
+                    trusted_destination.stat().st_mode & 0o777,
+                    0o644,
+                )
+                self.assertNotEqual(trusted_destination.stat().st_uid, 65534)
+                self.assertEqual(
+                    trusted_destination.read_bytes(),
+                    source.read_bytes(),
+                )
+
+            def run_tokenless(command):
+                return subprocess.run(
+                    tokenless_prefix + command,
+                    cwd=root,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env={
+                        "PATH": "/usr/bin:/bin",
+                        "GH_TOKEN": "TEST_GH_TOKEN_MUST_NOT_LEAK",
+                        "GITHUB_TOKEN": "TEST_GITHUB_TOKEN_MUST_NOT_LEAK",
+                        "PYTHONPATH": str(pr_head),
+                    },
+                )
+
+            for source_name in (
+                "publisher_policy_gate.py",
+                "publisher_lifecycle.py",
+            ):
+                direct = run_tokenless([
+                    "/usr/bin/python3",
+                    str(private_checkout / source_name),
+                    "--help",
+                ])
+                self.assertNotEqual(direct.returncode, 0)
+
+            for staged_path in (trusted_root, *trusted_root.iterdir()):
+                access = run_tokenless(
+                    ["/usr/bin/test", "!", "-w", str(staged_path)]
+                )
+                self.assertEqual(access.returncode, 0, access.stderr)
+
+            environment_probe = run_tokenless([
+                "/usr/bin/python3",
+                "-c",
+                (
+                    "import os,sys; "
+                    "sys.exit(0 if 'GH_TOKEN' not in os.environ "
+                    "and 'GITHUB_TOKEN' not in os.environ "
+                    "and 'PYTHONPATH' not in os.environ else 1)"
+                ),
+            ])
+            self.assertEqual(
+                environment_probe.returncode, 0, environment_probe.stderr
+            )
+
+            policy_help = run_tokenless([
+                "/usr/bin/python3",
+                str(trusted_root / "publisher_policy_gate.py"),
+                "--help",
+            ])
+            self.assertEqual(policy_help.returncode, 0, policy_help.stderr)
+            self.assertFalse(marker.exists(), "PR-head sitecustomize was executed")
+
+            decision_path = data_root / "decision.json"
+            decision_path.write_text(
+                json.dumps(decision("POLICY_SKIP", "NATIVE_SOURCE_COVERED")),
+                encoding="utf-8",
+            )
+            decision_path.chmod(0o644)
+            bound = run_tokenless([
+                "/usr/bin/python3",
+                str(trusted_root / "publisher_lifecycle.py"),
+                "bind",
+                "--exit-code", str(publisher_gate.EXIT_POLICY_SKIP),
+                "--decision", str(decision_path),
+                "--repository", REPOSITORY,
+                "--pr-number", "48",
+                "--head-sha", HEAD_SHA,
+                "--head-ref", HEAD_REF,
+                "--base-sha", PUBLISHED_SHA,
+                "--published-sha", PUBLISHED_SHA,
+                "--control-sha", CONTROL_SHA,
+                "--workflow", lifecycle.TRUSTED_WORKFLOW,
+                "--workflow-ref", lifecycle.TRUSTED_WORKFLOW_REF,
+            ])
+            self.assertEqual(bound.returncode, 0, bound.stderr)
+            binding_path = data_root / "binding.json"
+            binding_path.write_text(bound.stdout, encoding="utf-8")
+            binding_path.chmod(0o644)
+            current_path = data_root / "current.json"
+            current_path.write_text(json.dumps(current_pr()), encoding="utf-8")
+            current_path.chmod(0o644)
+
+            verified = run_tokenless([
+                "/usr/bin/python3",
+                str(trusted_root / "publisher_lifecycle.py"),
+                "verify",
+                "--binding", str(binding_path),
+                "--current-pr", str(current_path),
+                "--current-published-sha", PUBLISHED_SHA,
+                "--repository", REPOSITORY,
+                "--control-sha", CONTROL_SHA,
+            ])
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertEqual(json.loads(verified.stdout)["action"], "CLOSE")
+            self.assertFalse(marker.exists(), "PR-head code was executed")
+
+
 class LifecycleWorkflowGuardTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -519,12 +682,39 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
 
     def test_fresh_gate_validator_and_exact_binding_are_mandatory(self) -> None:
         self.assertIn("publisher_policy_gate.py", self.workflow)
-        self.assertIn("publisher_lifecycle.py bind", self.workflow)
-        self.assertIn("publisher_lifecycle.py verify", self.workflow)
+        self.assertIn('publisher_lifecycle.py" bind', self.workflow)
+        self.assertIn('publisher_lifecycle.py" verify', self.workflow)
         self.assertIn(
-            'cp ./validate_content.py "$validator_root/validate_content.py"',
+            'install -m 0644 "$TRUSTED_ROOT/validate_content.py"',
             self.workflow,
         )
+        self.assertIn('readonly TRUSTED_ROOT="$ROOT/trusted"', self.workflow)
+        for staged_source in (
+            "publisher_policy_gate.py:publisher_policy_gate.py",
+            "publisher_gate.py:publisher_gate.py",
+            "publisher_lifecycle.py:publisher_lifecycle.py",
+            "publisher_outcome.py:publisher_outcome.py",
+            "validate_content.py:validate_content.py",
+            ".github/workflows/publisher-policy.yml:publisher-policy.yml",
+        ):
+            self.assertIn(f'"{staged_source}"', self.workflow)
+        self.assertIn(
+            'git ls-files --error-unmatch -- "$source_path"',
+            self.workflow,
+        )
+        self.assertIn(
+            'git rev-parse "$CONTROL_SHA:$source_path"',
+            self.workflow,
+        )
+        self.assertIn('git hash-object -- "$source_path"', self.workflow)
+        self.assertIn('git hash-object -- "$destination_path"', self.workflow)
+        self.assertIn('install -m 0644 -- "$source_path"', self.workflow)
+        self.assertIn(
+            '! -f "$destination_path" || -L "$destination_path"',
+            self.workflow,
+        )
+        self.assertIn("stat -c '%a' \"$destination_path\"", self.workflow)
+        self.assertIn("stat -c '%u' \"$destination_path\"", self.workflow)
         self.assertIn("readonly -a TOKENLESS_EXEC=(", self.workflow)
         self.assertIn("/usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN", self.workflow)
         self.assertIn(
@@ -534,9 +724,9 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
         self.assertIn("/usr/bin/env -i HOME=/tmp", self.workflow)
         sensitive_invocations = (
             '/usr/bin/python3 "$validator_root/validate_content.py"',
-            "/usr/bin/python3 publisher_policy_gate.py",
-            "/usr/bin/python3 publisher_lifecycle.py bind",
-            "/usr/bin/python3 publisher_lifecycle.py verify",
+            '/usr/bin/python3 "$TRUSTED_ROOT/publisher_policy_gate.py"',
+            '/usr/bin/python3 "$TRUSTED_ROOT/publisher_lifecycle.py" bind',
+            '/usr/bin/python3 "$TRUSTED_ROOT/publisher_lifecycle.py" verify',
         )
         for invocation in sensitive_invocations:
             self.assertEqual(self.workflow.count(invocation), 1)
@@ -550,7 +740,9 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
         self.assertIn('WORKFLOW_SHA: ${{ github.workflow_sha }}', self.workflow)
         self.assertIn('WORKFLOW_REF: ${{ github.workflow_ref }}', self.workflow)
         self.assertLess(
-            self.workflow.index("publisher_lifecycle.py verify"),
+            self.workflow.index(
+                '/usr/bin/python3 "$TRUSTED_ROOT/publisher_lifecycle.py" verify'
+            ),
             self.workflow.index("--method PATCH"),
         )
 
