@@ -464,6 +464,51 @@ class LifecycleWorkflowGuardTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, self.workflow)
 
+    def test_initial_rollout_forces_scheduled_dry_run(self) -> None:
+        start = self.workflow.index("          dry_run=false")
+        end = self.workflow.index(
+            '          if ! "${TOKENLESS_EXEC[@]}"',
+            start,
+        )
+        rollout_block = "\n".join(
+            line[10:] for line in self.workflow[start:end].splitlines()
+        )
+
+        def evaluate(event_name: str, dispatch_dry_run: str) -> subprocess.CompletedProcess:
+            script = rollout_block + '\nprintf "%s" "$dry_run"\n'
+            return subprocess.run(
+                ["/usr/bin/bash"],
+                input=script,
+                text=True,
+                capture_output=True,
+                check=False,
+                env={
+                    "PATH": "/usr/bin:/bin",
+                    "EVENT_NAME": event_name,
+                    "DISPATCH_DRY_RUN": dispatch_dry_run,
+                },
+            )
+
+        scheduled = evaluate("schedule", "")
+        self.assertEqual(scheduled.returncode, 0, scheduled.stderr)
+        self.assertEqual(scheduled.stdout, "true")
+
+        safe_dispatch = evaluate("workflow_dispatch", "true")
+        self.assertEqual(safe_dispatch.returncode, 0, safe_dispatch.stderr)
+        self.assertEqual(safe_dispatch.stdout, "true")
+
+        live_dispatch = evaluate("workflow_dispatch", "false")
+        self.assertEqual(live_dispatch.returncode, 0, live_dispatch.stderr)
+        self.assertEqual(live_dispatch.stdout, "false")
+
+        unsupported = evaluate("pull_request", "")
+        self.assertNotEqual(unsupported.returncode, 0)
+
+        close_case = self.workflow.rsplit('            case "$action" in', 1)[1]
+        dry_run_guard = close_case.index('if [[ "$dry_run" == "true" ]]')
+        patch = close_case.index("--method PATCH")
+        self.assertLess(dry_run_guard, patch)
+
     def test_trusted_main_only_and_no_pr_head_checkout(self) -> None:
         self.assertIn("github.ref == 'refs/heads/main'", self.workflow)
         self.assertIn("ref: ${{ github.sha }}", self.workflow)

@@ -124,7 +124,9 @@ jobs:
               echo "BLOCKED: invalid dry_run input" >&2
               exit 1
             fi
-          elif [[ "$EVENT_NAME" != "schedule" ]]; then
+          elif [[ "$EVENT_NAME" == "schedule" ]]; then
+            dry_run=true
+          else
             echo "BLOCKED: unsupported trigger" >&2
             exit 1
           fi
