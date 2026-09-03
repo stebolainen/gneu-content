@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 25,
+  "generation": 26,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -18,6 +18,26 @@
         {
           "id": "msrc",
           "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-47292"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-84353-update-2026-09-03",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-09-03T00:00:00Z",
+      "updated_at": "2026-09-03T00:00:00Z",
+      "title": "Uppdatera Microsoft Edge till version 152.0.4191.62 för CVE-2026-84353",
+      "summary": "Microsoft uppger att Microsoft Edge (Chromium-baserad) version 152.0.4191.62 inte längre är sårbar för CVE-2026-84353, en use-after-free-sårbarhet i Shared Tab Groups. Versionen bygger på Chromium 152.0.7977.76.",
+      "action": "Uppdatera Microsoft Edge (Chromium-baserad) till version 152.0.4191.62 enligt Microsofts versionsinformation.",
+      "cves": [
+        "CVE-2026-84353"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-84353"
         }
       ],
       "confidence": "verified"
