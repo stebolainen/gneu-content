@@ -1,0 +1,12 @@
+[Unit]
+Description=Check for validated GNEU AI-hot READY packages
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+AccuracySec=30s
+RandomizedDelaySec=20s
+Unit=gneu-aihot-ready.service
+
+[Install]
+WantedBy=timers.target
