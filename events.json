@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 25,
+  "generation": 26,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -18,6 +18,27 @@
         {
           "id": "msrc",
           "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-47292"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-59822",
+      "type": "ai_security",
+      "publication_class": "A",
+      "occurred_at": "2026-09-02T16:54:39.8321Z",
+      "updated_at": "2026-09-02T16:54:39.8321Z",
+      "title": "CISA lägger till autentiseringsbrist i LiteLLM i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2026-59822 i KEV-katalogen. Bristen i LiteLLM:s MCP Streamable HTTP-endpoint kan låta en oautentiserad angripare etablera en autentiserad MCP-session med en valfri Bearer-token.",
+      "action": "Tillämpa leverantörens åtgärder senast den 16 september 2026 enligt CISA:s KEV-post. Upphör med användningen om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-59822"
+      ],
+      "deadline": "2026-09-16",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
