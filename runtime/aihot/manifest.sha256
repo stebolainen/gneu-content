@@ -1,4 +1,6 @@
-63eb0aa04acfdc5ab588c8aafbc39e73a89f2429d214f4c69e260148a2764b23  runtime/aihot/bin/process-ready.py
+7b13284841bbe8833e6786ee9f092f4b8f2e64da11801a978e513953bc616f27  runtime/aihot/bin/aihot_rejection.py
+a45b0e707ddda828fb7f1ea5bb1d6ab85c204a36aca6983d5c47371f86878f67  runtime/aihot/bin/operator-disposition.py
+056139bc1ffdcc6300557425ffc74a767c5c8fa666456a8cacbf395b801a7150  runtime/aihot/bin/process-ready.py
 221f61600fcf10fa9e3a28aafef43a7a7bf89ab2c2c7c7916786e1cc81aa2730  runtime/aihot/bin/validate-intake.py
 41c2af9f334963e57bd4e504a8eab36e2d0209fa2010c5c6cf2156943360644c  runtime/aihot/bin/build-intake-payload.py
 7d9f76e4b9efda3fe529bf0b6df8863bf7b94909fb2c73ca133d8913a63182c4  runtime/aihot/bin/dispatch-trusted-intake.py

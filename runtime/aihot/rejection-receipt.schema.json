@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gneu.se/schemas/gneu-aihot-rejection-v1.json",
+  "title": "GNEU AI-hot rejection receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "disposition",
+    "edition",
+    "rejected_at",
+    "disposition_reason",
+    "failing_article",
+    "article_date",
+    "article_iso_year",
+    "article_iso_week",
+    "failure_reason_code",
+    "validator_failure",
+    "failed_state_sha256",
+    "ready_sha256",
+    "handoff_sha256",
+    "candidate_sha256",
+    "report_sha256",
+    "transport_sha256",
+    "payload_sha256",
+    "base_main_sha",
+    "github_run_id",
+    "github_conclusion",
+    "workflow_head_sha",
+    "machine_verified_local_evidence",
+    "operator_attested_remote_evidence",
+    "article_ids"
+  ],
+  "properties": {
+    "schema": {"const": "gneu-aihot-rejection-v1"},
+    "disposition": {"const": "rejected"},
+    "edition": {"type": "string", "pattern": "^20[0-9]{2}-W(?:0[1-9]|[1-4][0-9]|5[0-3])$"},
+    "rejected_at": {"type": "string", "format": "date-time"},
+    "disposition_reason": {"type": "string", "minLength": 8, "maxLength": 500},
+    "failing_article": {"type": "string", "minLength": 1},
+    "article_date": {"type": "string", "format": "date"},
+    "article_iso_year": {"type": "integer", "minimum": 1},
+    "article_iso_week": {"type": "integer", "minimum": 1, "maximum": 53},
+    "failure_reason_code": {"enum": ["ARTICLE_DATE_OUTSIDE_EDITION"]},
+    "validator_failure": {"type": "string", "minLength": 1},
+    "failed_state_sha256": {"$ref": "#/$defs/sha256"},
+    "ready_sha256": {"$ref": "#/$defs/sha256"},
+    "handoff_sha256": {"$ref": "#/$defs/sha256"},
+    "candidate_sha256": {"$ref": "#/$defs/sha256"},
+    "report_sha256": {"$ref": "#/$defs/sha256"},
+    "transport_sha256": {"$ref": "#/$defs/sha256"},
+    "payload_sha256": {"$ref": "#/$defs/sha256"},
+    "base_main_sha": {"$ref": "#/$defs/sha"},
+    "github_run_id": {"type": "integer", "minimum": 1},
+    "github_conclusion": {"const": "failure"},
+    "workflow_head_sha": {"$ref": "#/$defs/sha"},
+    "machine_verified_local_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dispatch_accepted",
+        "dispatch_evidence_source",
+        "failed_stage",
+        "package_file_hashes_verified",
+        "payload_binding_verified",
+        "transport_payload_hash_verified",
+        "validator_rule"
+      ],
+      "properties": {
+        "dispatch_accepted": {"const": true},
+        "dispatch_evidence_source": {"const": "failed_state.stages[dispatch].output"},
+        "failed_stage": {"const": "dispatch"},
+        "package_file_hashes_verified": {"const": true},
+        "payload_binding_verified": {"const": true},
+        "transport_payload_hash_verified": {"const": true},
+        "validator_rule": {"const": "date.fromisoformat(article.date).isocalendar()"}
+      }
+    },
+    "operator_attested_remote_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attestation", "verified_by_tool"],
+      "properties": {
+        "attestation": {"type": "string", "minLength": 8, "maxLength": 500},
+        "verified_by_tool": {"const": false}
+      }
+    },
+    "article_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

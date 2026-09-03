@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import hashlib
 import importlib.util
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -24,6 +25,8 @@ verified = PROVISION.verify_sources(ROOT, manifest)
 assert verified == manifest, "tracked runtime hashes do not match manifest"
 
 expected_modes = {
+    "runtime/aihot/bin/aihot_rejection.py": 0o600,
+    "runtime/aihot/bin/operator-disposition.py": 0o700,
     "runtime/aihot/bin/process-ready.py": 0o700,
     "runtime/aihot/bin/validate-intake.py": 0o700,
     "runtime/aihot/bin/build-intake-payload.py": 0o700,
@@ -118,5 +121,12 @@ provenance = PROVISION.build_provenance(
 assert provenance["source_commit"] == "a" * 40
 assert provenance["manifest_sha256"] == "b" * 64
 assert set(provenance["files"]) == set(PROVISION.INSTALL_SPECS)
+
+receipt_schema = json.loads(
+    (ROOT / "runtime/aihot/rejection-receipt.schema.json").read_text()
+)
+assert receipt_schema["properties"]["schema"]["const"] == "gneu-aihot-rejection-v1"
+assert receipt_schema["properties"]["disposition"]["const"] == "rejected"
+assert set(receipt_schema["required"]) == set(receipt_schema["properties"])
 
 print("AI-hot runtime provenance tests OK")

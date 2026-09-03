@@ -26,9 +26,13 @@ deleted by this source tree or its provisioner:
 - `/root/gneu-aihot-bridge/credentials/`
 - `/root/.hermes/profiles/gneu/aihot-handoff/outbox/`
 
-`manifest.sha256` covers only the eight deployable runtime files. It does not
-cover documentation, tests, the provisioner itself, state, credentials, or
-outbox packages.
+`manifest.sha256` covers only deployable runtime files. This includes
+`operator-disposition.py` and its shared `aihot_rejection.py` verifier. It does
+not cover documentation, tests, the provisioner itself, state, credentials,
+or outbox packages.
+
+`rejection-receipt.schema.json` is the tracked contract for rejection receipts;
+it is not installed into runtime. A receipt is runtime state, never source.
 
 ## Provisioning contract
 
@@ -61,5 +65,19 @@ PYTHONDONTWRITEBYTECODE=1 python3 runtime/aihot/provision.py install
 Do not hand-edit installed runtime files. Correct tracked source through a new
 Admin PR, merge it, and provision the exact verified merge commit.
 
-W36 operator recovery and rejected/disposition semantics are deliberately out
-of scope here and are not defined by this bootstrap.
+## Rejection disposition
+
+After this change is reviewed, merged, and separately provisioned, the runtime
+supports an explicit, offline operator transition from a latched
+`FAILED_REQUIRES_OPERATOR` package to a terminal rejection receipt. The only
+initial allowlisted reason is `ARTICLE_DATE_OUTSIDE_EDITION`. The tool
+recomputes the ISO calendar week with
+`date.fromisoformat(article.date).isocalendar()` and binds the operation to the
+exact failed latch, package files, transport, decoded canonical payload,
+base-main SHA, workflow run, and first failing article.
+
+The tool never deletes or changes the failed latch, READY package, transport,
+payload, or content. It creates only `state/rejected/<edition>.json`, using an
+atomic create-without-overwrite. It does not use GitHub credentials. See
+[`../../docs/AIHOT_OPERATOR_RECOVERY.md`](../../docs/AIHOT_OPERATOR_RECOVERY.md)
+for the required remote review and operator procedure.

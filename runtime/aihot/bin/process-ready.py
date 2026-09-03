@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from aihot_rejection import RejectionError, path_present, verify_receipt
+
 
 BRIDGE = Path("/root/gneu-aihot-bridge")
 
@@ -149,9 +151,51 @@ def process_week(
         / f"{edition}.json"
     )
 
-    if processed_file.exists():
+    rejected_file = (
+        STATE
+        / "rejected"
+        / f"{edition}.json"
+    )
+
+    processed_present = path_present(
+        processed_file
+    )
+    rejected_present = path_present(
+        rejected_file
+    )
+
+    if (
+        processed_present
+        and rejected_present
+    ):
+        print(
+            f"BLOCKED_STATE_CONFLICT "
+            f"{edition}"
+        )
+        return False
+
+    if processed_present:
         print(
             f"ALREADY_PROCESSED {edition}"
+        )
+        return True
+
+    if rejected_present:
+        try:
+            verify_receipt(
+                edition,
+                state_root=STATE,
+                outbox_root=OUTBOX,
+            )
+        except RejectionError as exc:
+            print(
+                f"BLOCKED_INVALID_REJECTION "
+                f"{edition}: {exc}"
+            )
+            return False
+
+        print(
+            f"ALREADY_REJECTED {edition}"
         )
         return True
 
@@ -344,11 +388,6 @@ def process_week(
         processed_file,
         receipt,
     )
-
-    try:
-        failed_file.unlink()
-    except FileNotFoundError:
-        pass
 
     print(
         f"AIHOT_READY_PROCESSED "

@@ -22,6 +22,14 @@ PROVENANCE_PATH = RUNTIME_ROOT / "PROVENANCE.json"
 DEFAULT_STAGE_PARENT = Path("/var/tmp")
 
 INSTALL_SPECS = {
+    "runtime/aihot/bin/aihot_rejection.py": (
+        RUNTIME_ROOT / "bin/aihot_rejection.py",
+        0o600,
+    ),
+    "runtime/aihot/bin/operator-disposition.py": (
+        RUNTIME_ROOT / "bin/operator-disposition.py",
+        0o700,
+    ),
     "runtime/aihot/bin/process-ready.py": (
         RUNTIME_ROOT / "bin/process-ready.py",
         0o700,
