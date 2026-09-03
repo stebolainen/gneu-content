@@ -14,6 +14,8 @@ from pathlib import Path
 
 API = "https://api.github.com"
 API_VERSION = "2026-03-10"
+MAX_API_RESPONSE_BYTES = 16 * 1024 * 1024
+UNSAFE_RESPONSE = "BLOCKED_UNSAFE_RESPONSE"
 
 OWNER = "stebolainen"
 REPO = "gneu-content"
@@ -136,20 +138,23 @@ def github_request(method: str, path: str, bearer: str, body=None):
 
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
-            raw = response.read()
+            raw = response.read(MAX_API_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_API_RESPONSE_BYTES:
+                raise RuntimeError("GitHub API response är för stor")
             if not raw:
                 return None
-            return json.loads(raw)
+            try:
+                return json.loads(raw)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                raise RuntimeError(
+                    "GitHub API returnerade ogiltig JSON"
+                ) from None
     except urllib.error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", "replace")
-        try:
-            message = json.loads(raw).get("message", "GitHub API error")
-        except Exception:
-            message = "GitHub API error"
-
-        raise RuntimeError(
-            f"GitHub API HTTP {exc.code}: {message}"
-        ) from None
+        raise RuntimeError(f"GitHub API HTTP {exc.code}") from None
+    except urllib.error.URLError:
+        raise RuntimeError("GitHub API transportfel") from None
+    except (TimeoutError, OSError):
+        raise RuntimeError("GitHub API transportfel") from None
 
 
 def installation(profile: str):
@@ -195,11 +200,7 @@ def mint_gneu_se(profile: str):
     inst = installation(profile)
     installation_id = inst.get("id")
     if installation_id != GNEU_SE_INSTALLATION_ID:
-        raise RuntimeError(
-            "Fel Admin App-installation för gneu-se: "
-            f"förväntat {GNEU_SE_INSTALLATION_ID}, fick "
-            f"{installation_id or 'saknas'}"
-        )
+        raise RuntimeError("Fel Admin App-installation för gneu-se")
 
     jwt = make_jwt(profile)
     result = github_request(
@@ -263,8 +264,7 @@ def validate_gneu_se_token_permissions(permissions: dict):
         actual = permissions.get(name)
         if actual != level:
             raise RuntimeError(
-                "gneu-se-token har fel permission "
-                f"{name}: förväntat {level}, fick {actual or 'saknas'}"
+                f"gneu-se-token har fel permission {name}"
             )
 
     if permissions.get("metadata", "read") != "read":
@@ -272,9 +272,7 @@ def validate_gneu_se_token_permissions(permissions: dict):
 
     unexpected = sorted(set(permissions) - allowed)
     if unexpected:
-        raise RuntimeError(
-            "gneu-se-token har oväntade permissions: " + ", ".join(unexpected)
-        )
+        raise RuntimeError("gneu-se-token har oväntade permissions")
 
     writable = sorted(
         name for name, level in permissions.items() if level != "read"
@@ -293,10 +291,7 @@ def validate_gneu_se_repository_scope(repositories):
     )
     total_count = repositories.get("total_count", len(names))
     if total_count != 1 or names != [GNEU_SE_FULL_REPO]:
-        raise RuntimeError(
-            "gneu-se-token har fel repository-scope: "
-            + (", ".join(names) if names else "saknas")
-        )
+        raise RuntimeError("gneu-se-token har fel repository-scope")
 
 
 def check(profile: str):
@@ -341,7 +336,7 @@ def check(profile: str):
 def check_gneu_se(profile: str):
     token = ""
     try:
-        token, result, inst = mint_gneu_se(profile)
+        token, result, _ = mint_gneu_se(profile)
         repositories = github_request(
             "GET",
             "/installation/repositories",
@@ -349,15 +344,14 @@ def check_gneu_se(profile: str):
         )
         validate_gneu_se_repository_scope(repositories)
 
-        permissions = result.get("permissions") or {}
+        validate_gneu_se_token_permissions(result.get("permissions") or {})
         print(f"profile: {profile}")
-        print(f"app: {inst.get('app_slug', 'ok')}")
-        print(f"installation: {inst.get('id')}")
+        print("app: gneu-admin-agent")
+        print(f"installation: {GNEU_SE_INSTALLATION_ID}")
         print(f"repository: {GNEU_SE_FULL_REPO}")
         for name in sorted(GNEU_SE_TOKEN_PERMISSIONS):
-            print(f"{name}: {permissions.get(name, 'saknas')}")
-        print(f"metadata: {permissions.get('metadata', 'read (implicit)')}")
-        print(f"expires_at: {result.get('expires_at', 'ok')}")
+            print(f"{name}: {GNEU_SE_TOKEN_PERMISSIONS[name]}")
+        print("metadata: read")
         print("token: OK (värdet visas inte)")
     finally:
         if token:
@@ -500,8 +494,356 @@ def gneu_se_read_path(operation: str, args):
             endpoint += "?ref=" + urllib.parse.quote(ref, safe="")
         return endpoint
 
-    raise RuntimeError(
-        f"gneu-se-operation '{operation}' är blockerad eller okänd"
+    raise RuntimeError("gneu-se-operation är blockerad eller okänd")
+
+
+def _unsafe_response():
+    raise RuntimeError(UNSAFE_RESPONSE)
+
+
+def _response_dict(value):
+    if type(value) is not dict:
+        _unsafe_response()
+    return value
+
+
+def _response_list(value):
+    if type(value) is not list:
+        _unsafe_response()
+    return value
+
+
+def _response_field(obj, name, expected_type, nullable=False):
+    obj = _response_dict(obj)
+    if name not in obj:
+        _unsafe_response()
+    value = obj[name]
+    if nullable and value is None:
+        return None
+    if expected_type is int:
+        valid = type(value) is int
+    elif expected_type is bool:
+        valid = type(value) is bool
+    else:
+        valid = type(value) is expected_type
+    if not valid:
+        _unsafe_response()
+    return value
+
+
+def _response_text(obj, name, nullable=False, max_length=4096):
+    value = _response_field(obj, name, str, nullable=nullable)
+    if value is None:
+        return None
+    if not value or len(value) > max_length or any(ord(c) < 32 for c in value):
+        _unsafe_response()
+    return value
+
+
+def _response_id(obj, name):
+    value = _response_field(obj, name, int)
+    if value < 1:
+        _unsafe_response()
+    return value
+
+
+def _response_count(obj, name):
+    value = _response_field(obj, name, int)
+    if value < 0:
+        _unsafe_response()
+    return value
+
+
+def _response_sha(obj, name):
+    value = _response_text(obj, name, max_length=64)
+    if len(value) != 40 or any(c not in "0123456789abcdef" for c in value):
+        _unsafe_response()
+    return value
+
+
+def _response_timestamp(obj, name, nullable=False):
+    value = _response_text(obj, name, nullable=nullable, max_length=64)
+    if value is None:
+        return None
+    allowed = set("0123456789TtZz:+-.")
+    if any(c not in allowed for c in value):
+        _unsafe_response()
+    return value
+
+
+def _project_repo(result):
+    result = _response_dict(result)
+    owner = _response_field(result, "owner", dict)
+    full_name = _response_text(result, "full_name", max_length=255)
+    name = _response_text(result, "name", max_length=255)
+    owner_login = _response_text(owner, "login", max_length=255)
+    if (
+        full_name != GNEU_SE_FULL_REPO
+        or name != GNEU_SE_REPO
+        or owner_login != OWNER
+    ):
+        _unsafe_response()
+    return {
+        "archived": _response_field(result, "archived", bool),
+        "default_branch": _response_text(result, "default_branch", max_length=255),
+        "disabled": _response_field(result, "disabled", bool),
+        "full_name": full_name,
+        "name": name,
+        "owner": {
+            "login": owner_login,
+        },
+        "private": _response_field(result, "private", bool),
+    }
+
+
+def _project_workflow_run(result):
+    result = _response_dict(result)
+    return {
+        "conclusion": _response_text(
+            result, "conclusion", nullable=True, max_length=64
+        ),
+        "created_at": _response_timestamp(result, "created_at"),
+        "event": _response_text(result, "event", max_length=64),
+        "head_branch": _response_text(
+            result, "head_branch", nullable=True, max_length=255
+        ),
+        "head_sha": _response_sha(result, "head_sha"),
+        "id": _response_id(result, "id"),
+        "name": _response_text(result, "name", max_length=255),
+        "run_attempt": _response_id(result, "run_attempt"),
+        "run_number": _response_id(result, "run_number"),
+        "run_started_at": _response_timestamp(
+            result, "run_started_at", nullable=True
+        ),
+        "status": _response_text(result, "status", max_length=64),
+        "updated_at": _response_timestamp(result, "updated_at"),
+        "workflow_id": _response_id(result, "workflow_id"),
+    }
+
+
+def _project_step(step):
+    step = _response_dict(step)
+    return {
+        "completed_at": _response_timestamp(
+            step, "completed_at", nullable=True
+        ),
+        "conclusion": _response_text(
+            step, "conclusion", nullable=True, max_length=64
+        ),
+        "name": _response_text(step, "name", max_length=255),
+        "number": _response_id(step, "number"),
+        "started_at": _response_timestamp(step, "started_at", nullable=True),
+        "status": _response_text(step, "status", max_length=64),
+    }
+
+
+def _project_job(job):
+    job = _response_dict(job)
+    steps = _response_field(job, "steps", list)
+    return {
+        "completed_at": _response_timestamp(
+            job, "completed_at", nullable=True
+        ),
+        "conclusion": _response_text(
+            job, "conclusion", nullable=True, max_length=64
+        ),
+        "head_sha": _response_sha(job, "head_sha"),
+        "id": _response_id(job, "id"),
+        "name": _response_text(job, "name", max_length=255),
+        "started_at": _response_timestamp(job, "started_at", nullable=True),
+        "status": _response_text(job, "status", max_length=64),
+        "steps": [_project_step(step) for step in steps],
+    }
+
+
+def _project_workflow_jobs(result):
+    result = _response_dict(result)
+    total_count = _response_count(result, "total_count")
+    jobs = [_project_job(job) for job in _response_field(result, "jobs", list)]
+    if total_count < len(jobs):
+        _unsafe_response()
+    return {
+        "jobs": jobs,
+        "total_count": total_count,
+    }
+
+
+def _project_pull_request(pull):
+    pull = _response_dict(pull)
+    user = _response_field(pull, "user", dict)
+    base = _response_field(pull, "base", dict)
+    head = _response_field(pull, "head", dict)
+    return {
+        "base": {
+            "ref": _response_text(base, "ref", max_length=255),
+            "sha": _response_sha(base, "sha"),
+        },
+        "created_at": _response_timestamp(pull, "created_at"),
+        "draft": _response_field(pull, "draft", bool),
+        "head": {
+            "ref": _response_text(head, "ref", max_length=255),
+            "sha": _response_sha(head, "sha"),
+        },
+        "merged_at": _response_timestamp(pull, "merged_at", nullable=True),
+        "number": _response_id(pull, "number"),
+        "state": _response_text(pull, "state", max_length=32),
+        "title": _response_text(pull, "title", max_length=512),
+        "updated_at": _response_timestamp(pull, "updated_at"),
+        "user": {
+            "login": _response_text(user, "login", max_length=255),
+        },
+    }
+
+
+def _project_branch(result):
+    result = _response_dict(result)
+    commit = _response_field(result, "commit", dict)
+    return {
+        "commit": {
+            "sha": _response_sha(commit, "sha"),
+        },
+        "name": _response_text(result, "name", max_length=255),
+        "protected": _response_field(result, "protected", bool),
+    }
+
+
+def _project_ref(result):
+    result = _response_dict(result)
+    target = _response_field(result, "object", dict)
+    return {
+        "object": {
+            "sha": _response_sha(target, "sha"),
+            "type": _response_text(target, "type", max_length=32),
+        },
+        "ref": _response_text(result, "ref", max_length=512),
+    }
+
+
+def _project_content_entry(entry):
+    entry = _response_dict(entry)
+    kind = _response_text(entry, "type", max_length=32)
+    if kind not in {"dir", "file", "submodule", "symlink"}:
+        _unsafe_response()
+    return {
+        "name": _response_text(entry, "name", max_length=1024),
+        "path": _response_text(entry, "path", max_length=4096),
+        "sha": _response_sha(entry, "sha"),
+        "size": _response_count(entry, "size"),
+        "type": kind,
+    }
+
+
+def _project_contents(result):
+    if type(result) is list:
+        return [_project_content_entry(entry) for entry in result]
+
+    result = _response_dict(result)
+    projected = _project_content_entry(result)
+    if projected["type"] != "file":
+        _unsafe_response()
+    encoding = _response_text(result, "encoding", max_length=32)
+    if encoding != "base64":
+        _unsafe_response()
+    content = _response_field(result, "content", str)
+    if len(content) > MAX_API_RESPONSE_BYTES:
+        _unsafe_response()
+    projected["content"] = content
+    projected["encoding"] = encoding
+    return projected
+
+
+def project_gneu_se_response(operation: str, result):
+    if operation == "repo":
+        return _project_repo(result)
+    if operation == "workflow-run":
+        return _project_workflow_run(result)
+    if operation == "workflow-jobs":
+        return _project_workflow_jobs(result)
+    if operation == "workflow-job":
+        return _project_job(result)
+    if operation == "pr-list":
+        return [_project_pull_request(pull) for pull in _response_list(result)]
+    if operation == "pr-view":
+        return _project_pull_request(result)
+    if operation == "branch":
+        return _project_branch(result)
+    if operation == "ref":
+        return _project_ref(result)
+    if operation == "contents":
+        return _project_contents(result)
+    _unsafe_response()
+
+
+FORBIDDEN_OUTPUT_KEYS = {
+    "access_token",
+    "authorization",
+    "credential",
+    "download_url",
+    "sig",
+    "signature",
+    "signed",
+    "temp_clone_token",
+    "token",
+}
+
+
+def _signed_url(value: str):
+    try:
+        parsed = urllib.parse.urlsplit(value)
+    except ValueError:
+        return False
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        return False
+    try:
+        query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    except ValueError:
+        return True
+    for name, _ in query:
+        normalized = name.casefold().replace("-", "_")
+        if (
+            normalized in {"sig", "signature", "token", "access_token"}
+            or normalized.startswith("x_amz_")
+            or normalized.startswith("x_goog_")
+        ):
+            return True
+    return False
+
+
+def guard_gneu_se_output(value, parent_key=None):
+    if type(value) is dict:
+        for key, item in value.items():
+            if type(key) is not str:
+                _unsafe_response()
+            normalized = key.casefold().replace("-", "_")
+            if (
+                normalized in FORBIDDEN_OUTPUT_KEYS
+                or normalized.startswith("x_amz_")
+                or normalized.startswith("x_goog_")
+            ):
+                _unsafe_response()
+            guard_gneu_se_output(item, key)
+        return
+    if type(value) is list:
+        for item in value:
+            guard_gneu_se_output(item, parent_key)
+        return
+    if type(value) is str:
+        if parent_key != "content" and _signed_url(value):
+            _unsafe_response()
+        return
+    if value is None or type(value) in {bool, int}:
+        return
+    _unsafe_response()
+
+
+def serialize_gneu_se_response(operation: str, result):
+    projected = project_gneu_se_response(operation, result)
+    guard_gneu_se_output(projected)
+    return json.dumps(
+        projected,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
     )
 
 
@@ -517,7 +859,8 @@ def read_gneu_se(profile: str, operation: str, args):
         )
         validate_gneu_se_repository_scope(repositories)
         result = github_request("GET", path, token)
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+        safe_output = serialize_gneu_se_response(operation, result)
+        print(safe_output)
     finally:
         if token:
             revoke(token)

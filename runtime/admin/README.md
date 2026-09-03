@@ -48,6 +48,31 @@ gneu-admin-github gneu-se-read contents PATH [--ref REF]
 inte tillåten: Actions loggendpoint kan redirecta till extern objektlagring och
 denna broker har ingen godkänd cross-origin- eller säker filhanteringsmodell.
 
+### Fail-closed outputkontrakt
+
+GitHubs råa responseobjekt får aldrig skrivas till stdout, stderr, logg eller
+felmeddelande. Varje namngiven operation verifierar i stället förväntad
+root- och fälttyp och projicerar endast följande fält:
+
+- `repo`: namn, fullständigt namn, owner-login, private/default branch samt
+  archived/disabled;
+- `workflow-run`: run-, workflow- och attempt-ID, namn, event, status,
+  conclusion, head branch/SHA och tidsstämplar;
+- `workflow-jobs` och `workflow-job`: total count samt job-ID, namn, status,
+  conclusion, head-SHA, tidsstämplar och motsvarande allowlistade stegfält;
+- `pr-list` och `pr-view`: nummer, titel, state, draft, merge-/create-/update-
+  tid, user-login samt base/head ref och SHA;
+- `branch` och `ref`: namn/ref, protected samt objekttyp och SHA;
+- `contents`: namn, path, SHA, size och type; en fil får dessutom innehålla
+  endast `encoding` och själva API-innehållet i `content`.
+
+URL:er, repositoryobjekt, links, runnerdetaljer och alla andra fält kastas
+bort. Oväntad shape ger endast `BLOCKED_UNSAFE_RESPONSE`; råvärdet inkluderas
+aldrig i felet. Före serialisering kontrolleras det projicerade objektets keys
+och URL-querystruktur som defense in depth mot credential-, token- och
+signaturfält. HTTP-fel normaliseras till statuskod utan serverstyrd message.
+Endast canonical JSON från den färdiga projektionen får skrivas till stdout.
+
 Alla operationer använder fasta GET-endpoints för exakt
 `stebolainen/gneu-se`. Det finns ingen caller-styrd repositoryparameter eller
 generell API-pass-through. `gh api`, skrivmetoder, workflow dispatch/rerun/

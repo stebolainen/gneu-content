@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import contextlib
 import io
+import json
 import subprocess
 from importlib.machinery import SourceFileLoader
 from importlib.util import module_from_spec, spec_from_loader
@@ -240,6 +241,84 @@ def run_gneu_se_read(operation, args, expected_path):
     requests = []
     stdout = io.StringIO()
     stderr = io.StringIO()
+    sha = "a" * 40
+    timestamp = "2026-09-03T10:00:00Z"
+
+    step = {
+        "number": 1,
+        "name": "Read",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": timestamp,
+        "completed_at": timestamp,
+    }
+    job = {
+        "id": 456,
+        "name": "Read job",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": sha,
+        "started_at": timestamp,
+        "completed_at": timestamp,
+        "steps": [step],
+    }
+    pull = {
+        "number": 55,
+        "title": "Read PR",
+        "state": "open",
+        "draft": False,
+        "merged_at": None,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "user": {"login": "operator"},
+        "base": {"ref": "main", "sha": sha},
+        "head": {"ref": "candidate", "sha": sha},
+    }
+    responses = {
+        "repo": {
+            "full_name": "stebolainen/gneu-se",
+            "name": "gneu-se",
+            "owner": {"login": "stebolainen"},
+            "private": True,
+            "default_branch": "main",
+            "archived": False,
+            "disabled": False,
+        },
+        "workflow-run": {
+            "id": 123,
+            "name": "Read workflow",
+            "workflow_id": 1,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "head_branch": "main",
+            "head_sha": sha,
+            "run_number": 1,
+            "run_attempt": 1,
+            "created_at": timestamp,
+            "run_started_at": timestamp,
+            "updated_at": timestamp,
+        },
+        "workflow-jobs": {"total_count": 1, "jobs": [job]},
+        "workflow-job": job,
+        "pr-list": [pull],
+        "pr-view": pull,
+        "branch": {
+            "name": "feature/test",
+            "protected": False,
+            "commit": {"sha": sha},
+        },
+        "ref": {"ref": "refs/heads/main", "object": {"type": "commit", "sha": sha}},
+        "contents": [] if args == ["."] else {
+            "name": "data.json",
+            "path": "assets/data.json",
+            "sha": sha,
+            "size": 2,
+            "type": "file",
+            "encoding": "base64",
+            "content": "e30=\n",
+        },
+    }
 
     def fake_request(method, path, bearer, body=None):
         requests.append((method, path, bearer, body))
@@ -250,7 +329,7 @@ def run_gneu_se_read(operation, args, expected_path):
                 ],
             }
         assert path == expected_path
-        return {"result": "ok"}
+        return responses[operation]
 
     with (
         mock.patch.object(
@@ -272,7 +351,7 @@ def run_gneu_se_read(operation, args, expected_path):
     assert revoked == [TEST_TOKEN]
     combined_output = stdout.getvalue() + stderr.getvalue()
     assert TEST_TOKEN not in combined_output, "gneu-se token leaked to output"
-    assert '"result": "ok"' in stdout.getvalue()
+    assert json.loads(stdout.getvalue()) is not None
 
 
 assert BROKER.OWNER == "stebolainen"
