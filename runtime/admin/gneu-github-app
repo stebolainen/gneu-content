@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -16,6 +17,9 @@ API_VERSION = "2026-03-10"
 
 OWNER = "stebolainen"
 REPO = "gneu-content"
+GNEU_SE_REPO = "gneu-se"
+GNEU_SE_FULL_REPO = f"{OWNER}/{GNEU_SE_REPO}"
+GNEU_SE_INSTALLATION_ID = 155274448
 
 PROFILE_DIRS = {
     "gneu-admin": Path("/root/.hermes/profiles/gneu-admin"),
@@ -32,6 +36,12 @@ TOKEN_PERMISSIONS = {
         "contents": "write",
         "pull_requests": "write",
     },
+}
+
+GNEU_SE_TOKEN_PERMISSIONS = {
+    "actions": "read",
+    "contents": "read",
+    "pull_requests": "read",
 }
 
 
@@ -178,6 +188,42 @@ def mint(profile: str):
     return token, result, inst
 
 
+def mint_gneu_se(profile: str):
+    if profile != "gneu-admin":
+        raise RuntimeError("Endast gneu-admin får minta gneu-se-token")
+
+    inst = installation(profile)
+    installation_id = inst.get("id")
+    if installation_id != GNEU_SE_INSTALLATION_ID:
+        raise RuntimeError(
+            "Fel Admin App-installation för gneu-se: "
+            f"förväntat {GNEU_SE_INSTALLATION_ID}, fick "
+            f"{installation_id or 'saknas'}"
+        )
+
+    jwt = make_jwt(profile)
+    result = github_request(
+        "POST",
+        f"/app/installations/{installation_id}/access_tokens",
+        jwt,
+        {
+            "repositories": [GNEU_SE_REPO],
+            "permissions": dict(GNEU_SE_TOKEN_PERMISSIONS),
+        },
+    )
+
+    token = str(result.get("token") or "")
+    if not token:
+        raise RuntimeError("GitHub returnerade ingen installation token")
+
+    try:
+        validate_gneu_se_token_permissions(result.get("permissions") or {})
+    except Exception:
+        revoke(token)
+        raise
+    return token, result, inst
+
+
 def revoke(token: str):
     try:
         github_request(
@@ -207,6 +253,49 @@ def validate_token_permissions(profile: str, permissions: dict):
     ):
         raise RuntimeError(
             "Installation token ger oväntat workflows: write till gneu-forvaltare"
+        )
+
+
+def validate_gneu_se_token_permissions(permissions: dict):
+    allowed = set(GNEU_SE_TOKEN_PERMISSIONS) | {"metadata"}
+
+    for name, level in GNEU_SE_TOKEN_PERMISSIONS.items():
+        actual = permissions.get(name)
+        if actual != level:
+            raise RuntimeError(
+                "gneu-se-token har fel permission "
+                f"{name}: förväntat {level}, fick {actual or 'saknas'}"
+            )
+
+    if permissions.get("metadata", "read") != "read":
+        raise RuntimeError("gneu-se-token har fel metadata-permission")
+
+    unexpected = sorted(set(permissions) - allowed)
+    if unexpected:
+        raise RuntimeError(
+            "gneu-se-token har oväntade permissions: " + ", ".join(unexpected)
+        )
+
+    writable = sorted(
+        name for name, level in permissions.items() if level != "read"
+    )
+    if writable:
+        raise RuntimeError(
+            "gneu-se-token har write-permissions: " + ", ".join(writable)
+        )
+
+
+def validate_gneu_se_repository_scope(repositories):
+    repositories = repositories or {}
+    names = sorted(
+        str(repository.get("full_name") or "")
+        for repository in repositories.get("repositories", [])
+    )
+    total_count = repositories.get("total_count", len(names))
+    if total_count != 1 or names != [GNEU_SE_FULL_REPO]:
+        raise RuntimeError(
+            "gneu-se-token har fel repository-scope: "
+            + (", ".join(names) if names else "saknas")
         )
 
 
@@ -244,6 +333,32 @@ def check(profile: str):
         print(f"expires_at: {result.get('expires_at', 'ok')}")
         print("token: OK (värdet visas inte)")
 
+    finally:
+        if token:
+            revoke(token)
+
+
+def check_gneu_se(profile: str):
+    token = ""
+    try:
+        token, result, inst = mint_gneu_se(profile)
+        repositories = github_request(
+            "GET",
+            "/installation/repositories",
+            token,
+        )
+        validate_gneu_se_repository_scope(repositories)
+
+        permissions = result.get("permissions") or {}
+        print(f"profile: {profile}")
+        print(f"app: {inst.get('app_slug', 'ok')}")
+        print(f"installation: {inst.get('id')}")
+        print(f"repository: {GNEU_SE_FULL_REPO}")
+        for name in sorted(GNEU_SE_TOKEN_PERMISSIONS):
+            print(f"{name}: {permissions.get(name, 'saknas')}")
+        print(f"metadata: {permissions.get('metadata', 'read (implicit)')}")
+        print(f"expires_at: {result.get('expires_at', 'ok')}")
+        print("token: OK (värdet visas inte)")
     finally:
         if token:
             revoke(token)
@@ -289,6 +404,123 @@ def _validate_branch(profile: str, branch: str):
         )
 
     return branch
+
+
+def _positive_id(value: str, label: str):
+    value = str(value)
+    if not value.isascii() or not value.isdigit() or int(value) < 1:
+        raise RuntimeError(f"{label} måste vara ett positivt heltal")
+    return value
+
+
+def _safe_name(value: str, label: str):
+    value = str(value)
+    if (
+        not value
+        or len(value) > 255
+        or value.startswith("/")
+        or value.endswith("/")
+        or ".." in value.split("/")
+        or not all(c.isalnum() or c in "._/-" for c in value)
+    ):
+        raise RuntimeError(f"Ogiltigt {label}")
+    return value
+
+
+def gneu_se_read_path(operation: str, args):
+    args = list(args)
+    base = f"/repos/{OWNER}/{GNEU_SE_REPO}"
+
+    if operation == "repo":
+        if args:
+            raise RuntimeError("repo tar inga argument")
+        return base
+
+    if operation in {"workflow-run", "workflow-jobs"}:
+        if len(args) != 1:
+            raise RuntimeError(f"{operation} kräver exakt ett run-id")
+        run_id = _positive_id(args[0], "run-id")
+        suffix = "" if operation == "workflow-run" else "/jobs"
+        return f"{base}/actions/runs/{run_id}{suffix}"
+
+    if operation == "workflow-job":
+        if len(args) != 1:
+            raise RuntimeError("workflow-job kräver exakt ett job-id")
+        job_id = _positive_id(args[0], "job-id")
+        return f"{base}/actions/jobs/{job_id}"
+
+    if operation == "pr-list":
+        if args:
+            raise RuntimeError("pr-list tar inga argument")
+        return f"{base}/pulls?state=open&per_page=100"
+
+    if operation == "pr-view":
+        if len(args) != 1:
+            raise RuntimeError("pr-view kräver exakt ett PR-nummer")
+        number = _positive_id(args[0], "PR-nummer")
+        return f"{base}/pulls/{number}"
+
+    if operation == "branch":
+        if len(args) != 1:
+            raise RuntimeError("branch kräver exakt ett branchnamn")
+        branch = _safe_name(args[0], "branchnamn")
+        return f"{base}/branches/{urllib.parse.quote(branch, safe='')}"
+
+    if operation == "ref":
+        if len(args) != 1:
+            raise RuntimeError("ref kräver exakt en heads/ eller tags-ref")
+        ref = _safe_name(args[0], "ref")
+        if not (ref.startswith("heads/") or ref.startswith("tags/")):
+            raise RuntimeError("Endast heads/ och tags/ refs är tillåtna")
+        return f"{base}/git/ref/{urllib.parse.quote(ref, safe='/')}"
+
+    if operation == "contents":
+        if len(args) not in {1, 3}:
+            raise RuntimeError("contents kräver PATH och valfritt --ref REF")
+        path = str(args[0])
+        if path == ".":
+            path = ""
+        elif (
+            not path
+            or len(path) > 1024
+            or path.startswith("/")
+            or ".." in path.split("/")
+            or any(ord(c) < 32 for c in path)
+        ):
+            raise RuntimeError("Ogiltig contents-path")
+
+        endpoint = f"{base}/contents"
+        if path:
+            endpoint += "/" + urllib.parse.quote(path, safe="/")
+
+        if len(args) == 3:
+            if args[1] != "--ref":
+                raise RuntimeError("Endast --ref är tillåtet för contents")
+            ref = _safe_name(args[2], "contents-ref")
+            endpoint += "?ref=" + urllib.parse.quote(ref, safe="")
+        return endpoint
+
+    raise RuntimeError(
+        f"gneu-se-operation '{operation}' är blockerad eller okänd"
+    )
+
+
+def read_gneu_se(profile: str, operation: str, args):
+    path = gneu_se_read_path(operation, args)
+    token = ""
+    try:
+        token, _, _ = mint_gneu_se(profile)
+        repositories = github_request(
+            "GET",
+            "/installation/repositories",
+            token,
+        )
+        validate_gneu_se_repository_scope(repositories)
+        result = github_request("GET", path, token)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+    finally:
+        if token:
+            revoke(token)
 
 
 def authorize_command(profile: str, command):
@@ -451,7 +683,8 @@ def main():
     if len(sys.argv) < 3:
         print(
             "usage: gneu-github-app PROFILE check | "
-            "exec -- COMMAND...",
+            "exec -- COMMAND... | gneu-se-check | "
+            "gneu-se-read OPERATION [ARGS...]",
             file=sys.stderr,
         )
         return 2
@@ -466,6 +699,16 @@ def main():
     try:
         if action == "check":
             check(profile)
+            return 0
+
+        if action == "gneu-se-check":
+            check_gneu_se(profile)
+            return 0
+
+        if action == "gneu-se-read":
+            if len(sys.argv) < 4:
+                raise RuntimeError("gneu-se-read kräver en namngiven operation")
+            read_gneu_se(profile, sys.argv[3], sys.argv[4:])
             return 0
 
         if action == "exec":

@@ -94,6 +94,53 @@ def permission_request(profile):
     return body["permissions"]
 
 
+def gneu_se_permission_request():
+    requests = []
+
+    def fake_request(method, path, bearer, body=None):
+        requests.append((method, path, bearer, body))
+        permissions = dict(body["permissions"])
+        permissions["metadata"] = "read"
+        return {
+            "token": TEST_TOKEN,
+            "permissions": permissions,
+        }
+
+    with (
+        mock.patch.object(
+            BROKER,
+            "installation",
+            return_value={
+                "id": BROKER.GNEU_SE_INSTALLATION_ID,
+                "app_slug": "gneu-admin-agent",
+            },
+        ),
+        mock.patch.object(BROKER, "make_jwt", return_value="test-jwt"),
+        mock.patch.object(BROKER, "github_request", side_effect=fake_request),
+    ):
+        token, result, _ = BROKER.mint_gneu_se("gneu-admin")
+
+    assert token == TEST_TOKEN
+    assert len(requests) == 1
+    method, path, bearer, body = requests[0]
+    assert method == "POST"
+    assert path == (
+        f"/app/installations/{BROKER.GNEU_SE_INSTALLATION_ID}/access_tokens"
+    )
+    assert bearer == "test-jwt"
+    assert body["repositories"] == ["gneu-se"]
+    assert body["permissions"] == {
+        "actions": "read",
+        "contents": "read",
+        "pull_requests": "read",
+    }
+    assert "metadata" not in body["permissions"]
+    assert not any(
+        level == "write" for level in body["permissions"].values()
+    )
+    return result["permissions"]
+
+
 def run_check(profile, permissions, expect_failure=False):
     revoked = []
     stdout = io.StringIO()
@@ -142,6 +189,92 @@ def run_check(profile, permissions, expect_failure=False):
     assert (error is not None) == expect_failure
 
 
+def run_gneu_se_check(permissions, repositories, expect_failure=False):
+    revoked = []
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    def fake_request(method, path, bearer, body=None):
+        assert (method, path, bearer, body) == (
+            "GET",
+            "/installation/repositories",
+            TEST_TOKEN,
+            None,
+        )
+        return {"repositories": repositories}
+
+    error = None
+    with (
+        mock.patch.object(
+            BROKER,
+            "mint_gneu_se",
+            return_value=(
+                TEST_TOKEN,
+                {"permissions": permissions, "expires_at": "test-expiry"},
+                {
+                    "id": BROKER.GNEU_SE_INSTALLATION_ID,
+                    "app_slug": "gneu-admin-agent",
+                },
+            ),
+        ),
+        mock.patch.object(BROKER, "github_request", side_effect=fake_request),
+        mock.patch.object(BROKER, "revoke", side_effect=revoked.append),
+        contextlib.redirect_stdout(stdout),
+        contextlib.redirect_stderr(stderr),
+    ):
+        try:
+            BROKER.check_gneu_se("gneu-admin")
+        except RuntimeError as exc:
+            error = exc
+
+    combined_output = stdout.getvalue() + stderr.getvalue()
+    if error is not None:
+        combined_output += str(error)
+    assert revoked == [TEST_TOKEN]
+    assert TEST_TOKEN not in combined_output, "gneu-se token leaked to output"
+    assert (error is not None) == expect_failure
+
+
+def run_gneu_se_read(operation, args, expected_path):
+    revoked = []
+    requests = []
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    def fake_request(method, path, bearer, body=None):
+        requests.append((method, path, bearer, body))
+        if path == "/installation/repositories":
+            return {
+                "repositories": [
+                    {"full_name": "stebolainen/gneu-se"},
+                ],
+            }
+        assert path == expected_path
+        return {"result": "ok"}
+
+    with (
+        mock.patch.object(
+            BROKER,
+            "mint_gneu_se",
+            return_value=(TEST_TOKEN, {}, {}),
+        ),
+        mock.patch.object(BROKER, "github_request", side_effect=fake_request),
+        mock.patch.object(BROKER, "revoke", side_effect=revoked.append),
+        contextlib.redirect_stdout(stdout),
+        contextlib.redirect_stderr(stderr),
+    ):
+        BROKER.read_gneu_se("gneu-admin", operation, args)
+
+    assert requests == [
+        ("GET", "/installation/repositories", TEST_TOKEN, None),
+        ("GET", expected_path, TEST_TOKEN, None),
+    ]
+    assert revoked == [TEST_TOKEN]
+    combined_output = stdout.getvalue() + stderr.getvalue()
+    assert TEST_TOKEN not in combined_output, "gneu-se token leaked to output"
+    assert '"result": "ok"' in stdout.getvalue()
+
+
 assert BROKER.OWNER == "stebolainen"
 assert BROKER.REPO == "gneu-content"
 assert BROKER.PROFILE_DIRS.keys() == {"gneu-admin", "gneu-forvaltare"}
@@ -159,6 +292,162 @@ assert forvaltare_permissions == {
     "pull_requests": "write",
 }
 assert "workflows" not in forvaltare_permissions
+
+gneu_se_permissions = gneu_se_permission_request()
+assert gneu_se_permissions == {
+    "actions": "read",
+    "contents": "read",
+    "metadata": "read",
+    "pull_requests": "read",
+}
+
+expect_runtime_error(
+    lambda: BROKER.mint_gneu_se("gneu-forvaltare"),
+    "Förvaltaren kunde oväntat minta gneu-se-token",
+)
+with mock.patch.object(
+    BROKER,
+    "installation",
+    return_value={"id": 1, "app_slug": "gneu-admin-agent"},
+):
+    expect_runtime_error(
+        lambda: BROKER.mint_gneu_se("gneu-admin"),
+        "Fel installation-id accepterades för gneu-se",
+    )
+
+revoked_after_bad_mint = []
+with (
+    mock.patch.object(
+        BROKER,
+        "installation",
+        return_value={"id": BROKER.GNEU_SE_INSTALLATION_ID},
+    ),
+    mock.patch.object(BROKER, "make_jwt", return_value="test-jwt"),
+    mock.patch.object(
+        BROKER,
+        "github_request",
+        return_value={
+            "token": TEST_TOKEN,
+            "permissions": {
+                "actions": "write",
+                "contents": "read",
+                "pull_requests": "read",
+            },
+        },
+    ),
+    mock.patch.object(
+        BROKER,
+        "revoke",
+        side_effect=revoked_after_bad_mint.append,
+    ),
+):
+    expect_runtime_error(
+        lambda: BROKER.mint_gneu_se("gneu-admin"),
+        "Mint accepterade write och lämnade token aktivt",
+    )
+assert revoked_after_bad_mint == [TEST_TOKEN]
+
+BROKER.validate_gneu_se_token_permissions(
+    {
+        "actions": "read",
+        "contents": "read",
+        "pull_requests": "read",
+    }
+)
+for invalid_permissions in (
+    {
+        "actions": "write",
+        "contents": "read",
+        "pull_requests": "read",
+    },
+    {
+        "actions": "read",
+        "contents": "write",
+        "pull_requests": "read",
+    },
+    {
+        "actions": "read",
+        "contents": "read",
+        "pull_requests": "write",
+    },
+    {
+        "actions": "read",
+        "contents": "read",
+        "pull_requests": "read",
+        "workflows": "read",
+    },
+):
+    expect_runtime_error(
+        lambda permissions=invalid_permissions:
+            BROKER.validate_gneu_se_token_permissions(permissions),
+        "Otillåten gneu-se-permission accepterades",
+    )
+
+run_gneu_se_check(
+    gneu_se_permissions,
+    [{"full_name": "stebolainen/gneu-se"}],
+)
+run_gneu_se_check(
+    gneu_se_permissions,
+    [
+        {"full_name": "stebolainen/gneu-content"},
+        {"full_name": "stebolainen/gneu-se"},
+    ],
+    expect_failure=True,
+)
+
+gneu_se_base = "/repos/stebolainen/gneu-se"
+for operation, args, path in (
+    ("repo", [], gneu_se_base),
+    ("workflow-run", ["123"], f"{gneu_se_base}/actions/runs/123"),
+    ("workflow-jobs", ["123"], f"{gneu_se_base}/actions/runs/123/jobs"),
+    ("workflow-job", ["456"], f"{gneu_se_base}/actions/jobs/456"),
+    ("pr-list", [], f"{gneu_se_base}/pulls?state=open&per_page=100"),
+    ("pr-view", ["55"], f"{gneu_se_base}/pulls/55"),
+    ("branch", ["feature/test"], f"{gneu_se_base}/branches/feature%2Ftest"),
+    ("ref", ["heads/main"], f"{gneu_se_base}/git/ref/heads/main"),
+    ("contents", ["."], f"{gneu_se_base}/contents"),
+    (
+        "contents",
+        ["assets/data.json", "--ref", "main"],
+        f"{gneu_se_base}/contents/assets/data.json?ref=main",
+    ),
+):
+    run_gneu_se_read(operation, args, path)
+
+for blocked_operation in (
+    "workflow-dispatch",
+    "workflow-rerun",
+    "workflow-cancel",
+    "branch-create",
+    "branch-delete",
+    "pr-create",
+    "pr-update",
+    "pr-close",
+    "pr-merge",
+    "contents-write",
+    "workflow-mutate",
+    "release-create",
+    "permissions-update",
+):
+    expect_runtime_error(
+        lambda operation=blocked_operation:
+            BROKER.gneu_se_read_path(operation, []),
+        f"Otillåten gneu-se-operation accepterades: {blocked_operation}",
+    )
+
+expect_runtime_error(
+    lambda: BROKER.gneu_se_read_path(
+        "repo", ["--repo", "stebolainen/other"]
+    ),
+    "Caller kunde välja godtyckligt repository",
+)
+expect_runtime_error(
+    lambda: BROKER.authorize_command(
+        "gneu-admin", ["gh", "api", "/repos/stebolainen/gneu-se"]
+    ),
+    "Godtycklig gh api accepterades",
+)
 
 run_check("gneu-admin", admin_permissions)
 run_check(
