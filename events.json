@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 25,
+  "generation": 26,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -18,6 +18,26 @@
         {
           "id": "msrc",
           "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-47292"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-58641-update-2026-09-03",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-09-03T14:00:00Z",
+      "updated_at": "2026-09-03T17:03:13Z",
+      "title": "Uppdatera SkiaSharp till version 4.151.2 för CVE-2026-58641",
+      "summary": "Microsoft har lagt till SkiaSharp 4.151.2 i den berörda programvarutabellen för CVE-2026-58641. Sårbarheten är ett heltalsöverskridande i .NET som kan ge en obehörig lokal angripare utökade behörigheter, upp till SYSTEM.",
+      "action": "Uppdatera SkiaSharp till version 4.151.2 enligt Microsofts angivna säkerhetsuppdatering.",
+      "cves": [
+        "CVE-2026-58641"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-58641"
         }
       ],
       "confidence": "verified"
