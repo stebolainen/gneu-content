@@ -46,6 +46,10 @@ scheduler = load(
     "aihot_scheduler",
     ROOT / "runtime/aihot/bin/configure-generation-scheduler.py",
 )
+local_retry = load(
+    "aihot_local_retry_daily",
+    ROOT / "runtime/aihot/bin/aihot_local_retry.py",
+)
 
 
 class DailyAttemptTests(unittest.TestCase):
@@ -108,6 +112,48 @@ class DailyAttemptTests(unittest.TestCase):
             process_ready.run = original
         return result, output.getvalue(), calls
 
+    def authorize_r1(self) -> None:
+        target = self.fixture.outbox / self.package_id
+        source_id = "2026-W36--2026-09-04"
+        source = self.fixture.outbox / source_id
+        source.mkdir()
+        for name in ("candidate.json", "handoff.json", "report.md"):
+            shutil.copy2(target / name, source / name)
+        paths = local_retry.RetryPaths(
+            self.fixture.state,
+            self.fixture.outbox,
+            self.fixture.root / "scheduler.json",
+            self.fixture.root / "executions.db",
+            self.fixture.root / "output",
+        )
+        hashes = local_retry.source_hashes(paths, source_id)
+        authorization = {
+            "schema": "gneu-aihot-generation-retry-authorization-v1",
+            "edition": "2026-W36",
+            "attempt": "2026-09-04",
+            "source_package_id": source_id,
+            "source_candidate_sha256": hashes["candidate"],
+            "source_handoff_sha256": hashes["handoff"],
+            "source_report_sha256": hashes["report"],
+            "hermes_execution_id": "a" * 32,
+            "validation_failure": local_retry.REASON,
+            "target_package_id": self.package_id,
+            "revision": 1,
+            "authorized_at": "2026-09-04T07:30:00+00:00",
+        }
+        authorization_sha = local_retry.atomic_create(
+            local_retry.authorization_path(paths, "2026-09-04"), authorization
+        )
+        local_retry.atomic_create(
+            local_retry.consumed_path(paths, "2026-09-04"),
+            {
+                **authorization,
+                "schema": "gneu-aihot-generation-retry-consumed-v1",
+                "authorization_sha256": authorization_sha,
+                "consumed_at": "2026-09-04T07:31:00+00:00",
+            },
+        )
+
     def test_old_rejected_payload_remains_terminal(self) -> None:
         calls = []
         original = process_ready.run
@@ -138,6 +184,40 @@ class DailyAttemptTests(unittest.TestCase):
     def test_attempt_must_belong_to_edition(self) -> None:
         with self.assertRaises(ValueError):
             process_ready.parse_package_id("2026-W36--2026-08-26")
+
+    def test_r1_uses_normal_process_ready_and_records_revision(self) -> None:
+        self.package_id = "2026-W36--2026-09-04--r1"
+        self.make_attempt()
+        self.authorize_r1()
+        result, output, calls = self.run_attempt()
+        self.assertTrue(result)
+        self.assertIn(f"AIHOT_READY_PROCESSED {self.package_id}", output)
+        self.assertEqual(len(calls), 3)
+        receipt = json.loads(
+            (self.fixture.state / "processed" / f"{self.package_id}.json").read_text()
+        )
+        self.assertEqual(receipt["revision"], 1)
+
+    def test_r1_rejected_payload_replay_is_still_blocked(self) -> None:
+        self.package_id = "2026-W36--2026-09-04--r1"
+        self.make_attempt(replay=True)
+        self.authorize_r1()
+        result, output, calls = self.run_attempt()
+        self.assertFalse(result)
+        self.assertIn("BLOCKED_REJECTED_PACKAGE_REPLAY", output)
+        self.assertEqual(len(calls), 2)
+
+    def test_r1_process_ready_requires_consumed_authorization(self) -> None:
+        self.package_id = "2026-W36--2026-09-04--r1"
+        self.make_attempt()
+        result, output, calls = self.run_attempt()
+        self.assertFalse(result)
+        self.assertIn("BLOCKED_INVALID_RETRY_AUTHORIZATION", output)
+        self.assertEqual(calls, [])
+
+    def test_arbitrary_later_revision_is_invalid(self) -> None:
+        with self.assertRaises(ValueError):
+            process_ready.parse_package_id("2026-W36--2026-09-04--r2")
 
 
 class DailyGateTests(unittest.TestCase):
@@ -315,6 +395,10 @@ class HandoffValidatorTests(unittest.TestCase):
         handoff_validator.ROOT = root
         handoff_validator.INBOX = root / "inbox"
         handoff_validator.OUTBOX = root / "outbox"
+        handoff_validator.RETRY_STATE = root / "state"
+        handoff_validator.SCHEDULER_CONFIG = root / "scheduler.json"
+        handoff_validator.EXECUTIONS_DB = root / "executions.db"
+        handoff_validator.CRON_OUTPUT = root / "output"
         handoff_validator.INBOX.mkdir()
         handoff_validator.OUTBOX.mkdir()
         self.package_id = "2026-W36--2026-09-04"
@@ -368,6 +452,42 @@ class HandoffValidatorTests(unittest.TestCase):
         finally:
             sys.argv = old
 
+    def authorize_handoff_r1(self, target_id: str) -> None:
+        paths = local_retry.RetryPaths(
+            handoff_validator.RETRY_STATE,
+            handoff_validator.OUTBOX,
+            handoff_validator.SCHEDULER_CONFIG,
+            handoff_validator.EXECUTIONS_DB,
+            handoff_validator.CRON_OUTPUT,
+        )
+        hashes = local_retry.source_hashes(paths, "2026-W36--2026-09-04")
+        authorization = {
+            "schema": "gneu-aihot-generation-retry-authorization-v1",
+            "edition": "2026-W36",
+            "attempt": "2026-09-04",
+            "source_package_id": "2026-W36--2026-09-04",
+            "source_candidate_sha256": hashes["candidate"],
+            "source_handoff_sha256": hashes["handoff"],
+            "source_report_sha256": hashes["report"],
+            "hermes_execution_id": "b" * 32,
+            "validation_failure": local_retry.REASON,
+            "target_package_id": target_id,
+            "revision": 1,
+            "authorized_at": "2026-09-04T07:30:00+00:00",
+        }
+        auth_sha = local_retry.atomic_create(
+            local_retry.authorization_path(paths, "2026-09-04"), authorization
+        )
+        local_retry.atomic_create(
+            local_retry.consumed_path(paths, "2026-09-04"),
+            {
+                **authorization,
+                "schema": "gneu-aihot-generation-retry-consumed-v1",
+                "authorization_sha256": auth_sha,
+                "consumed_at": "2026-09-04T07:31:00+00:00",
+            },
+        )
+
     def test_article_date_outside_edition_never_creates_ready(self) -> None:
         with self.assertRaises(SystemExit) as caught:
             self.call_validator()
@@ -383,6 +503,43 @@ class HandoffValidatorTests(unittest.TestCase):
             self.call_validator()
         self.assertEqual(ready.read_bytes(), before)
         self.assertIn("ALREADY_READY", output.getvalue())
+
+    def test_r1_requires_revision_binding_and_accepts_in_week_article(self) -> None:
+        target = handoff_validator.OUTBOX / (self.package_id + "--r1")
+        shutil.copytree(self.package, target)
+        source = handoff_validator.OUTBOX / self.package_id
+        self.package = target
+        candidate = json.loads((target / "candidate.json").read_text())
+        candidate["articles"][0]["date"] = "2026-09-02"
+        (target / "candidate.json").write_text(json.dumps(candidate))
+        handoff = json.loads((target / "handoff.json").read_text())
+        handoff["revision"] = 1
+        (target / "handoff.json").write_text(json.dumps(handoff))
+        self.package_id += "--r1"
+        self.authorize_handoff_r1(self.package_id)
+        self.call_validator()
+        self.assertTrue((target / "READY").is_file())
+        self.assertFalse((source / "READY").exists())
+
+    def test_r1_without_revision_binding_is_blocked(self) -> None:
+        target = handoff_validator.OUTBOX / (self.package_id + "--r1")
+        shutil.copytree(self.package, target)
+        self.package = target
+        self.package_id += "--r1"
+        self.authorize_handoff_r1(self.package_id)
+        with self.assertRaises(SystemExit) as caught:
+            self.call_validator()
+        self.assertIn("handoff revision mismatch", str(caught.exception))
+
+
+class GeneratorContractTests(unittest.TestCase):
+    def test_research_window_is_not_candidate_eligibility(self) -> None:
+        contract = (ROOT / "runtime/aihot/generation/CONTRACT.md").read_text()
+        instructions = (ROOT / "runtime/aihot/generation/ADAM_DAILY.md").read_text()
+        for value in (contract, instructions):
+            self.assertIn("date.fromisoformat(article_date).isocalendar()", value)
+            self.assertIn("research window", value.lower())
+            self.assertIn("supplied edition", value)
 
 
 if __name__ == "__main__":

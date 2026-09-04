@@ -9,7 +9,8 @@ authorised operations performed only after merge.
 ## State machine and identities
 
 ```text
-legacy READY package (YYYY-Www) or daily package (YYYY-Www--YYYY-MM-DD)
+legacy package (YYYY-Www), daily package (YYYY-Www--YYYY-MM-DD),
+or operator-authorized correction (YYYY-Www--YYYY-MM-DD--r1)
   -> validate
   -> build trusted transport
   -> reject-replay guard
@@ -64,11 +65,24 @@ waking the agent. Without the authorization, with an invalid binding, or after
 consumption, the gate stays closed. See
 [`AIHOT_CLAIM_RECOVERY.md`](AIHOT_CLAIM_RECOVERY.md).
 
+A daily package that fails local validation before READY is likewise immutable.
+For the single allowlisted `ARTICLE_DATE_OUTSIDE_EDITION` class, a root-only
+operator may authorize one independently bound `--r1` correction after proving
+the source hashes, terminal Hermes execution, reproducible failure, and absence
+of all downstream state. The ordinary Hermes job consumes that authorization
+exactly once. The scheduler never creates a revision automatically. See
+[`AIHOT_LOCAL_RETRY.md`](AIHOT_LOCAL_RETRY.md).
+
 `aihot-freshness.py` performs a bounded read-only check of public
 `data/aihot.json`. Public age below 26 hours is `FRESH`; age at or above 26
 hours is `STALE` with exit code 2. Network, schema or timestamp errors are
 `UNKNOWN` and fail closed. The daily generation gate also includes the last
 locally observed freshness state in Hermes execution output.
+
+A no-change package records successful research but does not change the public
+append-only content payload or its `generated` timestamp. Research freshness
+and public content-edition freshness are therefore distinct; this runtime does
+not silently rewrite content freshness.
 
 See [`../runtime/aihot/README.md`](../runtime/aihot/README.md) for source,
 manifest, provisioning, scheduler reconciliation and provenance details.

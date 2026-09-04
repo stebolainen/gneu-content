@@ -19,6 +19,12 @@ RUNTIME_BIN = Path("/root/gneu-aihot-bridge/bin")
 sys.path.insert(0, str(SOURCE_BIN if (SOURCE_BIN / "aihot_claim_resume.py").is_file() else RUNTIME_BIN))
 
 from aihot_claim_resume import ResumeError, ResumePaths, consume_authorization
+from aihot_local_retry import (
+    RetryError,
+    RetryPaths,
+    consume_authorization as consume_retry_authorization,
+    source_resolved_by_retry,
+)
 
 
 ZONE = ZoneInfo("Europe/Stockholm")
@@ -30,7 +36,9 @@ SCHEDULER_CONFIG = Path("/root/gneu-aihot-bridge/config/hermes-scheduler.json")
 EXECUTIONS_DB = Path("/root/.hermes/profiles/gneu/cron/executions.db")
 CRON_OUTPUT = Path("/root/.hermes/profiles/gneu/cron/output")
 FRESHNESS_SECONDS = 26 * 60 * 60
-DAILY_PACKAGE_RE = re.compile(r"^\d{4}-W\d{2}--\d{4}-\d{2}-\d{2}$")
+DAILY_PACKAGE_RE = re.compile(
+    r"^\d{4}-W\d{2}--\d{4}-\d{2}-\d{2}(?:--r1)?$"
+)
 
 
 def atomic_json(path: Path, value: dict) -> None:
@@ -57,6 +65,10 @@ def atomic_json(path: Path, value: dict) -> None:
 
 def resume_paths() -> ResumePaths:
     return ResumePaths(STATE, OUTBOX, SCHEDULER_CONFIG, EXECUTIONS_DB, CRON_OUTPUT)
+
+
+def retry_paths() -> RetryPaths:
+    return RetryPaths(STATE, OUTBOX, SCHEDULER_CONFIG, EXECUTIONS_DB, CRON_OUTPUT)
 
 
 def context_for(now: dt.datetime) -> tuple[dt.datetime, str, str, str, dict]:
@@ -98,11 +110,15 @@ def inspect(now: dt.datetime | None = None) -> dict:
     local, _, attempt, package_id, context = context_for(now)
     if local.time() < dt.time(7, 0):
         reason = "before_daily_aihot_window"
-    elif os.path.lexists(OUTBOX / package_id):
-        reason = "daily_attempt_package_present"
     elif os.path.lexists(STATE / "processed" / f"{package_id}.json"):
         reason = "daily_attempt_complete"
     elif os.path.lexists(STATE / "failed" / f"{package_id}.json"):
+        reason = "daily_attempt_requires_operator"
+    elif os.path.lexists(CLAIMS / "retry-consumed" / f"{attempt}-r1.json"):
+        reason = "retry_already_consumed"
+    elif os.path.lexists(CLAIMS / "retry-authorized" / f"{attempt}-r1.json"):
+        reason = "operator_local_retry_authorized"
+    elif os.path.lexists(OUTBOX / package_id):
         reason = "daily_attempt_requires_operator"
     elif os.path.lexists(CLAIMS / "resume-consumed" / f"{attempt}.json"):
         reason = "resume_already_consumed"
@@ -135,12 +151,30 @@ def evaluate(now: dt.datetime | None = None) -> dict:
         }
     if OUTBOX.is_dir():
         for entry in OUTBOX.iterdir():
-            if not DAILY_PACKAGE_RE.fullmatch(entry.name) or entry.name == package_id:
+            if not DAILY_PACKAGE_RE.fullmatch(entry.name) or entry.name in {
+                package_id,
+                f"{package_id}--r1",
+            }:
                 continue
             terminal = (
                 (STATE / "processed" / f"{entry.name}.json").is_file()
                 or (STATE / "failed" / f"{entry.name}.json").is_file()
+                or (entry / "READY").is_file()
             )
+            entry_attempt = entry.name.split("--")[1]
+            retry_consumed = CLAIMS / "retry-consumed" / f"{entry_attempt}-r1.json"
+            if (
+                not terminal
+                and not entry.name.endswith("--r1")
+                and os.path.lexists(retry_consumed)
+            ):
+                try:
+                    terminal = source_resolved_by_retry(retry_paths(), entry.name)
+                except RetryError:
+                    return {
+                        "wakeAgent": False,
+                        "context": {**context, "reason": "unsafe_retry_state"},
+                    }
             if not terminal:
                 return {
                     "wakeAgent": False,
@@ -159,7 +193,7 @@ def evaluate(now: dt.datetime | None = None) -> dict:
             "wakeAgent": False,
             "context": {**context, "reason": "daily_attempt_complete"},
         }
-    if os.path.lexists(processed) or os.path.lexists(failed) or os.path.lexists(package):
+    if os.path.lexists(processed) or os.path.lexists(failed):
         return {
             "wakeAgent": False,
             "context": {**context, "reason": "daily_attempt_requires_operator"},
@@ -178,6 +212,34 @@ def evaluate(now: dt.datetime | None = None) -> dict:
         os.chmod(lock_path, 0o600)
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         claim = CLAIMS / f"{attempt}.json"
+        if os.path.lexists(package):
+            try:
+                retry_state, authorization = consume_retry_authorization(
+                    retry_paths(), attempt, now
+                )
+            except RetryError:
+                return {
+                    "wakeAgent": False,
+                    "context": {**context, "reason": "unsafe_retry_state"},
+                }
+            if retry_state == "consumed" and authorization is not None:
+                return {
+                    "wakeAgent": True,
+                    "context": {
+                        **context,
+                        "edition": authorization["edition"],
+                        "attempt": authorization["attempt"],
+                        "package_id": authorization["target_package_id"],
+                        "revision": authorization["revision"],
+                        "reason": "operator_local_retry",
+                    },
+                }
+            reason = (
+                "retry_already_consumed"
+                if retry_state == "already-consumed"
+                else "daily_attempt_requires_operator"
+            )
+            return {"wakeAgent": False, "context": {**context, "reason": reason}}
         if os.path.lexists(claim):
             try:
                 resume_state, original_claim = consume_authorization(
