@@ -54,6 +54,38 @@ INSTALL_SPECS = {
         RUNTIME_ROOT / "bin/github-adapter.py",
         0o700,
     ),
+    "runtime/aihot/bin/aihot-freshness.py": (
+        RUNTIME_ROOT / "bin/aihot-freshness.py",
+        0o700,
+    ),
+    "runtime/aihot/bin/configure-generation-scheduler.py": (
+        RUNTIME_ROOT / "bin/configure-generation-scheduler.py",
+        0o700,
+    ),
+    "runtime/aihot/generation/gneu-aihot-daily-gate.py": (
+        Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-daily-gate.py"),
+        0o700,
+    ),
+    "runtime/aihot/generation/gneu-aihot-base-refresh.py": (
+        Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-base-refresh.py"),
+        0o700,
+    ),
+    "runtime/aihot/generation/gneu-aihot-handoff-validate.py": (
+        Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-handoff-validate.py"),
+        0o700,
+    ),
+    "runtime/aihot/generation/CONTRACT.md": (
+        Path("/root/.hermes/profiles/gneu/aihot-handoff/CONTRACT.md"),
+        0o600,
+    ),
+    "runtime/aihot/generation/ADAM_DAILY.md": (
+        Path("/root/.hermes/profiles/gneu/aihot-handoff/ADAM_DAILY.md"),
+        0o600,
+    ),
+    "runtime/aihot/generation/hermes-scheduler.json": (
+        RUNTIME_ROOT / "config/hermes-scheduler.json",
+        0o600,
+    ),
     "runtime/aihot/systemd/gneu-aihot-ready.service": (
         Path("/etc/systemd/system/gneu-aihot-ready.service"),
         0o644,

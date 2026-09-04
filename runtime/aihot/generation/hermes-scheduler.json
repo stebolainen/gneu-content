@@ -1,0 +1,12 @@
+{
+  "schema": "gneu-aihot-hermes-scheduler-v1",
+  "job_id": "fbd796dbb875",
+  "name": "gneu-aihot-daily",
+  "schedule": "0 5,6 * * *",
+  "scheduler_timezone": "Etc/UTC",
+  "operator_timezone": "Europe/Stockholm",
+  "local_time": "07:00",
+  "script": "gneu-aihot-daily-gate.py",
+  "workdir": "/root/.hermes/profiles/gneu/aihot-handoff",
+  "prompt": "Läs exakt /root/.hermes/profiles/gneu/aihot-handoff/ADAM_DAILY.md och följ den fullständigt. Läs även gate-context. Detta är Adams dagliga AI-hot-analys inom hans ansvar för cyber- och AI-säkerhet. Utöka aldrig dina GitHub-rättigheter och använd aldrig gneu-se-credentials."
+}

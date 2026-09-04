@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import datetime as dt
+import base64
 import fcntl
+import gzip
+import hashlib
 import json
 import os
 import re
@@ -29,6 +32,25 @@ FAILED = STATE / "failed"
 LOCK = STATE / "process-ready.lock"
 
 WEEK_RE = re.compile(r"^\d{4}-W\d{2}$")
+PACKAGE_RE = re.compile(
+    r"^(?P<edition>\d{4}-W\d{2})(?:--(?P<attempt>\d{4}-\d{2}-\d{2}))?$"
+)
+
+
+def parse_package_id(package_id: str) -> tuple[str, str | None]:
+    match = PACKAGE_RE.fullmatch(package_id)
+    if not match:
+        raise ValueError("invalid package id")
+    edition = match.group("edition")
+    attempt = match.group("attempt")
+    year, week = int(edition[:4]), int(edition[-2:])
+    dt.date.fromisocalendar(year, week, 1)
+    if attempt is not None:
+        attempt_date = dt.date.fromisoformat(attempt)
+        iso = attempt_date.isocalendar()
+        if (iso.year, iso.week) != (year, week):
+            raise ValueError("attempt date is outside edition")
+    return edition, attempt
 
 
 def now_utc() -> str:
@@ -105,7 +127,9 @@ def package_ready(
     if not path.is_dir():
         return False
 
-    if not WEEK_RE.fullmatch(path.name):
+    try:
+        parse_package_id(path.name)
+    except (ValueError, TypeError):
         return False
 
     required = {
@@ -135,34 +159,76 @@ def package_ready(
     return True
 
 
-def process_week(
-    edition: str,
+def verified_rejections() -> list[dict]:
+    rejected = STATE / "rejected"
+    if not path_present(rejected):
+        return []
+    if rejected.is_symlink() or not rejected.is_dir():
+        raise RejectionError("rejected state directory invalid")
+    receipts = []
+    for path in sorted(rejected.iterdir()):
+        if path.is_symlink() or not path.is_file() or not WEEK_RE.fullmatch(path.stem):
+            raise RejectionError("unexpected rejected state entry")
+        receipts.append(
+            verify_receipt(path.stem, state_root=STATE, outbox_root=OUTBOX)
+        )
+    return receipts
+
+
+def decoded_payload_sha256(transport: dict) -> str:
+    encoded = transport.get("payload_b64")
+    if not isinstance(encoded, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,55000}", encoded):
+        raise ValueError("transport payload encoding invalid")
+    padded = encoded + "=" * ((4 - len(encoded) % 4) % 4)
+    compressed = base64.urlsafe_b64decode(padded.encode("ascii"))
+    if len(compressed) > 1024 * 1024:
+        raise ValueError("transport payload too large")
+    if hashlib.sha256(compressed).hexdigest() != transport.get("payload_sha256"):
+        raise ValueError("transport payload hash mismatch")
+    raw = gzip.decompress(compressed)
+    if not raw or len(raw) > 5 * 1024 * 1024:
+        raise ValueError("decoded payload size invalid")
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise ValueError("decoded payload shape invalid")
+    canonical = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    if raw != canonical:
+        raise ValueError("decoded payload is not canonical")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def process_package(
+    package_id: str,
 ) -> bool:
 
-    package = OUTBOX / edition
+    try:
+        edition, attempt = parse_package_id(package_id)
+    except (ValueError, TypeError):
+        print(f"BLOCKED_INVALID_PACKAGE_ID {package_id}")
+        return False
+
+    package = OUTBOX / package_id
 
     processed_file = (
         PROCESSED
-        / f"{edition}.json"
+        / f"{package_id}.json"
     )
 
     failed_file = (
         FAILED
-        / f"{edition}.json"
+        / f"{package_id}.json"
     )
 
     rejected_file = (
         STATE
         / "rejected"
-        / f"{edition}.json"
+        / f"{package_id}.json"
     )
 
     processed_present = path_present(
         processed_file
     )
-    rejected_present = path_present(
-        rejected_file
-    )
+    rejected_present = attempt is None and path_present(rejected_file)
 
     if (
         processed_present
@@ -170,32 +236,32 @@ def process_week(
     ):
         print(
             f"BLOCKED_STATE_CONFLICT "
-            f"{edition}"
+            f"{package_id}"
         )
         return False
 
     if processed_present:
         print(
-            f"ALREADY_PROCESSED {edition}"
+            f"ALREADY_PROCESSED {package_id}"
         )
         return True
 
     if rejected_present:
         try:
             verify_receipt(
-                edition,
+                package_id,
                 state_root=STATE,
                 outbox_root=OUTBOX,
             )
         except RejectionError as exc:
             print(
                 f"BLOCKED_INVALID_REJECTION "
-                f"{edition}: {exc}"
+                f"{package_id}: {exc}"
             )
             return False
 
         print(
-            f"ALREADY_REJECTED {edition}"
+            f"ALREADY_REJECTED {package_id}"
         )
         return True
 
@@ -204,20 +270,26 @@ def process_week(
     # the GitHub dispatch boundary.
     if failed_file.exists():
         print(
-            f"FAILED_REQUIRES_OPERATOR {edition}"
+            f"FAILED_REQUIRES_OPERATOR {package_id}"
         )
         return False
 
     if not package_ready(package):
         print(
             f"BLOCKED_INVALID_PACKAGE "
-            f"{edition}"
+            f"{package_id}"
         )
         return False
 
     print(
-        f"PROCESS_READY {edition}"
+        f"PROCESS_READY {package_id}"
     )
+
+    try:
+        rejection_receipts = verified_rejections()
+    except RejectionError as exc:
+        print(f"BLOCKED_INVALID_REJECTION_STATE {package_id}: {exc}")
+        return False
 
     stages = [
         (
@@ -228,7 +300,7 @@ def process_week(
                     BIN
                     / "validate-intake.py"
                 ),
-                edition,
+                package_id,
             ],
         ),
         (
@@ -239,18 +311,7 @@ def process_week(
                     BIN
                     / "build-intake-payload.py"
                 ),
-                edition,
-            ],
-        ),
-        (
-            "dispatch",
-            [
-                "/usr/bin/python3",
-                str(
-                    BIN
-                    / "dispatch-trusted-intake.py"
-                ),
-                edition,
+                package_id,
             ],
         ),
     ]
@@ -278,6 +339,14 @@ def process_week(
                         "gneu-aihot-ready-failure-v1",
                     "edition":
                         edition,
+                    **(
+                        {
+                            "package_id": package_id,
+                            "attempt": attempt,
+                        }
+                        if attempt is not None
+                        else {}
+                    ),
                     "failed_at":
                         now_utc(),
                     "failed_stage":
@@ -289,7 +358,7 @@ def process_week(
 
             print(
                 f"AIHOT_READY_FAILED "
-                f"{edition} "
+                f"{package_id} "
                 f"stage={stage}"
             )
 
@@ -298,7 +367,7 @@ def process_week(
     transport = (
         STATE
         / "intake"
-        / f"{edition}.transport.json"
+        / f"{package_id}.transport.json"
     )
 
     if not transport.is_file():
@@ -309,6 +378,14 @@ def process_week(
                     "gneu-aihot-ready-failure-v1",
                 "edition":
                     edition,
+                **(
+                    {
+                        "package_id": package_id,
+                        "attempt": attempt,
+                    }
+                    if attempt is not None
+                    else {}
+                ),
                 "failed_at":
                     now_utc(),
                 "failed_stage":
@@ -322,7 +399,7 @@ def process_week(
 
         print(
             f"AIHOT_READY_FAILED "
-            f"{edition} "
+            f"{package_id} "
             "stage=receipt"
         )
 
@@ -343,6 +420,14 @@ def process_week(
                     "gneu-aihot-ready-failure-v1",
                 "edition":
                     edition,
+                **(
+                    {
+                        "package_id": package_id,
+                        "attempt": attempt,
+                    }
+                    if attempt is not None
+                    else {}
+                ),
                 "failed_at":
                     now_utc(),
                 "failed_stage":
@@ -356,9 +441,80 @@ def process_week(
 
         print(
             f"AIHOT_READY_FAILED "
-            f"{edition} "
+            f"{package_id} "
             "stage=receipt-json"
         )
+        return False
+
+    if attempt is not None:
+        try:
+            payload_sha = decoded_payload_sha256(transport_data)
+        except Exception:
+            atomic_json(
+                failed_file,
+                {
+                    "schema": "gneu-aihot-ready-failure-v1",
+                    "edition": edition,
+                    "package_id": package_id,
+                    "attempt": attempt,
+                    "failed_at": now_utc(),
+                    "failed_stage": "replay-guard",
+                    "reason": "transport failed canonical payload verification",
+                    "stages": output,
+                },
+            )
+            print(f"BLOCKED_INVALID_TRANSPORT {package_id}")
+            return False
+        if any(receipt.get("payload_sha256") == payload_sha for receipt in rejection_receipts):
+            atomic_json(
+                failed_file,
+                {
+                    "schema": "gneu-aihot-ready-failure-v1",
+                    "edition": edition,
+                    "package_id": package_id,
+                    "attempt": attempt,
+                    "failed_at": now_utc(),
+                    "failed_stage": "replay-guard",
+                    "reason": "canonical payload matches a verified rejection",
+                    "stages": output,
+                },
+            )
+            print(f"BLOCKED_REJECTED_PACKAGE_REPLAY {package_id}")
+            return False
+
+    dispatch_argv = [
+        "/usr/bin/python3",
+        str(BIN / "dispatch-trusted-intake.py"),
+        package_id,
+    ]
+    cp = run(dispatch_argv)
+    output.append(
+        {
+            "stage": "dispatch",
+            "returncode": cp.returncode,
+            "output": cp.stdout[-20000:],
+        }
+    )
+    if cp.returncode != 0:
+        atomic_json(
+            failed_file,
+            {
+                "schema": "gneu-aihot-ready-failure-v1",
+                "edition": edition,
+                **(
+                    {
+                        "package_id": package_id,
+                        "attempt": attempt,
+                    }
+                    if attempt is not None
+                    else {}
+                ),
+                "failed_at": now_utc(),
+                "failed_stage": "dispatch",
+                "stages": output,
+            },
+        )
+        print(f"AIHOT_READY_FAILED {package_id} stage=dispatch")
         return False
 
     receipt = {
@@ -366,6 +522,14 @@ def process_week(
             "gneu-aihot-ready-processed-v1",
         "edition":
             edition,
+        **(
+            {
+                "package_id": package_id,
+                "attempt": attempt,
+            }
+            if attempt is not None
+            else {}
+        ),
         "processed_at":
             now_utc(),
         "base_main_sha":
@@ -391,7 +555,7 @@ def process_week(
 
     print(
         f"AIHOT_READY_PROCESSED "
-        f"{edition}"
+        f"{package_id}"
     )
 
     return True
@@ -421,9 +585,7 @@ def main() -> int:
             for p in OUTBOX.iterdir():
                 if (
                     p.is_dir()
-                    and WEEK_RE.fullmatch(
-                        p.name
-                    )
+                    and PACKAGE_RE.fullmatch(p.name)
                     and (
                         p
                         / "READY"
@@ -443,13 +605,16 @@ def main() -> int:
 
         ok = True
 
-        for edition in candidates:
-            if not process_week(
-                edition
+        for package_id in candidates:
+            if not process_package(
+                package_id
             ):
                 ok = False
 
         return 0 if ok else 1
+
+
+process_week = process_package
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from datetime import date
 from pathlib import Path
 
 from github_auth import AuthError, mint_token, revoke_token
@@ -29,8 +30,8 @@ WORKFLOW = (
 API = "https://api.github.com"
 API_VERSION = "2022-11-28"
 
-WEEK_RE = re.compile(
-    r"^\d{4}-W\d{2}$"
+PACKAGE_RE = re.compile(
+    r"^(?P<edition>\d{4}-W\d{2})(?:--(?P<attempt>\d{4}-\d{2}-\d{2}))?$"
 )
 
 SHA_RE = re.compile(
@@ -46,6 +47,24 @@ def fail(msg: str) -> None:
     raise SystemExit(
         "BLOCKED: " + msg
     )
+
+
+def parse_package_id(value: str) -> tuple[str, str | None]:
+    match = PACKAGE_RE.fullmatch(value)
+    if not match:
+        fail("invalid package id")
+    edition = match.group("edition")
+    attempt = match.group("attempt")
+    try:
+        year, week = int(edition[:4]), int(edition[-2:])
+        date.fromisocalendar(year, week, 1)
+        if attempt is not None:
+            iso = date.fromisoformat(attempt).isocalendar()
+            if (iso.year, iso.week) != (year, week):
+                fail("attempt date is outside edition")
+    except ValueError:
+        fail("invalid package id")
+    return edition, attempt
 
 
 def run(
@@ -149,17 +168,15 @@ def api(
 if len(sys.argv) != 2:
     fail(
         "usage: dispatch-intake.py "
-        "YYYY-Www"
+        "PACKAGE_ID"
     )
 
-edition = sys.argv[1]
-
-if not WEEK_RE.fullmatch(edition):
-    fail("invalid edition")
+package_id = sys.argv[1]
+edition, attempt = parse_package_id(package_id)
 
 transport_path = (
     STATE
-    / f"{edition}.transport.json"
+    / f"{package_id}.transport.json"
 )
 
 if transport_path.is_symlink():
@@ -379,6 +396,9 @@ try:
         "INTAKE_DISPATCH: ACCEPTED"
     )
     print("edition:", edition)
+    print("package_id:", package_id)
+    if attempt is not None:
+        print("attempt:", attempt)
     print(
         "expected_main:",
         main_sha,

@@ -1,6 +1,8 @@
 # AI-hot runtime provenance contract
 
-This directory is the source of truth for the AI-hot READY processor runtime.
+This directory is the source of truth for the AI-hot generator gate, handoff
+validator, freshness probe, READY processor runtime, and Hermes schedule
+contract.
 The trusted source is the `main` branch of this repository. Technical changes
 must use an `admin/*` branch and a pull request to `main`.
 
@@ -9,6 +11,12 @@ must use an `admin/*` branch and a pull request to `main`.
 The deployable files listed in `manifest.sha256` map as follows:
 
 - `bin/*.py` -> `/root/gneu-aihot-bridge/bin/*.py`
+- `generation/gneu-aihot-*.py` ->
+  `/root/.hermes/profiles/gneu/scripts/gneu-aihot-*.py`
+- `generation/CONTRACT.md` and `generation/ADAM_DAILY.md` ->
+  `/root/.hermes/profiles/gneu/aihot-handoff/`
+- `generation/hermes-scheduler.json` ->
+  `/root/gneu-aihot-bridge/config/hermes-scheduler.json`
 - `systemd/gneu-aihot-ready.service` ->
   `/etc/systemd/system/gneu-aihot-ready.service`
 - `systemd/gneu-aihot-ready.timer` ->
@@ -29,7 +37,9 @@ deleted by this source tree or its provisioner:
 `manifest.sha256` covers only deployable runtime files. This includes
 `operator-disposition.py` and its shared `aihot_rejection.py` verifier. It does
 not cover documentation, tests, the provisioner itself, state, credentials,
-or outbox packages.
+or outbox packages. Provisioning may install generator code and contracts, but
+it never installs or edits inbox, outbox, claims, failed, rejected, processed,
+or transport state.
 
 `rejection-receipt.schema.json` is the tracked contract for rejection receipts;
 it is not installed into runtime. A receipt is runtime state, never source.
@@ -62,8 +72,41 @@ separately authorised post-merge session may use:
 PYTHONDONTWRITEBYTECODE=1 python3 runtime/aihot/provision.py install
 ```
 
+The scheduler is a separate mutation and must be reconciled only after the
+runtime installation and provenance checks pass:
+
+```bash
+/root/gneu-aihot-bridge/bin/configure-generation-scheduler.py check
+/root/gneu-aihot-bridge/bin/configure-generation-scheduler.py install
+/root/gneu-aihot-bridge/bin/configure-generation-scheduler.py check
+```
+
+The tracked Hermes contract uses `0 5,6 * * *` on the UTC Hermes host. The
+tracked gate admits exactly one run at or after 07:00 Europe/Stockholm, so the
+two UTC candidates cover CET and CEST. Hermes collapses missed recurring
+occurrences to one catch-up and prevents an overlapping run of the same job.
+The gate's atomic date claim adds a same-day deduplication boundary.
+
+Public freshness is observable with:
+
+```bash
+/root/gneu-aihot-bridge/bin/aihot-freshness.py
+```
+
+It reports `STALE` and exits 2 when public `generated` is at least 26 hours old.
+
 Do not hand-edit installed runtime files. Correct tracked source through a new
 Admin PR, merge it, and provision the exact verified merge commit.
+
+## Daily attempt identity
+
+Legacy `outbox/YYYY-Www` packages and their edition-keyed state remain valid
+and immutable. Daily packages use `outbox/YYYY-Www--YYYY-MM-DD`; the attempt
+date must belong to the edition. Failed and processed state uses that complete
+package ID, so rejection of a legacy W36 payload does not reject a different
+W36 attempt. Before dispatch, every tracked rejection receipt is verified and
+the decoded canonical payload hash is compared. An exact rejected-payload
+replay is blocked even if copied under a new attempt name.
 
 ## Rejection disposition
 
