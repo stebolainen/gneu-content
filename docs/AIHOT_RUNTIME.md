@@ -94,5 +94,24 @@ append-only content payload or its `generated` timestamp. Research freshness
 and public content-edition freshness are therefore distinct; this runtime does
 not silently rewrite content freshness.
 
+## AI-hot content contract
+
+The machine-readable local article contract is
+`runtime/aihot/bin/aihot-content-schema.json`. Its pinned provenance identifies
+the authoritative `stebolainen/gneu-se` validator ref, path, blob and SHA-256.
+The pure `aihot_content_contract.py` module has no network, credential or state
+access and is used by both the pre-READY handoff validator and trusted local
+intake validator. This keeps the untrusted generation boundary fail-closed
+without duplicating article key sets or evidence rules.
+
+Adam authors mandatory `evidence` as part of the original candidate. The
+bridge transports the complete article object unchanged and never enriches it.
+Any missing/extra field, invalid evidence or source shape, duplicate ID, or
+out-of-edition date is blocked before READY. When the authoritative gneu-se
+validator changes its article contract, the schema, Adam instructions, local
+validators and pinned compatibility fixtures must be updated together in an
+Admin PR before provisioning. Runtime generation has no network dependency on
+the remote contract.
+
 See [`../runtime/aihot/README.md`](../runtime/aihot/README.md) for source,
 manifest, provisioning, scheduler reconciliation and provenance details.

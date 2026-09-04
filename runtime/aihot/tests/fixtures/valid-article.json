@@ -1,0 +1,40 @@
+{
+  "id": "2026-w36-example-authoritative-contract",
+  "edition": "2026-W36",
+  "date": "2026-09-01",
+  "title": "Verifierad exempelartikel",
+  "category": "ai-security",
+  "category_label": "AI-säkerhet",
+  "severity": "medium",
+  "summary": "Ett syntetiskt testobjekt för det betrodda innehållskontraktet.",
+  "body": [
+    "Fixturetexten är syntetisk och används endast för deterministisk validering."
+  ],
+  "why": "Visar att alla obligatoriska fält valideras före READY.",
+  "action": "Ingen operativ åtgärd; detta är en testfixture.",
+  "builds_on": [],
+  "sources": [
+    {
+      "publisher": "Example Authority",
+      "title": "Primary fixture source",
+      "url": "https://authority.example/aihot-primary"
+    },
+    {
+      "publisher": "Example Research",
+      "title": "Independent fixture source",
+      "url": "https://research.example/aihot-independent"
+    }
+  ],
+  "evidence": {
+    "grade": "strong",
+    "verification": "curl",
+    "basis": "Två oberoende syntetiska fixtures med en explicit primär källa.",
+    "claims": [
+      {
+        "id": "fixture-claim",
+        "value": "Detta är ett syntetiskt valideringspåstående.",
+        "source_url": "https://authority.example/aihot-primary"
+      }
+    ]
+  }
+}

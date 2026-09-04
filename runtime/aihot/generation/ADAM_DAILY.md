@@ -15,6 +15,15 @@ edition already exists in the refreshed public baseline, produce a strict
 `no-change` candidate and document the day's research in `report.md`; never
 modify that published edition through this channel.
 
+Before writing `candidate.json`, author every field required by the installed
+machine-readable AI-hot content contract. The article key set is exact.
+`evidence` is mandatory content, not bridge metadata: choose an allowed
+evidence grade and verification value, write a non-empty research basis, and
+bind any optional claims to URLs already present in that article's sources.
+Never ask or rely on the bridge to invent, derive, synthesize, backfill, or
+enrich evidence. Exclude an article whose evidence cannot be supported; use
+strict `no-change` if no eligible article remains.
+
 The seven-day research window is not candidate eligibility. Older events may
 be used as background, report context, or supporting sources, but every new
 article entry must have a date in the supplied edition's exact ISO year/week.

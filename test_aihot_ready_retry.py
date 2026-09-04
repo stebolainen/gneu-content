@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 BIN = ROOT / "runtime/aihot/bin"
+FIXTURES = ROOT / "runtime/aihot/tests/fixtures"
 sys.path.insert(0, str(BIN))
 
 import aihot_ready_retry as ready_retry
@@ -123,11 +124,12 @@ class ReadyRetryFixture:
         files = {}
         for relative, (filename, mode) in ready_retry.REQUIRED_RUNTIME.items():
             runtime = self.bin / filename
-            if filename == "validate-intake.py":
-                runtime.write_text(
-                    "import datetime as dt\n"
-                    "value = dt.date.fromisoformat('2026-09-01')\n"
-                )
+            if filename in {
+                "validate-intake.py",
+                "aihot_content_contract.py",
+                "aihot-content-schema.json",
+            }:
+                shutil.copy2(BIN / filename, runtime)
             else:
                 runtime.write_text(f"# synthetic {filename}\n")
             files[relative] = {
@@ -208,18 +210,12 @@ class ValidateIntakeRegressionTests(unittest.TestCase):
             base_path = root / "base.json"
             base_raw = json.dumps(base, separators=(",", ":")).encode()
             base_path.write_bytes(base_raw)
+            article = json.loads((FIXTURES / "valid-article.json").read_text())
+            article["id"] = "inside-week"
             candidate = {
                 **base,
                 "editions": base["editions"] + [{"id": "2026-W36"}],
-                "articles": base["articles"]
-                + [
-                    {
-                        "id": "inside-week",
-                        "edition": "2026-W36",
-                        "date": "2026-09-01",
-                        "sources": [{}, {}],
-                    }
-                ],
+                "articles": base["articles"] + [article],
             }
             write_json(package / "candidate.json", candidate)
             write_json(
@@ -250,6 +246,8 @@ class ValidateIntakeRegressionTests(unittest.TestCase):
             )
             script.write_text(source)
             shutil.copy2(BIN / "aihot_package_identity.py", local_bin)
+            shutil.copy2(BIN / "aihot_content_contract.py", local_bin)
+            shutil.copy2(BIN / "aihot-content-schema.json", local_bin)
             valid = subprocess.run(
                 [sys.executable, str(script), PACKAGE_ID],
                 text=True,
@@ -267,7 +265,7 @@ class ValidateIntakeRegressionTests(unittest.TestCase):
                 stderr=subprocess.STDOUT,
             )
             self.assertNotEqual(invalid.returncode, 0)
-            self.assertIn("article date is outside 2026-W36", invalid.stdout)
+            self.assertIn("article inside-week.date is outside 2026-W36", invalid.stdout)
             self.assertNotIn("NameError", invalid.stdout)
 
 

@@ -1,0 +1,36 @@
+{
+  "action": "Behandla åtkomst till avancerade cybermodeller som privilegierad: begränsa behöriga konton, separera testmiljöer från produktion och internet, logga verktygsanrop och kräv mänskligt godkännande före exploatering eller åtgärder mot riktiga system.",
+  "body": [
+    "OpenAI placerar Astra i den högsta nivån i sitt Preparedness Framework. Enligt bolagets redovisning har modellen under utvärdering hittat tidigare okända sårbarheter, byggt fungerande exploitkedjor och kombinerat flera brister för att nå kodkörning eller högre behörighet. Det är en kapacitetsbedömning från OpenAI, inte en rapport om att Astra har använts i ett verkligt angrepp.",
+    "Lanseringen sker stegvis. OpenAI säger att avancerad cyberåtkomst först ges genom Daybreak Blue till ett begränsat urval organisationer och att Astra har fått förstärkta spärrar mot både skadlig användning och obehöriga modellhandlingar. Bolaget varnar samtidigt för att skydden kan felklassa legitimt säkerhetsarbete."
+  ],
+  "builds_on": [
+    "2026-w30-openai-sandladeflykt-huggingface"
+  ],
+  "category": "agentic-misuse",
+  "category_label": "Agentmissbruk",
+  "date": "2026-09-01",
+  "edition": "2026-W36",
+  "id": "2026-w36-openai-astra-kritisk-cyberformaga",
+  "severity": "high",
+  "sources": [
+    {
+      "publisher": "OpenAI",
+      "title": "The path to Astra",
+      "url": "https://openai.com/index/path-to-astra/"
+    },
+    {
+      "publisher": "CNBC",
+      "title": "OpenAI says Astra AI model is its first that crosses Critical cybersecurity capability",
+      "url": "https://www.cnbc.com/2026/09/01/open-ai-astra-cyber-model.html"
+    },
+    {
+      "publisher": "The Hacker News",
+      "title": "Google, Anthropic, and OpenAI Unveil Cyber AI Models, Safeguards, and Access Programs",
+      "url": "https://thehackernews.com/2026/09/google-anthropic-and-openai-unveil.html"
+    }
+  ],
+  "summary": "OpenAI uppger att GPT-6 Astra är bolagets första modell som passerar den interna nivån Critical för cyberförmåga. Modellen kan hitta tidigare okända sårbarheter och utnyttja dem utan stegvis mänsklig vägledning; de mest avancerade cyberfunktionerna begränsas därför till särskilt godkända organisationer.",
+  "title": "Behandla Astra-baserad cyberåtkomst som privilegierad — modellen hittar och utnyttjar zero-days",
+  "why": "En modell som självständigt kan hitta och kedja ihop zero-days kan förkorta både defensiv sårbarhetsanalys och offensiv exploatering. Därför blir identitet, behörighetsgränser, loggning och mänskligt godkännande runt modellåtkomsten viktigare än för en vanlig kodassistent."
+}

@@ -76,6 +76,8 @@ RECOVERY_PROCESSED_KEYS = {
 }
 REQUIRED_RUNTIME = {
     "runtime/aihot/bin/validate-intake.py": ("validate-intake.py", "0700"),
+    "runtime/aihot/bin/aihot_content_contract.py": ("aihot_content_contract.py", "0600"),
+    "runtime/aihot/bin/aihot-content-schema.json": ("aihot-content-schema.json", "0600"),
     "runtime/aihot/bin/process-ready.py": ("process-ready.py", "0700"),
     "runtime/aihot/bin/aihot_local_retry.py": ("aihot_local_retry.py", "0600"),
     "runtime/aihot/bin/authorize-local-retry.py": ("authorize-local-retry.py", "0700"),
@@ -367,27 +369,36 @@ def process_ready_lock(paths: ReadyRetryPaths):
         yield
 
 
-def validator_fix_present(path: Path) -> bool:
+def validator_fix_present(path: Path, schema_path: Path) -> bool:
     try:
         tree = ast.parse(require_regular(path, "INVALID_RUNTIME_PROVENANCE", 65536))
-    except (SyntaxError, UnicodeDecodeError):
+        schema = json.loads(
+            require_regular(
+                schema_path,
+                "INVALID_RUNTIME_PROVENANCE",
+                65536,
+            )
+        )
+    except (SyntaxError, UnicodeDecodeError, json.JSONDecodeError):
         return False
     imported = any(
-        isinstance(node, ast.Import)
-        and any(alias.name == "datetime" and alias.asname == "dt" for alias in node.names)
+        isinstance(node, ast.ImportFrom)
+        and node.module == "aihot_content_contract"
+        and {alias.name for alias in node.names} >= {"load_contract", "validate_article"}
         for node in tree.body
     )
-    fixed_call = any(
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "fromisoformat"
-        and isinstance(node.func.value, ast.Attribute)
-        and node.func.value.attr == "date"
-        and isinstance(node.func.value.value, ast.Name)
-        and node.func.value.value.id == "dt"
-        for node in ast.walk(tree)
+    required_keys = (
+        schema.get("article", {}).get("required_keys", [])
+        if isinstance(schema, dict)
+        else []
     )
-    return imported and fixed_call
+    return (
+        imported
+        and schema.get("schema") == "gneu-aihot-content-contract-v1"
+        and isinstance(required_keys, list)
+        and "date" in required_keys
+        and "evidence" in required_keys
+    )
 
 
 def verify_runtime_provenance(
@@ -420,7 +431,10 @@ def verify_runtime_provenance(
             or entry.get("sha256") != hashlib.sha256(raw).hexdigest()
         ):
             raise ReadyRetryError("INVALID_RUNTIME_PROVENANCE")
-    if not validator_fix_present(paths.bin_dir / "validate-intake.py"):
+    if not validator_fix_present(
+        paths.bin_dir / "validate-intake.py",
+        paths.bin_dir / "aihot-content-schema.json",
+    ):
         raise ReadyRetryError("VALIDATOR_FIX_NOT_PRESENT")
     return value
 
