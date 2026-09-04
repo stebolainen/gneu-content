@@ -95,6 +95,20 @@ Public freshness is observable with:
 
 It reports `STALE` and exits 2 when public `generated` is at least 26 hours old.
 
+The daily gate's no-argument mode is exclusively the scheduler execution path.
+These inspection forms are side-effect-free and never create a claim or resume
+receipt:
+
+```bash
+/root/.hermes/profiles/gneu/scripts/gneu-aihot-daily-gate.py --help
+/root/.hermes/profiles/gneu/scripts/gneu-aihot-daily-gate.py inspect
+/root/.hermes/profiles/gneu/scripts/gneu-aihot-daily-gate.py check
+```
+
+Never delete a generation claim to retry. The only supported orphan recovery
+is the append-only authorization and exact-once scheduler re-admission in
+[`../../docs/AIHOT_CLAIM_RECOVERY.md`](../../docs/AIHOT_CLAIM_RECOVERY.md).
+
 Do not hand-edit installed runtime files. Correct tracked source through a new
 Admin PR, merge it, and provision the exact verified merge commit.
 

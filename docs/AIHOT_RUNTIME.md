@@ -52,6 +52,18 @@ calendar-day attempt. Hermes independently prevents overlap and collapses
 missed recurring occurrences to one catch-up. The READY timer continues to
 poll independently and does not prove generation freshness.
 
+Gate CLI inspection is explicit and side-effect-free: `--help`, `help`,
+`inspect`, and `check` never enter the claim path. The no-argument invocation is
+reserved for the Hermes scheduler and is the normal claim-creating operation.
+
+An existing claim is never deleted to retry. If evidence proves that a claim
+was created outside the Hermes agent boundary, the root-only operator tool may
+create one append-only authorization bound to the exact claim hash. The normal
+Hermes job then consumes it once and records a second append-only receipt before
+waking the agent. Without the authorization, with an invalid binding, or after
+consumption, the gate stays closed. See
+[`AIHOT_CLAIM_RECOVERY.md`](AIHOT_CLAIM_RECOVERY.md).
+
 `aihot-freshness.py` performs a bounded read-only check of public
 `data/aihot.json`. Public age below 26 hours is `FRESH`; age at or above 26
 hours is `STALE` with exit code 2. Network, schema or timestamp errors are

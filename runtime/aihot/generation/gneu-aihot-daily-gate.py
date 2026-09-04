@@ -4,12 +4,21 @@
 from __future__ import annotations
 
 import datetime as dt
+import argparse
 import fcntl
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+
+SOURCE_BIN = Path(__file__).resolve().parents[1] / "bin"
+RUNTIME_BIN = Path("/root/gneu-aihot-bridge/bin")
+sys.path.insert(0, str(SOURCE_BIN if (SOURCE_BIN / "aihot_claim_resume.py").is_file() else RUNTIME_BIN))
+
+from aihot_claim_resume import ResumeError, ResumePaths, consume_authorization
 
 
 ZONE = ZoneInfo("Europe/Stockholm")
@@ -17,6 +26,9 @@ STATE = Path("/root/gneu-aihot-bridge/state")
 OUTBOX = Path("/root/.hermes/profiles/gneu/aihot-handoff/outbox")
 CLAIMS = STATE / "generation"
 BASE_META = Path("/root/.hermes/profiles/gneu/aihot-handoff/inbox/current.meta.json")
+SCHEDULER_CONFIG = Path("/root/gneu-aihot-bridge/config/hermes-scheduler.json")
+EXECUTIONS_DB = Path("/root/.hermes/profiles/gneu/cron/executions.db")
+CRON_OUTPUT = Path("/root/.hermes/profiles/gneu/cron/output")
 FRESHNESS_SECONDS = 26 * 60 * 60
 DAILY_PACKAGE_RE = re.compile(r"^\d{4}-W\d{2}--\d{4}-\d{2}-\d{2}$")
 
@@ -43,8 +55,11 @@ def atomic_json(path: Path, value: dict) -> None:
             pass
 
 
-def evaluate(now: dt.datetime | None = None) -> dict:
-    now = now or dt.datetime.now(dt.timezone.utc)
+def resume_paths() -> ResumePaths:
+    return ResumePaths(STATE, OUTBOX, SCHEDULER_CONFIG, EXECUTIONS_DB, CRON_OUTPUT)
+
+
+def context_for(now: dt.datetime) -> tuple[dt.datetime, str, str, str, dict]:
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
     local = now.astimezone(ZONE)
@@ -74,6 +89,38 @@ def evaluate(now: dt.datetime | None = None) -> dict:
         )
     except Exception:
         context["freshness"] = "UNKNOWN"
+    return local, edition, attempt, package_id, context
+
+
+def inspect(now: dt.datetime | None = None) -> dict:
+    """Describe today's gate inputs without locks, chmod, claims, or receipts."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    local, _, attempt, package_id, context = context_for(now)
+    if local.time() < dt.time(7, 0):
+        reason = "before_daily_aihot_window"
+    elif os.path.lexists(OUTBOX / package_id):
+        reason = "daily_attempt_package_present"
+    elif os.path.lexists(STATE / "processed" / f"{package_id}.json"):
+        reason = "daily_attempt_complete"
+    elif os.path.lexists(STATE / "failed" / f"{package_id}.json"):
+        reason = "daily_attempt_requires_operator"
+    elif os.path.lexists(CLAIMS / "resume-consumed" / f"{attempt}.json"):
+        reason = "resume_already_consumed"
+    elif os.path.lexists(CLAIMS / "resume-authorized" / f"{attempt}.json"):
+        reason = "operator_resume_authorized"
+    elif os.path.lexists(CLAIMS / f"{attempt}.json"):
+        reason = "daily_attempt_already_claimed"
+    else:
+        reason = "daily_attempt_unclaimed"
+    return {
+        "status": "AIHOT_DAILY_GATE_INSPECT",
+        "context": {**context, "reason": reason},
+    }
+
+
+def evaluate(now: dt.datetime | None = None) -> dict:
+    now = now or dt.datetime.now(dt.timezone.utc)
+    local, edition, attempt, package_id, context = context_for(now)
 
     if local.time() < dt.time(7, 0):
         return {
@@ -132,10 +179,32 @@ def evaluate(now: dt.datetime | None = None) -> dict:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         claim = CLAIMS / f"{attempt}.json"
         if os.path.lexists(claim):
-            return {
-                "wakeAgent": False,
-                "context": {**context, "reason": "daily_attempt_already_claimed"},
-            }
+            try:
+                resume_state, original_claim = consume_authorization(
+                    resume_paths(), attempt, now
+                )
+            except ResumeError:
+                return {
+                    "wakeAgent": False,
+                    "context": {**context, "reason": "unsafe_resume_state"},
+                }
+            if resume_state == "consumed" and original_claim is not None:
+                return {
+                    "wakeAgent": True,
+                    "context": {
+                        **context,
+                        "edition": original_claim["edition"],
+                        "attempt": original_claim["attempt"],
+                        "package_id": original_claim["package_id"],
+                        "reason": "operator_resume_claim",
+                    },
+                }
+            reason = (
+                "resume_already_consumed"
+                if resume_state == "already-consumed"
+                else "daily_attempt_already_claimed"
+            )
+            return {"wakeAgent": False, "context": {**context, "reason": reason}}
         atomic_json(
             claim,
             {
@@ -155,5 +224,17 @@ def evaluate(now: dt.datetime | None = None) -> dict:
     }
 
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="GNEU AI-hot daily scheduler gate")
+    parser.add_argument("command", nargs="?", choices=("help", "inspect", "check"))
+    args = parser.parse_args(argv)
+    if args.command == "help":
+        parser.print_help()
+        return 0
+    value = inspect() if args.command in {"inspect", "check"} else evaluate()
+    print(json.dumps(value, separators=(",", ":")))
+    return 0
+
+
 if __name__ == "__main__":
-    print(json.dumps(evaluate(), separators=(",", ":")))
+    raise SystemExit(main())
