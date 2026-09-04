@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 import sys
-from datetime import date
 from pathlib import Path
 
 
@@ -15,6 +14,11 @@ sys.path.insert(0, str(SOURCE_BIN if (SOURCE_BIN / "aihot_local_retry.py").is_fi
 
 from aihot_local_retry import RetryError, RetryPaths, verify_target_consumed
 from aihot_package_identity import parse_package_id
+from aihot_content_contract import (
+    ContentContractError,
+    load_contract,
+    validate_article,
+)
 
 
 ROOT = Path("/root/.hermes/profiles/gneu/aihot-handoff")
@@ -24,6 +28,7 @@ RETRY_STATE = Path("/root/gneu-aihot-bridge/state")
 SCHEDULER_CONFIG = Path("/root/gneu-aihot-bridge/config/hermes-scheduler.json")
 EXECUTIONS_DB = Path("/root/.hermes/profiles/gneu/cron/executions.db")
 CRON_OUTPUT = Path("/root/.hermes/profiles/gneu/cron/output")
+CONTENT_CONTRACT = load_contract()
 
 
 def fail(message: str) -> None:
@@ -128,27 +133,17 @@ def main() -> None:
         existing = {str(item.get("id")) for item in ba if isinstance(item, dict)}
         seen: set[str] = set()
         for article in added_articles:
-            if not isinstance(article, dict):
-                fail("new article must be object")
-            article_id = str(article.get("id") or "")
-            if not article_id or article_id in existing or article_id in seen:
-                fail("duplicate or missing article id")
-            seen.add(article_id)
-            if article.get("edition") != edition:
-                fail("article edition mismatch")
             try:
-                article_date = date.fromisoformat(str(article.get("date") or ""))
-            except ValueError:
-                fail("article date invalid")
-            article_iso = article_date.isocalendar()
-            if (article_iso.year, article_iso.week) != (
-                int(edition[:4]),
-                int(edition[-2:]),
-            ):
-                fail("article date outside edition")
-            sources = article.get("sources")
-            if not isinstance(sources, list) or len(sources) < 2:
-                fail("article source count invalid")
+                article_id = validate_article(
+                    article,
+                    edition,
+                    existing,
+                    seen,
+                    CONTENT_CONTRACT,
+                )
+            except ContentContractError as exc:
+                fail(str(exc))
+            seen.add(article_id)
     if len((package / "report.md").read_text().strip()) < 200:
         fail("report.md is too short")
 

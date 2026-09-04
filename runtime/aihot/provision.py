@@ -38,6 +38,14 @@ INSTALL_SPECS = {
         RUNTIME_ROOT / "bin/validate-intake.py",
         0o700,
     ),
+    "runtime/aihot/bin/aihot_content_contract.py": (
+        RUNTIME_ROOT / "bin/aihot_content_contract.py",
+        0o600,
+    ),
+    "runtime/aihot/bin/aihot-content-schema.json": (
+        RUNTIME_ROOT / "bin/aihot-content-schema.json",
+        0o600,
+    ),
     "runtime/aihot/bin/build-intake-payload.py": (
         RUNTIME_ROOT / "bin/build-intake-payload.py",
         0o700,

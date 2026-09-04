@@ -1,0 +1,50 @@
+{
+  "source_ref": "4bb9ba39c74323a158460295ab04923c6d9fa53d",
+  "source_path": "scripts/aihot_intake_validate.py",
+  "source_blob_sha": "ce117c31a25708bc16d17beacffe54cb0c7de409",
+  "source_sha256": "8202d226bbd548425ab3a1d8ea7ea22d09decc5704e7a39dd1c6617b0c033468",
+  "article_keys": [
+    "action",
+    "body",
+    "builds_on",
+    "category",
+    "category_label",
+    "date",
+    "edition",
+    "evidence",
+    "id",
+    "severity",
+    "sources",
+    "summary",
+    "title",
+    "why"
+  ],
+  "source_keys": [
+    "publisher",
+    "title",
+    "url"
+  ],
+  "evidence_required_keys": [
+    "basis",
+    "grade",
+    "verification"
+  ],
+  "evidence_optional_keys": [
+    "claims"
+  ],
+  "claim_keys": [
+    "id",
+    "source_url",
+    "value"
+  ],
+  "grade_values": [
+    "limited",
+    "moderate",
+    "strong"
+  ],
+  "verification_values": [
+    "curl",
+    "mixed",
+    "search-only"
+  ]
+}

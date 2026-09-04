@@ -20,6 +20,7 @@ from test_aihot_operator_disposition import SyntheticState, process_ready, rejec
 
 
 ROOT = Path(__file__).resolve().parent
+FIXTURES = ROOT / "runtime/aihot/tests/fixtures"
 
 
 def load(name: str, path: Path):
@@ -411,17 +412,17 @@ class HandoffValidatorTests(unittest.TestCase):
         }
         raw = json.dumps(self.base, ensure_ascii=False, separators=(",", ":")).encode()
         (handoff_validator.INBOX / "current.json").write_bytes(raw)
+        article = json.loads((FIXTURES / "valid-article.json").read_text())
+        article.update(
+            {
+                "id": "invalid-date",
+                "date": "2026-08-26",
+            }
+        )
         candidate = {
             **self.base,
             "editions": [{"id": "2026-W36"}],
-            "articles": [
-                {
-                    "id": "invalid-date",
-                    "edition": "2026-W36",
-                    "date": "2026-08-26",
-                    "sources": [{}, {}],
-                }
-            ],
+            "articles": [article],
         }
         (self.package / "candidate.json").write_text(json.dumps(candidate))
         (self.package / "handoff.json").write_text(
@@ -491,7 +492,7 @@ class HandoffValidatorTests(unittest.TestCase):
     def test_article_date_outside_edition_never_creates_ready(self) -> None:
         with self.assertRaises(SystemExit) as caught:
             self.call_validator()
-        self.assertIn("article date outside edition", str(caught.exception))
+        self.assertIn("article invalid-date.date is outside 2026-W36", str(caught.exception))
         self.assertFalse((self.package / "READY").exists())
 
     def test_existing_ready_is_never_deleted_or_overwritten(self) -> None:

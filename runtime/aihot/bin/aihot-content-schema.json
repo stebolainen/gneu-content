@@ -1,0 +1,96 @@
+{
+  "schema": "gneu-aihot-content-contract-v1",
+  "provenance": {
+    "repository": "stebolainen/gneu-se",
+    "validator_path": "scripts/aihot_intake_validate.py",
+    "ref": "4bb9ba39c74323a158460295ab04923c6d9fa53d",
+    "blob_sha": "ce117c31a25708bc16d17beacffe54cb0c7de409",
+    "sha256": "8202d226bbd548425ab3a1d8ea7ea22d09decc5704e7a39dd1c6617b0c033468"
+  },
+  "article": {
+    "required_keys": [
+      "id",
+      "edition",
+      "date",
+      "title",
+      "category",
+      "category_label",
+      "severity",
+      "summary",
+      "body",
+      "why",
+      "action",
+      "builds_on",
+      "sources",
+      "evidence"
+    ],
+    "id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,159}$",
+      "max_bytes": 200
+    },
+    "text_fields": {
+      "title": 20000,
+      "category": 20000,
+      "category_label": 20000,
+      "severity": 20000,
+      "summary": 20000,
+      "why": 20000,
+      "action": 20000
+    },
+    "body": {
+      "min_items": 1
+    },
+    "builds_on": {
+      "min_items": 0
+    },
+    "sources": {
+      "required_keys": [
+        "publisher",
+        "title",
+        "url"
+      ],
+      "min_items": 2,
+      "max_items": 12,
+      "field_max_bytes": {
+        "publisher": 300,
+        "title": 1000,
+        "url": 3000
+      },
+      "min_distinct_publishers": 2,
+      "min_distinct_hosts": 2
+    },
+    "evidence": {
+      "required_keys": [
+        "grade",
+        "verification",
+        "basis"
+      ],
+      "optional_keys": [
+        "claims"
+      ],
+      "grade_values": [
+        "strong",
+        "moderate",
+        "limited"
+      ],
+      "verification_values": [
+        "curl",
+        "mixed",
+        "search-only"
+      ],
+      "basis_max_bytes": 20000,
+      "claims": {
+        "required_keys": [
+          "id",
+          "value",
+          "source_url"
+        ],
+        "min_items": 1,
+        "id_pattern": "^[a-z0-9][a-z0-9._-]{1,79}$",
+        "id_max_bytes": 100,
+        "value_max_bytes": 20000,
+        "source_url_max_bytes": 3000
+      }
+    }
+  }
+}

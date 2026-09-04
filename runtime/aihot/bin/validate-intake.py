@@ -2,17 +2,22 @@
 from __future__ import annotations
 
 import hashlib
-import datetime as dt
 import json
 import sys
 import urllib.request
 from pathlib import Path
 
+from aihot_content_contract import (
+    ContentContractError,
+    load_contract,
+    validate_article,
+)
 from aihot_package_identity import parse_package_id
 
 HANDOFF_ROOT = Path("/root/.hermes/profiles/gneu/aihot-handoff")
 OUTBOX = HANDOFF_ROOT / "outbox"
 LIVE_URL = "https://gneu.se/data/aihot.json"
+CONTENT_CONTRACT = load_contract()
 
 
 def fail(msg: str) -> None:
@@ -141,35 +146,17 @@ elif mode == "edition":
     seen = set()
 
     for a in added_a:
-        if not isinstance(a, dict):
-            fail("article is not object")
-
-        aid = str(a.get("id") or "")
-        if not aid or aid in old_ids or aid in seen:
-            fail(f"invalid/duplicate article id: {aid}")
-
-        seen.add(aid)
-
-        if a.get("edition") != edition:
-            fail(f"{aid}: wrong edition")
-
-        value = a.get("date")
         try:
-            article_date = dt.date.fromisoformat(value) if isinstance(value, str) else None
-        except ValueError:
-            article_date = None
-        if article_date is None:
-            fail(f"{aid}: invalid article date")
-        article_iso = article_date.isocalendar()
-        if (article_iso.year, article_iso.week) != (
-            int(edition[:4]),
-            int(edition[-2:]),
-        ):
-            fail(f"{aid}: article date is outside {edition}")
-
-        sources = a.get("sources")
-        if not isinstance(sources, list) or len(sources) < 2:
-            fail(f"{aid}: insufficient sources")
+            aid = validate_article(
+                a,
+                edition,
+                old_ids,
+                seen,
+                CONTENT_CONTRACT,
+            )
+        except ContentContractError as exc:
+            fail(str(exc))
+        seen.add(aid)
 
 else:
     fail("invalid mode")

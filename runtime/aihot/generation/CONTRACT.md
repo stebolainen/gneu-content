@@ -44,6 +44,16 @@ never changed by Adam. Updating an already published edition requires a
 separate human-reviewed gneu-se contract change and is not smuggled through
 this Admin runtime.
 
+Every new article must satisfy the complete machine-readable contract installed
+as `/root/gneu-aihot-bridge/bin/aihot-content-schema.json`. In particular, the
+article key set is exact and `evidence` is mandatory. Evidence is original
+content authored by Adam from the research: it records the allowed grade,
+verification method, a non-empty basis, and optional source-bound claims. Adam
+must create it before writing `candidate.json`. The bridge must never invent,
+derive, synthesize, backfill, or enrich evidence or any other article field.
+If adequate evidence cannot be authored, exclude the article; if no qualifying
+articles remain, create a strict `no-change` package.
+
 The research window and candidate eligibility are separate rules. Research
 normally looks back approximately seven days and may use earlier events as
 background, report context, or supporting sources. Every article entry added
@@ -63,3 +73,9 @@ gneu-se `main`, and dispatches the existing trusted intake. A rejection receipt
 continues to terminate its exact legacy payload. A daily attempt is independent,
 but a canonical payload hash matching any verified rejection is blocked as a
 replay before dispatch.
+
+The schema provenance is pinned to `stebolainen/gneu-se`,
+`scripts/aihot_intake_validate.py` at the ref and fingerprints recorded in the
+schema. A change to that authoritative content contract requires an Admin PR
+that updates the local schema, Adam instructions, both local validation stages,
+and deterministic compatibility fixtures before production provisioning.

@@ -12,6 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from aihot_content_contract import transparent_delta
 from aihot_package_identity import parse_package_id
 
 
@@ -393,8 +394,9 @@ if ca[:len(ba)] != ba:
         "differs from origin/main"
     )
 
-added_editions = ce[len(be):]
-added_articles = ca[len(ba):]
+delta = transparent_delta(main, candidate)
+added_editions = delta["editions"]
+added_articles = delta["articles"]
 
 
 # 7. Re-assert delta shape.
@@ -485,12 +487,7 @@ payload = {
         ).hexdigest(),
     "base_generated":
         main["generated"],
-    "delta": {
-        "editions":
-            added_editions,
-        "articles":
-            added_articles,
-    },
+    "delta": delta,
     "report": report,
 }
 

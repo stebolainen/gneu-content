@@ -11,6 +11,8 @@ must use an `admin/*` branch and a pull request to `main`.
 The deployable files listed in `manifest.sha256` map as follows:
 
 - `bin/*.py` -> `/root/gneu-aihot-bridge/bin/*.py`
+- `bin/aihot-content-schema.json` ->
+  `/root/gneu-aihot-bridge/bin/aihot-content-schema.json`
 - `generation/gneu-aihot-*.py` ->
   `/root/.hermes/profiles/gneu/scripts/gneu-aihot-*.py`
 - `generation/CONTRACT.md` and `generation/ADAM_DAILY.md` ->
@@ -40,6 +42,13 @@ not cover documentation, tests, the provisioner itself, state, credentials,
 or outbox packages. Provisioning may install generator code and contracts, but
 it never installs or edits inbox, outbox, claims, failed, rejected, processed,
 or transport state.
+
+The installed `aihot-content-schema.json` is the single machine-readable local
+article contract. Its pure validator is shared by the generation handoff and
+trusted local intake stages. Pinned fixtures capture the authoritative gneu-se
+contract without adding a runtime network dependency. Adam must author every
+required field, including evidence; bridge build/transport remains content
+transparent and never backfills content.
 
 `rejection-receipt.schema.json` is the tracked contract for rejection receipts;
 it is not installed into runtime. A receipt is runtime state, never source.
