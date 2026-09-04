@@ -35,6 +35,8 @@ expected_modes = {
     "runtime/aihot/bin/github-adapter.py": 0o700,
     "runtime/aihot/bin/aihot-freshness.py": 0o700,
     "runtime/aihot/bin/configure-generation-scheduler.py": 0o700,
+    "runtime/aihot/bin/aihot_claim_resume.py": 0o600,
+    "runtime/aihot/bin/authorize-generation-resume.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-daily-gate.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-base-refresh.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-handoff-validate.py": 0o700,

@@ -24,6 +24,11 @@ The handoff is `gneu-aihot-handoff-v2` and contains the existing v1 fields plus
 creates it atomically after validation. Existing READY, failed, rejected,
 processed or generation-claim state must never be deleted or overwritten.
 
+A generation claim is also immutable. An orphaned claim may be re-admitted
+only by the separately documented, append-only operator authorization. The
+ordinary scheduler gate verifies and consumes that authorization exactly once
+under the generation lock. There is no age- or timeout-based retry.
+
 The content contract remains append-only. If the current edition is absent,
 mode `edition` adds exactly one edition and 1–6 articles. If there is no
 publishable new material, or the current edition is already present in the

@@ -62,6 +62,14 @@ INSTALL_SPECS = {
         RUNTIME_ROOT / "bin/configure-generation-scheduler.py",
         0o700,
     ),
+    "runtime/aihot/bin/aihot_claim_resume.py": (
+        RUNTIME_ROOT / "bin/aihot_claim_resume.py",
+        0o600,
+    ),
+    "runtime/aihot/bin/authorize-generation-resume.py": (
+        RUNTIME_ROOT / "bin/authorize-generation-resume.py",
+        0o700,
+    ),
     "runtime/aihot/generation/gneu-aihot-daily-gate.py": (
         Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-daily-gate.py"),
         0o700,
