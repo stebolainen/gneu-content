@@ -41,9 +41,20 @@ and `report.md`, following the contract. Use handoff schema
 When, and only when, gate context has `reason=operator_local_retry`,
 `revision=1`, and a package ID ending in `--r1`, perform a fresh generation
 from the refreshed baseline and current sources. Bind `"revision": 1` in the
-handoff. Never copy or edit revision zero, and never create another revision.
+handoff. Never copy or edit revision zero.
 If only a smaller number of qualifying in-edition articles remains, publish
 that smaller set; if none remains, create a strict no-change package.
+
+When, and only when, gate context has
+`reason=operator_content_contract_retry`, `revision=2`, and the exact package
+ID `2026-W36--2026-09-04--r2`, perform a new research and generation cycle
+from the refreshed public baseline. Bind `"revision": 2` in the handoff.
+Never copy, edit, or enrich r1: author the complete article and mandatory
+evidence from newly checked sources before writing the r2 candidate. Article
+dates must be within W36 and not later than the local run date. A previously
+considered topic may be selected only after fresh research and full evidence.
+Create strict no-change when nothing qualifies. Never create r3 or any later
+revision.
 
 Run the validator exactly once:
 

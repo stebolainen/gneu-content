@@ -5,6 +5,7 @@ import hashlib
 import json
 import sys
 import urllib.request
+from datetime import date
 from pathlib import Path
 
 from aihot_content_contract import (
@@ -83,9 +84,9 @@ if attempt is not None and handoff.get("attempt") != attempt:
 
 if attempt is None and "attempt" in handoff:
     fail("legacy handoff contains attempt")
-if revision == 1 and handoff.get("revision") != 1:
+if revision in {1, 2} and handoff.get("revision") != revision:
     fail("revision mismatch")
-if revision != 1 and "revision" in handoff:
+if revision not in {1, 2} and "revision" in handoff:
     fail("unexpected revision")
 
 if handoff.get("base_sha256") != base_sha:
@@ -153,6 +154,7 @@ elif mode == "edition":
                 old_ids,
                 seen,
                 CONTENT_CONTRACT,
+                date.fromisoformat(attempt) if revision == 2 else None,
             )
         except ContentContractError as exc:
             fail(str(exc))

@@ -77,7 +77,7 @@ def parse_week(edition: str) -> tuple[int, int]:
     return year, week
 
 
-def date_in_week(value: object, edition: str, label: str) -> None:
+def date_in_week(value: object, edition: str, label: str) -> date:
     value = text(value, label, 32)
     try:
         article_date = date.fromisoformat(value)
@@ -86,6 +86,7 @@ def date_in_week(value: object, edition: str, label: str) -> None:
     iso = article_date.isocalendar()
     if (iso.year, iso.week) != parse_week(edition):
         fail(f"{label} is outside {edition}")
+    return article_date
 
 
 def source_host(value: str) -> str:
@@ -192,6 +193,7 @@ def validate_article(
     forbidden_ids: set[str],
     seen_ids: set[str],
     contract: dict,
+    latest_date: date | None = None,
 ) -> str:
     if not isinstance(article, dict):
         fail("delta article is not object")
@@ -204,7 +206,11 @@ def validate_article(
         fail(f"article id already exists: {article_id}")
     if article["edition"] != edition:
         fail(f"article {article_id} points to wrong edition")
-    date_in_week(article["date"], edition, f"article {article_id}.date")
+    article_date = date_in_week(
+        article["date"], edition, f"article {article_id}.date"
+    )
+    if latest_date is not None and article_date > latest_date:
+        fail(f"article {article_id}.date is after attempt")
     for field, maximum in rules["text_fields"].items():
         text(article[field], f"article {article_id}.{field}", maximum)
     validate_string_array(article["body"], f"article {article_id}.body", rules["body"]["min_items"])

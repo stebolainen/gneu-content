@@ -332,9 +332,9 @@ if attempt is not None and handoff.get("attempt") != attempt:
     fail("handoff attempt mismatch")
 if attempt is None and "attempt" in handoff:
     fail("legacy handoff contains attempt")
-if revision == 1 and handoff.get("revision") != 1:
+if revision in {1, 2} and handoff.get("revision") != revision:
     fail("handoff revision mismatch")
-if revision != 1 and "revision" in handoff:
+if revision not in {1, 2} and "revision" in handoff:
     fail("unexpected handoff revision")
 
 mode = handoff.get("mode")
@@ -592,7 +592,7 @@ print("edition:", edition)
 print("package_id:", package_id)
 if attempt is not None:
     print("attempt:", attempt)
-if revision == 1:
+if revision in {1, 2}:
     print("revision:", revision)
 print("mode:", mode)
 print("base_main:", main_sha)

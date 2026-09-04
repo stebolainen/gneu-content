@@ -14,7 +14,16 @@ import sys
 from pathlib import Path
 
 from aihot_rejection import RejectionError, path_present, verify_receipt
-from aihot_local_retry import RetryError, RetryPaths, verify_target_consumed
+from aihot_local_retry import (
+    RetryError,
+    RetryPaths,
+    verify_target_consumed as verify_local_retry_consumed,
+)
+from aihot_content_retry import (
+    ContentRetryError,
+    production_paths as content_retry_paths,
+    verify_target_consumed as verify_content_retry_consumed,
+)
 from aihot_package_identity import PACKAGE_RE, parse_package_id
 from aihot_ready_retry import (
     ReadyRetryError,
@@ -24,6 +33,9 @@ from aihot_ready_retry import (
     record_retry_failure,
     verify_processed_lineage,
 )
+
+# Backward-compatible test seam for the existing r1 authorization verifier.
+verify_target_consumed = verify_local_retry_consumed
 
 
 BRIDGE = Path("/root/gneu-aihot-bridge")
@@ -241,7 +253,7 @@ def process_package(
         {
             "package_id": package_id,
             "attempt": attempt,
-            **({"revision": revision} if revision == 1 else {}),
+            **({"revision": revision} if revision in {1, 2} else {}),
         }
         if attempt is not None
         else {}
@@ -263,6 +275,12 @@ def process_package(
             )
         except RetryError:
             print(f"BLOCKED_INVALID_RETRY_AUTHORIZATION {package_id}")
+            return False
+    elif revision == 2:
+        try:
+            verify_content_retry_consumed(content_retry_paths(), package_id)
+        except ContentRetryError:
+            print(f"BLOCKED_INVALID_CONTENT_RETRY_AUTHORIZATION {package_id}")
             return False
 
     processed_file = (

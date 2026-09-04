@@ -77,3 +77,7 @@ receipt and creates one append-only receipt at:
 No second retry is supported. Replay matches, content validation failures,
 build failures, dispatch failures, changed evidence, stale provenance, or any
 other failure require a new operator decision; never delete state to retry.
+For the single terminal 2026-09-04 missing-evidence incident, that separate
+decision is documented in
+[`AIHOT_CONTENT_RETRY.md`](AIHOT_CONTENT_RETRY.md); READY processing itself is
+never retried again.

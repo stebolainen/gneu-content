@@ -42,6 +42,14 @@ INSTALL_SPECS = {
         RUNTIME_ROOT / "bin/aihot_content_contract.py",
         0o600,
     ),
+    "runtime/aihot/bin/aihot_content_retry.py": (
+        RUNTIME_ROOT / "bin/aihot_content_retry.py",
+        0o600,
+    ),
+    "runtime/aihot/bin/authorize-content-retry.py": (
+        RUNTIME_ROOT / "bin/authorize-content-retry.py",
+        0o700,
+    ),
     "runtime/aihot/bin/aihot-content-schema.json": (
         RUNTIME_ROOT / "bin/aihot-content-schema.json",
         0o600,

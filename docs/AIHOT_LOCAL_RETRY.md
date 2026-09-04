@@ -74,8 +74,11 @@ Verify consumption:
 ```
 
 Follow the new package through the ordinary validator, READY processor, replay
-guard, trusted intake, and publication gates. If `r1` also fails locally, stop
-for an operator; never synthesize `r2`.
+guard, trusted intake, and publication gates. This local-validation recovery
+never synthesizes r2. The only r2 exception is the separately reviewed,
+incident-bound content-contract procedure in
+[`AIHOT_CONTENT_RETRY.md`](AIHOT_CONTENT_RETRY.md); it is not a continuation
+of this generic flow.
 
 If READY exists and trusted processing is latched by the specifically verified
 validator import defect, do not regenerate content or alter the failed receipt.

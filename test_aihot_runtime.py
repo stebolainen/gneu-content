@@ -30,6 +30,8 @@ expected_modes = {
     "runtime/aihot/bin/process-ready.py": 0o700,
     "runtime/aihot/bin/validate-intake.py": 0o700,
     "runtime/aihot/bin/aihot_content_contract.py": 0o600,
+    "runtime/aihot/bin/aihot_content_retry.py": 0o600,
+    "runtime/aihot/bin/authorize-content-retry.py": 0o700,
     "runtime/aihot/bin/aihot-content-schema.json": 0o600,
     "runtime/aihot/bin/build-intake-payload.py": 0o700,
     "runtime/aihot/bin/dispatch-trusted-intake.py": 0o700,
