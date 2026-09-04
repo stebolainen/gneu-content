@@ -115,6 +115,15 @@ same-day correction is the append-only, operator-authorized `--r1` flow in
 scheduling creates revision zero only; revision 1 is consumed exactly once by
 the same tracked Hermes job, and later revisions are rejected.
 
+Never delete or overwrite a trusted READY failure to retry it. The only
+supported processing recovery is the narrowly fingerprinted, append-only
+authorization in
+[`../../docs/AIHOT_READY_RECOVERY.md`](../../docs/AIHOT_READY_RECOVERY.md).
+It applies only to the fixed validator `date` import defect, requires deployed
+fixed-runtime provenance, re-enters at validate under the existing processor
+lock, and permits exactly one attempt. Content, replay, build, dispatch and
+arbitrary runtime failures are not authorizable by that mechanism.
+
 Do not hand-edit installed runtime files. Correct tracked source through a new
 Admin PR, merge it, and provision the exact verified merge commit.
 

@@ -200,6 +200,14 @@ class LocalRetryTests(unittest.TestCase):
         self.assertEqual(
             (consumed_path.stat().st_uid, consumed_path.stat().st_gid), (0, 0)
         )
+        verified, consumed_sha = retry.verify_consumed(
+            self.paths, ATTEMPT, self.hashes()
+        )
+        self.assertEqual(verified["target_package_id"], TARGET)
+        self.assertEqual(
+            consumed_sha,
+            hashlib.sha256(consumed_path.read_bytes()).hexdigest(),
+        )
         duplicate = gate.evaluate(NOW + dt.timedelta(minutes=2))
         self.assertFalse(duplicate["wakeAgent"])
         self.assertEqual(duplicate["context"]["reason"], "retry_already_consumed")

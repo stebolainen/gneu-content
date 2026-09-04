@@ -40,6 +40,8 @@ expected_modes = {
     "runtime/aihot/bin/aihot_local_retry.py": 0o600,
     "runtime/aihot/bin/aihot_package_identity.py": 0o600,
     "runtime/aihot/bin/authorize-local-retry.py": 0o700,
+    "runtime/aihot/bin/aihot_ready_retry.py": 0o600,
+    "runtime/aihot/bin/authorize-ready-retry.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-daily-gate.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-base-refresh.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-handoff-validate.py": 0o700,

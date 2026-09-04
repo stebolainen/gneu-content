@@ -439,9 +439,9 @@ def consume_authorization(paths: RetryPaths, attempt: str, now: dt.datetime) -> 
 
 
 def verify_consumed(paths: RetryPaths, attempt: str, expected_hashes: dict[str, str]) -> tuple[dict, str]:
-    authorization, authorization_data = verify_authorization(paths, attempt, expected_hashes)
+    authorization, authorization_sha = verify_authorization(paths, attempt, expected_hashes)
     consumed, data = load_consumed(
-        paths, attempt, authorization, sha256_bytes(authorization_data)
+        paths, attempt, authorization, authorization_sha
     )
     return consumed, sha256_bytes(data)
 
