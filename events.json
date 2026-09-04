@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 26,
+  "generation": 27,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -18,6 +18,24 @@
         {
           "id": "msrc",
           "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-47292"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:communicating-under-pressure-2026-09-02",
+      "type": "advisory",
+      "publication_class": "A",
+      "occurred_at": "2026-09-02T12:34:45Z",
+      "updated_at": "2026-09-02T12:34:45Z",
+      "title": "Myndigheter publicerar vägledning för kommunikation vid it- och OT-driftstörningar",
+      "summary": "CISA, FBI och cybersäkerhetscenter i Australien, Kanada, Nya Zeeland och Storbritannien har publicerat vägledning för tjänsteleverantörers kommunikation vid it- och OT-driftstörningar, oavsett om orsaken är skadlig eller inte.",
+      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Kommunicera bekräftade fakta, osäkerheter och tidsstämplade uppdateringar utan spekulation eller marknadsföringsspråk.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/2026-09/joint-guidance-communicating-under-pressure-508c.pdf"
         }
       ],
       "confidence": "verified"
