@@ -4,42 +4,54 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
 import sys
 from datetime import date
 from pathlib import Path
 
 
+SOURCE_BIN = Path(__file__).resolve().parents[1] / "bin"
+RUNTIME_BIN = Path("/root/gneu-aihot-bridge/bin")
+sys.path.insert(0, str(SOURCE_BIN if (SOURCE_BIN / "aihot_local_retry.py").is_file() else RUNTIME_BIN))
+
+from aihot_local_retry import RetryError, RetryPaths, verify_target_consumed
+from aihot_package_identity import parse_package_id
+
+
 ROOT = Path("/root/.hermes/profiles/gneu/aihot-handoff")
 INBOX = ROOT / "inbox"
 OUTBOX = ROOT / "outbox"
-PACKAGE_RE = re.compile(
-    r"^(?P<edition>20\d{2}-W(?:0[1-9]|[1-4]\d|5[0-3]))"
-    r"(?:--(?P<attempt>20\d{2}-\d{2}-\d{2}))?$"
-)
+RETRY_STATE = Path("/root/gneu-aihot-bridge/state")
+SCHEDULER_CONFIG = Path("/root/gneu-aihot-bridge/config/hermes-scheduler.json")
+EXECUTIONS_DB = Path("/root/.hermes/profiles/gneu/cron/executions.db")
+CRON_OUTPUT = Path("/root/.hermes/profiles/gneu/cron/output")
 
 
 def fail(message: str) -> None:
     raise SystemExit("FAIL: " + message)
 
 
-def parse_package_id(value: str) -> tuple[str, str | None]:
-    match = PACKAGE_RE.fullmatch(value)
-    if not match:
-        fail("invalid package id")
-    edition, attempt = match.group("edition"), match.group("attempt")
-    if attempt is not None:
-        parsed = date.fromisoformat(attempt).isocalendar()
-        if (parsed.year, parsed.week) != (int(edition[:4]), int(edition[-2:])):
-            fail("attempt date is outside edition")
-    return edition, attempt
-
-
 def main() -> None:
     if len(sys.argv) != 2:
         fail("usage: gneu-aihot-handoff-validate.py PACKAGE_ID")
     package_id = sys.argv[1]
-    edition, attempt = parse_package_id(package_id)
+    try:
+        edition, attempt, revision = parse_package_id(package_id)
+    except ValueError as exc:
+        fail(str(exc))
+    if revision == 1:
+        try:
+            verify_target_consumed(
+                RetryPaths(
+                    RETRY_STATE,
+                    OUTBOX,
+                    SCHEDULER_CONFIG,
+                    EXECUTIONS_DB,
+                    CRON_OUTPUT,
+                ),
+                package_id,
+            )
+        except RetryError:
+            fail("retry authorization missing or invalid")
     package = OUTBOX / package_id
     ready = package / "READY"
     if ready.exists():
@@ -79,6 +91,10 @@ def main() -> None:
         fail("handoff attempt mismatch")
     if attempt is None and "attempt" in handoff:
         fail("legacy handoff contains attempt")
+    if revision == 1 and handoff.get("revision") != 1:
+        fail("handoff revision mismatch")
+    if revision != 1 and "revision" in handoff:
+        fail("unexpected handoff revision")
     mode = handoff.get("mode")
     if mode not in ("edition", "no-change"):
         fail("invalid mode")

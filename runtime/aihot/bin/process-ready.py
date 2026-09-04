@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 
 from aihot_rejection import RejectionError, path_present, verify_receipt
+from aihot_local_retry import RetryError, RetryPaths, verify_target_consumed
+from aihot_package_identity import PACKAGE_RE, parse_package_id
 
 
 BRIDGE = Path("/root/gneu-aihot-bridge")
@@ -25,6 +27,9 @@ OUTBOX = Path(
     "/root/.hermes/profiles/gneu/"
     "aihot-handoff/outbox"
 )
+SCHEDULER_CONFIG = BRIDGE / "config/hermes-scheduler.json"
+EXECUTIONS_DB = Path("/root/.hermes/profiles/gneu/cron/executions.db")
+CRON_OUTPUT = Path("/root/.hermes/profiles/gneu/cron/output")
 
 PROCESSED = STATE / "processed"
 FAILED = STATE / "failed"
@@ -32,25 +37,6 @@ FAILED = STATE / "failed"
 LOCK = STATE / "process-ready.lock"
 
 WEEK_RE = re.compile(r"^\d{4}-W\d{2}$")
-PACKAGE_RE = re.compile(
-    r"^(?P<edition>\d{4}-W\d{2})(?:--(?P<attempt>\d{4}-\d{2}-\d{2}))?$"
-)
-
-
-def parse_package_id(package_id: str) -> tuple[str, str | None]:
-    match = PACKAGE_RE.fullmatch(package_id)
-    if not match:
-        raise ValueError("invalid package id")
-    edition = match.group("edition")
-    attempt = match.group("attempt")
-    year, week = int(edition[:4]), int(edition[-2:])
-    dt.date.fromisocalendar(year, week, 1)
-    if attempt is not None:
-        attempt_date = dt.date.fromisoformat(attempt)
-        iso = attempt_date.isocalendar()
-        if (iso.year, iso.week) != (year, week):
-            raise ValueError("attempt date is outside edition")
-    return edition, attempt
 
 
 def now_utc() -> str:
@@ -202,12 +188,38 @@ def process_package(
 ) -> bool:
 
     try:
-        edition, attempt = parse_package_id(package_id)
+        edition, attempt, revision = parse_package_id(package_id)
     except (ValueError, TypeError):
         print(f"BLOCKED_INVALID_PACKAGE_ID {package_id}")
         return False
 
+    identity = (
+        {
+            "package_id": package_id,
+            "attempt": attempt,
+            **({"revision": revision} if revision == 1 else {}),
+        }
+        if attempt is not None
+        else {}
+    )
+
     package = OUTBOX / package_id
+
+    if revision == 1:
+        try:
+            verify_target_consumed(
+                RetryPaths(
+                    STATE,
+                    OUTBOX,
+                    SCHEDULER_CONFIG,
+                    EXECUTIONS_DB,
+                    CRON_OUTPUT,
+                ),
+                package_id,
+            )
+        except RetryError:
+            print(f"BLOCKED_INVALID_RETRY_AUTHORIZATION {package_id}")
+            return False
 
     processed_file = (
         PROCESSED
@@ -339,14 +351,7 @@ def process_package(
                         "gneu-aihot-ready-failure-v1",
                     "edition":
                         edition,
-                    **(
-                        {
-                            "package_id": package_id,
-                            "attempt": attempt,
-                        }
-                        if attempt is not None
-                        else {}
-                    ),
+                    **identity,
                     "failed_at":
                         now_utc(),
                     "failed_stage":
@@ -378,14 +383,7 @@ def process_package(
                     "gneu-aihot-ready-failure-v1",
                 "edition":
                     edition,
-                **(
-                    {
-                        "package_id": package_id,
-                        "attempt": attempt,
-                    }
-                    if attempt is not None
-                    else {}
-                ),
+                **identity,
                 "failed_at":
                     now_utc(),
                 "failed_stage":
@@ -420,14 +418,7 @@ def process_package(
                     "gneu-aihot-ready-failure-v1",
                 "edition":
                     edition,
-                **(
-                    {
-                        "package_id": package_id,
-                        "attempt": attempt,
-                    }
-                    if attempt is not None
-                    else {}
-                ),
+                **identity,
                 "failed_at":
                     now_utc(),
                 "failed_stage":
@@ -455,8 +446,7 @@ def process_package(
                 {
                     "schema": "gneu-aihot-ready-failure-v1",
                     "edition": edition,
-                    "package_id": package_id,
-                    "attempt": attempt,
+                    **identity,
                     "failed_at": now_utc(),
                     "failed_stage": "replay-guard",
                     "reason": "transport failed canonical payload verification",
@@ -471,8 +461,7 @@ def process_package(
                 {
                     "schema": "gneu-aihot-ready-failure-v1",
                     "edition": edition,
-                    "package_id": package_id,
-                    "attempt": attempt,
+                    **identity,
                     "failed_at": now_utc(),
                     "failed_stage": "replay-guard",
                     "reason": "canonical payload matches a verified rejection",
@@ -501,14 +490,7 @@ def process_package(
             {
                 "schema": "gneu-aihot-ready-failure-v1",
                 "edition": edition,
-                **(
-                    {
-                        "package_id": package_id,
-                        "attempt": attempt,
-                    }
-                    if attempt is not None
-                    else {}
-                ),
+                **identity,
                 "failed_at": now_utc(),
                 "failed_stage": "dispatch",
                 "stages": output,
@@ -522,14 +504,7 @@ def process_package(
             "gneu-aihot-ready-processed-v1",
         "edition":
             edition,
-        **(
-            {
-                "package_id": package_id,
-                "attempt": attempt,
-            }
-            if attempt is not None
-            else {}
-        ),
+        **identity,
         "processed_at":
             now_utc(),
         "base_main_sha":

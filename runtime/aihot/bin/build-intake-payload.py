@@ -10,8 +10,9 @@ import re
 import subprocess
 import sys
 import tempfile
-from datetime import date
 from pathlib import Path
+
+from aihot_package_identity import parse_package_id
 
 
 BRIDGE = Path("/root/gneu-aihot-bridge")
@@ -30,9 +31,6 @@ EXPECTED_REMOTE = (
     "https://github.com/stebolainen/gneu-se.git"
 )
 
-PACKAGE_RE = re.compile(
-    r"^(?P<edition>\d{4}-W\d{2})(?:--(?P<attempt>\d{4}-\d{2}-\d{2}))?$"
-)
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 MAX_ENCODED = 55_000
@@ -40,24 +38,6 @@ MAX_ENCODED = 55_000
 
 def fail(msg: str) -> None:
     raise SystemExit("BLOCKED: " + msg)
-
-
-def parse_package_id(value: str) -> tuple[str, str | None]:
-    match = PACKAGE_RE.fullmatch(value)
-    if not match:
-        fail("invalid package id")
-    edition = match.group("edition")
-    attempt = match.group("attempt")
-    try:
-        year, week = int(edition[:4]), int(edition[-2:])
-        date.fromisocalendar(year, week, 1)
-        if attempt is not None:
-            iso = date.fromisoformat(attempt).isocalendar()
-            if (iso.year, iso.week) != (year, week):
-                fail("attempt date is outside edition")
-    except ValueError:
-        fail("invalid package id")
-    return edition, attempt
 
 
 def run(
@@ -157,7 +137,10 @@ if len(sys.argv) != 2:
     )
 
 package_id = sys.argv[1]
-edition, attempt = parse_package_id(package_id)
+try:
+    edition, attempt, revision = parse_package_id(package_id)
+except ValueError as exc:
+    fail(str(exc))
 
 if not REPO.is_dir():
     fail("bridge repository missing")
@@ -207,7 +190,7 @@ cp = subprocess.run(
     [
         "/usr/bin/python3",
         str(INTAKE_VALIDATOR),
-        edition,
+        package_id,
     ],
     text=True,
     stdout=subprocess.PIPE,
@@ -348,6 +331,10 @@ if attempt is not None and handoff.get("attempt") != attempt:
     fail("handoff attempt mismatch")
 if attempt is None and "attempt" in handoff:
     fail("legacy handoff contains attempt")
+if revision == 1 and handoff.get("revision") != 1:
+    fail("handoff revision mismatch")
+if revision != 1 and "revision" in handoff:
+    fail("unexpected handoff revision")
 
 mode = handoff.get("mode")
 
@@ -608,6 +595,8 @@ print("edition:", edition)
 print("package_id:", package_id)
 if attempt is not None:
     print("attempt:", attempt)
+if revision == 1:
+    print("revision:", revision)
 print("mode:", mode)
 print("base_main:", main_sha)
 print(

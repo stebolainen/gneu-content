@@ -109,18 +109,31 @@ Never delete a generation claim to retry. The only supported orphan recovery
 is the append-only authorization and exact-once scheduler re-admission in
 [`../../docs/AIHOT_CLAIM_RECOVERY.md`](../../docs/AIHOT_CLAIM_RECOVERY.md).
 
+Never edit or delete a locally rejected daily package. The only supported
+same-day correction is the append-only, operator-authorized `--r1` flow in
+[`../../docs/AIHOT_LOCAL_RETRY.md`](../../docs/AIHOT_LOCAL_RETRY.md). Normal
+scheduling creates revision zero only; revision 1 is consumed exactly once by
+the same tracked Hermes job, and later revisions are rejected.
+
 Do not hand-edit installed runtime files. Correct tracked source through a new
 Admin PR, merge it, and provision the exact verified merge commit.
 
 ## Daily attempt identity
 
 Legacy `outbox/YYYY-Www` packages and their edition-keyed state remain valid
-and immutable. Daily packages use `outbox/YYYY-Www--YYYY-MM-DD`; the attempt
+and immutable. Daily packages use `outbox/YYYY-Www--YYYY-MM-DD`; an authorized
+local correction uses `outbox/YYYY-Www--YYYY-MM-DD--r1`. The attempt
 date must belong to the edition. Failed and processed state uses that complete
 package ID, so rejection of a legacy W36 payload does not reject a different
 W36 attempt. Before dispatch, every tracked rejection receipt is verified and
 the decoded canonical payload hash is compared. An exact rejected-payload
 replay is blocked even if copied under a new attempt name.
+
+Research may inspect roughly seven days of sources, but candidate eligibility
+is narrower: every new article date must belong to the supplied ISO edition.
+Older events may be report context or supporting evidence, never new entries in
+that edition. A successful no-change research run does not alter public
+`generated`; research freshness and content-edition freshness remain separate.
 
 ## Rejection disposition
 

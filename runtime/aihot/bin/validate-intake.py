@@ -3,37 +3,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import sys
 import urllib.request
-from datetime import date
 from pathlib import Path
+
+from aihot_package_identity import parse_package_id
 
 HANDOFF_ROOT = Path("/root/.hermes/profiles/gneu/aihot-handoff")
 OUTBOX = HANDOFF_ROOT / "outbox"
 LIVE_URL = "https://gneu.se/data/aihot.json"
-
-PACKAGE_RE = re.compile(
-    r"^(?P<edition>20\d{2}-W(?:0[1-9]|[1-4]\d|5[0-3]))"
-    r"(?:--(?P<attempt>20\d{2}-\d{2}-\d{2}))?$"
-)
-
-
-def parse_package_id(value: str) -> tuple[str, str | None]:
-    match = PACKAGE_RE.fullmatch(value)
-    if not match:
-        fail("invalid package id")
-    edition = match.group("edition")
-    attempt = match.group("attempt")
-    if attempt is not None:
-        try:
-            parsed = date.fromisoformat(attempt)
-        except ValueError:
-            fail("invalid attempt date")
-        iso = parsed.isocalendar()
-        if (iso.year, iso.week) != (int(edition[:4]), int(edition[-2:])):
-            fail("attempt date is outside edition")
-    return edition, attempt
 
 
 def fail(msg: str) -> None:
@@ -44,7 +22,10 @@ if len(sys.argv) != 2:
     fail("usage: validate-intake.py PACKAGE_ID")
 
 package_id = sys.argv[1]
-edition, attempt = parse_package_id(package_id)
+try:
+    edition, attempt, revision = parse_package_id(package_id)
+except ValueError as exc:
+    fail(str(exc))
 
 pkg = OUTBOX / package_id
 
@@ -96,6 +77,10 @@ if attempt is not None and handoff.get("attempt") != attempt:
 
 if attempt is None and "attempt" in handoff:
     fail("legacy handoff contains attempt")
+if revision == 1 and handoff.get("revision") != 1:
+    fail("revision mismatch")
+if revision != 1 and "revision" in handoff:
+    fail("unexpected revision")
 
 if handoff.get("base_sha256") != base_sha:
     fail("stale or unexpected base")
