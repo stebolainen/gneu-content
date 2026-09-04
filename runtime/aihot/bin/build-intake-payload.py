@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 
@@ -29,7 +30,9 @@ EXPECTED_REMOTE = (
     "https://github.com/stebolainen/gneu-se.git"
 )
 
-WEEK_RE = re.compile(r"^\d{4}-W\d{2}$")
+PACKAGE_RE = re.compile(
+    r"^(?P<edition>\d{4}-W\d{2})(?:--(?P<attempt>\d{4}-\d{2}-\d{2}))?$"
+)
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 MAX_ENCODED = 55_000
@@ -37,6 +40,24 @@ MAX_ENCODED = 55_000
 
 def fail(msg: str) -> None:
     raise SystemExit("BLOCKED: " + msg)
+
+
+def parse_package_id(value: str) -> tuple[str, str | None]:
+    match = PACKAGE_RE.fullmatch(value)
+    if not match:
+        fail("invalid package id")
+    edition = match.group("edition")
+    attempt = match.group("attempt")
+    try:
+        year, week = int(edition[:4]), int(edition[-2:])
+        date.fromisocalendar(year, week, 1)
+        if attempt is not None:
+            iso = date.fromisoformat(attempt).isocalendar()
+            if (iso.year, iso.week) != (year, week):
+                fail("attempt date is outside edition")
+    except ValueError:
+        fail("invalid package id")
+    return edition, attempt
 
 
 def run(
@@ -132,13 +153,11 @@ def require_regular_file(
 if len(sys.argv) != 2:
     fail(
         "usage: build-intake-payload.py "
-        "YYYY-Www"
+        "PACKAGE_ID"
     )
 
-edition = sys.argv[1]
-
-if not WEEK_RE.fullmatch(edition):
-    fail("invalid edition")
+package_id = sys.argv[1]
+edition, attempt = parse_package_id(package_id)
 
 if not REPO.is_dir():
     fail("bridge repository missing")
@@ -159,7 +178,7 @@ if remote != EXPECTED_REMOTE:
 
 
 # 1. Package must exist in the production outbox.
-pkg = OUTBOX / edition
+pkg = OUTBOX / package_id
 
 try:
     resolved = pkg.resolve(
@@ -319,6 +338,16 @@ if not isinstance(candidate, dict):
 
 if handoff.get("edition") != edition:
     fail("handoff edition mismatch")
+
+expected_handoff_schema = (
+    "gneu-aihot-handoff-v2" if attempt is not None else "gneu-aihot-handoff-v1"
+)
+if handoff.get("schema") != expected_handoff_schema:
+    fail("handoff schema mismatch")
+if attempt is not None and handoff.get("attempt") != attempt:
+    fail("handoff attempt mismatch")
+if attempt is None and "attempt" in handoff:
+    fail("legacy handoff contains attempt")
 
 mode = handoff.get("mode")
 
@@ -518,7 +547,7 @@ os.chmod(
 )
 
 out = STATE / (
-    f"{edition}.transport.json"
+    f"{package_id}.transport.json"
 )
 
 transport = {
@@ -532,7 +561,7 @@ transport = {
 }
 
 fd, tmp_name = tempfile.mkstemp(
-    prefix=f".{edition}.",
+    prefix=f".{package_id}.",
     suffix=".tmp",
     dir=STATE,
 )
@@ -576,6 +605,9 @@ except Exception:
 
 print("AIHOT_PAYLOAD_BUILD: PASS")
 print("edition:", edition)
+print("package_id:", package_id)
+if attempt is not None:
+    print("attempt:", attempt)
 print("mode:", mode)
 print("base_main:", main_sha)
 print(

@@ -6,13 +6,34 @@ import json
 import re
 import sys
 import urllib.request
+from datetime import date
 from pathlib import Path
 
 HANDOFF_ROOT = Path("/root/.hermes/profiles/gneu/aihot-handoff")
 OUTBOX = HANDOFF_ROOT / "outbox"
 LIVE_URL = "https://gneu.se/data/aihot.json"
 
-WEEK_RE = re.compile(r"^20\d{2}-W(?:0[1-9]|[1-4]\d|5[0-3])$")
+PACKAGE_RE = re.compile(
+    r"^(?P<edition>20\d{2}-W(?:0[1-9]|[1-4]\d|5[0-3]))"
+    r"(?:--(?P<attempt>20\d{2}-\d{2}-\d{2}))?$"
+)
+
+
+def parse_package_id(value: str) -> tuple[str, str | None]:
+    match = PACKAGE_RE.fullmatch(value)
+    if not match:
+        fail("invalid package id")
+    edition = match.group("edition")
+    attempt = match.group("attempt")
+    if attempt is not None:
+        try:
+            parsed = date.fromisoformat(attempt)
+        except ValueError:
+            fail("invalid attempt date")
+        iso = parsed.isocalendar()
+        if (iso.year, iso.week) != (int(edition[:4]), int(edition[-2:])):
+            fail("attempt date is outside edition")
+    return edition, attempt
 
 
 def fail(msg: str) -> None:
@@ -20,13 +41,12 @@ def fail(msg: str) -> None:
 
 
 if len(sys.argv) != 2:
-    fail("usage: validate-intake.py YYYY-Www")
+    fail("usage: validate-intake.py PACKAGE_ID")
 
-edition = sys.argv[1]
-if not WEEK_RE.fullmatch(edition):
-    fail("invalid edition")
+package_id = sys.argv[1]
+edition, attempt = parse_package_id(package_id)
 
-pkg = OUTBOX / edition
+pkg = OUTBOX / package_id
 
 for name in ("handoff.json", "candidate.json", "report.md", "READY"):
     if not (pkg / name).is_file():
@@ -61,7 +81,8 @@ except Exception as exc:
 
 base_sha = hashlib.sha256(raw).hexdigest()
 
-if handoff.get("schema") != "gneu-aihot-handoff-v1":
+expected_schema = "gneu-aihot-handoff-v2" if attempt is not None else "gneu-aihot-handoff-v1"
+if handoff.get("schema") != expected_schema:
     fail("handoff schema")
 
 if handoff.get("producer") != "adam":
@@ -69,6 +90,12 @@ if handoff.get("producer") != "adam":
 
 if handoff.get("edition") != edition:
     fail("edition mismatch")
+
+if attempt is not None and handoff.get("attempt") != attempt:
+    fail("attempt mismatch")
+
+if attempt is None and "attempt" in handoff:
+    fail("legacy handoff contains attempt")
 
 if handoff.get("base_sha256") != base_sha:
     fail("stale or unexpected base")
@@ -140,6 +167,20 @@ elif mode == "edition":
         if a.get("edition") != edition:
             fail(f"{aid}: wrong edition")
 
+        value = a.get("date")
+        try:
+            article_date = date.fromisoformat(value) if isinstance(value, str) else None
+        except ValueError:
+            article_date = None
+        if article_date is None:
+            fail(f"{aid}: invalid article date")
+        article_iso = article_date.isocalendar()
+        if (article_iso.year, article_iso.week) != (
+            int(edition[:4]),
+            int(edition[-2:]),
+        ):
+            fail(f"{aid}: article date is outside {edition}")
+
         sources = a.get("sources")
         if not isinstance(sources, list) or len(sources) < 2:
             fail(f"{aid}: insufficient sources")
@@ -152,6 +193,6 @@ if len(report) < 200:
     fail("report too short")
 
 print(
-    f"PASS_INTAKE {edition} "
+    f"PASS_INTAKE {package_id} "
     f"mode={mode} articles={len(added_a)} base={base_sha[:12]}"
 )

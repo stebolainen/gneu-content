@@ -1,58 +1,62 @@
 # AI-hot runtime
 
-GNEU Admin is the technical owner of the AI-hot READY processor. Its tracked
-source belongs under `runtime/aihot/` on trusted repository branch `main`.
-Runtime installation and service activation are separate, explicitly
+GNEU Admin is the technical owner of the AI-hot generator gate, handoff
+validator, freshness probe and READY processor. Their tracked source belongs
+under `runtime/aihot/` on trusted repository branch `main`. Installation,
+scheduler reconciliation and service activation are separate, explicitly
 authorised operations performed only after merge.
 
-## State machine
-
-The byte-preserved bootstrap runtime implements this state machine:
+## State machine and identities
 
 ```text
-READY package
+legacy READY package (YYYY-Www) or daily package (YYYY-Www--YYYY-MM-DD)
   -> validate
   -> build trusted transport
+  -> reject-replay guard
   -> dispatch trusted intake
-     -> processed/<week>.json on success
-     -> failed/<week>.json on failure
-        -> FAILED_REQUIRES_OPERATOR on every later processor run
-        -> rejected/<week>.json after an explicit, eligible operator disposition
-           -> ALREADY_REJECTED on every later processor run
+     -> processed/<package-id>.json on success
+     -> failed/<package-id>.json on failure
+        -> FAILED_REQUIRES_OPERATOR for that package
+
+legacy rejected/<week>.json
+  -> verifies and terminates its exact legacy package
+  -> blocks the same canonical payload under any daily attempt name
 ```
 
 The processor and operator disposition tool use the same filesystem lock to
-prevent concurrent execution.
-`processed/<week>.json` prevents duplicate successful processing. A failed
-package is latched because the original run may have crossed the GitHub
-dispatch boundary; the current implementation never retries it automatically.
+prevent concurrent trusted processing. `processed/<package-id>.json` prevents
+duplicate successful processing. A failed package remains latched because its
+run may have crossed the GitHub dispatch boundary; that exact package is never
+retried automatically.
 
-`rejected/<week>.json` is an append-only terminal receipt. The failed latch,
-READY package, transport, and outbox evidence remain in place. A valid receipt
-must remain cryptographically and semantically bound to all of them. A
-`processed` and `rejected` receipt for the same edition is a state conflict and
-the processor fails closed. A rejected package is never validated, rebuilt, or
-redispatched.
+The v1 operator receipt remains edition-named because it preserves the legacy
+package for which it was created. It does not blanket-reject a sibling daily
+attempt. Daily attempt names include the Stockholm date, and that date must be
+in the declared ISO week. Before a daily attempt can dispatch, the processor
+verifies every existing rejection receipt and blocks any canonical payload hash
+already rejected. The old W36 package therefore remains terminal while a
+genuinely different W36 attempt may use the normal pipeline.
 
-The first version deliberately permits only the locally reproducible
+The initial disposition allowlist remains the locally reproducible
 `ARTICLE_DATE_OUTSIDE_EDITION` failure. It has no general operator-asserted
 fallback. Remote GitHub review remains a separate, mandatory Admin step; the
 receipt distinguishes machine-verified local evidence from operator-attested
 remote evidence.
 
-## Current operational debt: W36
+## Daily generation and freshness
 
-The runtime currently reports `FAILED_REQUIRES_OPERATOR` for the
-`2026-W36` READY package. The trusted intake run rejected an article whose
-declared date did not belong to ISO week 36. The package remains READY and its
-failure remains latched.
+Generation and READY processing are separate schedulers. The Hermes generation
+job uses the tracked UTC pair `0 5,6 * * *` plus a Europe/Stockholm gate, so the
+admitted run is 07:00 across CET and CEST. The gate atomically claims one local
+calendar-day attempt. Hermes independently prevents overlap and collapses
+missed recurring occurrences to one catch-up. The READY timer continues to
+poll independently and does not prove generation freshness.
 
-This incident is the motivating example for the generic transition. The
-package, failed-state contents, transport payload, credentials, and other
-runtime state remain outside Git. Adding the implementation does not
-acknowledge, change, or disposition W36. Actual recovery requires review,
-merge, separate provisioning, and the operator procedure in
-[`AIHOT_OPERATOR_RECOVERY.md`](AIHOT_OPERATOR_RECOVERY.md).
+`aihot-freshness.py` performs a bounded read-only check of public
+`data/aihot.json`. Public age below 26 hours is `FRESH`; age at or above 26
+hours is `STALE` with exit code 2. Network, schema or timestamp errors are
+`UNKNOWN` and fail closed. The daily generation gate also includes the last
+locally observed freshness state in Hermes execution output.
 
-See [`../runtime/aihot/README.md`](../runtime/aihot/README.md) for the source,
-manifest, installation, and provenance contract.
+See [`../runtime/aihot/README.md`](../runtime/aihot/README.md) for source,
+manifest, provisioning, scheduler reconciliation and provenance details.
