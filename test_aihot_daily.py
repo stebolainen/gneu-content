@@ -216,9 +216,56 @@ class DailyAttemptTests(unittest.TestCase):
         self.assertIn("BLOCKED_INVALID_RETRY_AUTHORIZATION", output)
         self.assertEqual(calls, [])
 
-    def test_arbitrary_later_revision_is_invalid(self) -> None:
+    def with_r2_verifier(self, value):
+        original = process_ready.verify_content_retry_consumed
+        process_ready.verify_content_retry_consumed = value
+        self.addCleanup(
+            setattr,
+            process_ready,
+            "verify_content_retry_consumed",
+            original,
+        )
+
+    def test_r2_uses_normal_process_ready_and_records_revision(self) -> None:
+        self.package_id = "2026-W36--2026-09-04--r2"
+        self.make_attempt()
+        self.with_r2_verifier(lambda *args: ({}, "a" * 64))
+        result, output, calls = self.run_attempt()
+        self.assertTrue(result)
+        self.assertIn(f"AIHOT_READY_PROCESSED {self.package_id}", output)
+        self.assertEqual(len(calls), 3)
+        receipt = json.loads(
+            (self.fixture.state / "processed" / f"{self.package_id}.json").read_text()
+        )
+        self.assertEqual(receipt["revision"], 2)
+
+    def test_r2_replay_guard_still_precedes_dispatch(self) -> None:
+        self.package_id = "2026-W36--2026-09-04--r2"
+        self.make_attempt(replay=True)
+        self.with_r2_verifier(lambda *args: ({}, "a" * 64))
+        result, output, calls = self.run_attempt()
+        self.assertFalse(result)
+        self.assertIn("BLOCKED_REJECTED_PACKAGE_REPLAY", output)
+        self.assertEqual(len(calls), 2)
+
+    def test_r2_process_ready_requires_consumed_authorization(self) -> None:
+        from aihot_content_retry import ContentRetryError
+
+        self.package_id = "2026-W36--2026-09-04--r2"
+        self.make_attempt()
+
+        def blocked(*args):
+            raise ContentRetryError("not authorized")
+
+        self.with_r2_verifier(blocked)
+        result, output, calls = self.run_attempt()
+        self.assertFalse(result)
+        self.assertIn("BLOCKED_INVALID_CONTENT_RETRY_AUTHORIZATION", output)
+        self.assertEqual(calls, [])
+
+    def test_r3_is_invalid(self) -> None:
         with self.assertRaises(ValueError):
-            process_ready.parse_package_id("2026-W36--2026-09-04--r2")
+            process_ready.parse_package_id("2026-W36--2026-09-04--r3")
 
 
 class DailyGateTests(unittest.TestCase):

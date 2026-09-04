@@ -380,7 +380,7 @@ try:
     print("package_id:", package_id)
     if attempt is not None:
         print("attempt:", attempt)
-    if revision == 1:
+    if revision in {1, 2}:
         print("revision:", revision)
     print(
         "expected_main:",

@@ -25,6 +25,12 @@ from aihot_local_retry import (
     consume_authorization as consume_retry_authorization,
     source_resolved_by_retry,
 )
+from aihot_content_retry import (
+    ContentRetryError,
+    ContentRetryPaths,
+    consume_authorization as consume_content_retry_authorization,
+    production_paths as production_content_retry_paths,
+)
 
 
 ZONE = ZoneInfo("Europe/Stockholm")
@@ -37,7 +43,7 @@ EXECUTIONS_DB = Path("/root/.hermes/profiles/gneu/cron/executions.db")
 CRON_OUTPUT = Path("/root/.hermes/profiles/gneu/cron/output")
 FRESHNESS_SECONDS = 26 * 60 * 60
 DAILY_PACKAGE_RE = re.compile(
-    r"^\d{4}-W\d{2}--\d{4}-\d{2}-\d{2}(?:--r1)?$"
+    r"^\d{4}-W\d{2}--\d{4}-\d{2}-\d{2}(?:--r[12])?$"
 )
 
 
@@ -69,6 +75,20 @@ def resume_paths() -> ResumePaths:
 
 def retry_paths() -> RetryPaths:
     return RetryPaths(STATE, OUTBOX, SCHEDULER_CONFIG, EXECUTIONS_DB, CRON_OUTPUT)
+
+
+def content_retry_paths() -> ContentRetryPaths:
+    production = production_content_retry_paths()
+    return ContentRetryPaths(
+        STATE,
+        OUTBOX,
+        SCHEDULER_CONFIG,
+        EXECUTIONS_DB,
+        CRON_OUTPUT,
+        production.provenance,
+        production.runtime_paths,
+        production.proc_root,
+    )
 
 
 def context_for(now: dt.datetime) -> tuple[dt.datetime, str, str, str, dict]:
@@ -114,6 +134,10 @@ def inspect(now: dt.datetime | None = None) -> dict:
         reason = "daily_attempt_complete"
     elif os.path.lexists(STATE / "failed" / f"{package_id}.json"):
         reason = "daily_attempt_requires_operator"
+    elif os.path.lexists(CLAIMS / "retry-consumed" / f"{attempt}-r2.json"):
+        reason = "content_retry_already_consumed"
+    elif os.path.lexists(CLAIMS / "retry-authorized" / f"{attempt}-r2.json"):
+        reason = "operator_content_contract_retry_authorized"
     elif os.path.lexists(CLAIMS / "retry-consumed" / f"{attempt}-r1.json"):
         reason = "retry_already_consumed"
     elif os.path.lexists(CLAIMS / "retry-authorized" / f"{attempt}-r1.json"):
@@ -154,6 +178,7 @@ def evaluate(now: dt.datetime | None = None) -> dict:
             if not DAILY_PACKAGE_RE.fullmatch(entry.name) or entry.name in {
                 package_id,
                 f"{package_id}--r1",
+                f"{package_id}--r2",
             }:
                 continue
             terminal = (
@@ -213,6 +238,34 @@ def evaluate(now: dt.datetime | None = None) -> dict:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         claim = CLAIMS / f"{attempt}.json"
         if os.path.lexists(package):
+            try:
+                content_retry_state, content_authorization = (
+                    consume_content_retry_authorization(
+                        content_retry_paths(), attempt, now
+                    )
+                )
+            except ContentRetryError:
+                return {
+                    "wakeAgent": False,
+                    "context": {**context, "reason": "unsafe_content_retry_state"},
+                }
+            if content_retry_state == "consumed" and content_authorization is not None:
+                return {
+                    "wakeAgent": True,
+                    "context": {
+                        **context,
+                        "edition": content_authorization["edition"],
+                        "attempt": content_authorization["attempt"],
+                        "package_id": content_authorization["target_package_id"],
+                        "revision": content_authorization["revision"],
+                        "reason": "operator_content_contract_retry",
+                    },
+                }
+            if content_retry_state == "already-consumed":
+                return {
+                    "wakeAgent": False,
+                    "context": {**context, "reason": "content_retry_already_consumed"},
+                }
             try:
                 retry_state, authorization = consume_retry_authorization(
                     retry_paths(), attempt, now

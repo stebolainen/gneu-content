@@ -10,7 +10,8 @@ authorised operations performed only after merge.
 
 ```text
 legacy package (YYYY-Www), daily package (YYYY-Www--YYYY-MM-DD),
-or operator-authorized correction (YYYY-Www--YYYY-MM-DD--r1)
+operator-authorized local correction (YYYY-Www--YYYY-MM-DD--r1),
+or the single incident-bound 2026-09-04 r2 correction
   -> validate
   -> build trusted transport
   -> reject-replay guard
@@ -82,6 +83,16 @@ processor consumes it once under its existing lock and re-enters at
 `validate`; build, replay guard and dispatch remain mandatory and ordered. The
 original failed receipt is never changed. See
 [`AIHOT_READY_RECOVERY.md`](AIHOT_READY_RECOVERY.md).
+
+The terminal 2026-09-04 r1 content failure may authorize exactly one r2 fresh
+generation only after operator verification of remote run 33874811080. The
+authorization binds every immutable r1/recovery/transport hash, the pinned
+trusted content-contract fingerprint, the failed validation result, and the
+fact that all remote credential and write steps were skipped. The normal gate
+consumes it once under the generation lock. This is not an unlimited retry
+mechanism: other incidents, failure classes, dates, r3, and automatic revision
+creation remain blocked. See
+[`AIHOT_CONTENT_RETRY.md`](AIHOT_CONTENT_RETRY.md).
 
 `aihot-freshness.py` performs a bounded read-only check of public
 `data/aihot.json`. Public age below 26 hours is `FRESH`; age at or above 26

@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 
@@ -13,6 +14,11 @@ RUNTIME_BIN = Path("/root/gneu-aihot-bridge/bin")
 sys.path.insert(0, str(SOURCE_BIN if (SOURCE_BIN / "aihot_local_retry.py").is_file() else RUNTIME_BIN))
 
 from aihot_local_retry import RetryError, RetryPaths, verify_target_consumed
+from aihot_content_retry import (
+    ContentRetryError,
+    production_paths as content_retry_paths,
+    verify_target_consumed as verify_content_retry_consumed,
+)
 from aihot_package_identity import parse_package_id
 from aihot_content_contract import (
     ContentContractError,
@@ -57,6 +63,11 @@ def main() -> None:
             )
         except RetryError:
             fail("retry authorization missing or invalid")
+    elif revision == 2:
+        try:
+            verify_content_retry_consumed(content_retry_paths(), package_id)
+        except ContentRetryError:
+            fail("content retry authorization missing or invalid")
     package = OUTBOX / package_id
     ready = package / "READY"
     if ready.exists():
@@ -96,9 +107,9 @@ def main() -> None:
         fail("handoff attempt mismatch")
     if attempt is None and "attempt" in handoff:
         fail("legacy handoff contains attempt")
-    if revision == 1 and handoff.get("revision") != 1:
+    if revision in {1, 2} and handoff.get("revision") != revision:
         fail("handoff revision mismatch")
-    if revision != 1 and "revision" in handoff:
+    if revision not in {1, 2} and "revision" in handoff:
         fail("unexpected handoff revision")
     mode = handoff.get("mode")
     if mode not in ("edition", "no-change"):
@@ -140,6 +151,7 @@ def main() -> None:
                     existing,
                     seen,
                     CONTENT_CONTRACT,
+                    date.fromisoformat(attempt) if revision == 2 else None,
                 )
             except ContentContractError as exc:
                 fail(str(exc))

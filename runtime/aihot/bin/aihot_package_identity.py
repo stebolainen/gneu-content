@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical legacy, daily revision-zero, and operator retry identities."""
+"""Canonical legacy, daily, and bounded operator retry identities."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import re
 
 PACKAGE_RE = re.compile(
     r"^(?P<edition>20\d{2}-W(?:0[1-9]|[1-4]\d|5[0-3]))"
-    r"(?:--(?P<attempt>20\d{2}-\d{2}-\d{2})(?:--r(?P<revision>1))?)?$"
+    r"(?:--(?P<attempt>20\d{2}-\d{2}-\d{2})(?:--r(?P<revision>[12]))?)?$"
 )
 
 

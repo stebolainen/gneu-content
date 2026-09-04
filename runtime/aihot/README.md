@@ -122,7 +122,15 @@ Never edit or delete a locally rejected daily package. The only supported
 same-day correction is the append-only, operator-authorized `--r1` flow in
 [`../../docs/AIHOT_LOCAL_RETRY.md`](../../docs/AIHOT_LOCAL_RETRY.md). Normal
 scheduling creates revision zero only; revision 1 is consumed exactly once by
-the same tracked Hermes job, and later revisions are rejected.
+the same tracked Hermes job.
+
+The only supported r2 is the incident-bound 2026-09-04 content-contract
+correction in
+[`../../docs/AIHOT_CONTENT_RETRY.md`](../../docs/AIHOT_CONTENT_RETRY.md). It
+requires the exact immutable r1 and recovery hashes, the fixed evidence
+contract, and operator-attested proof that remote validation failed before all
+write steps. It is consumed once by the normal Hermes job. R3 and arbitrary r2
+requests are rejected.
 
 Never delete or overwrite a trusted READY failure to retry it. The only
 supported processing recovery is the narrowly fingerprinted, append-only
@@ -140,7 +148,8 @@ Admin PR, merge it, and provision the exact verified merge commit.
 
 Legacy `outbox/YYYY-Www` packages and their edition-keyed state remain valid
 and immutable. Daily packages use `outbox/YYYY-Www--YYYY-MM-DD`; an authorized
-local correction uses `outbox/YYYY-Www--YYYY-MM-DD--r1`. The attempt
+local correction uses `outbox/YYYY-Www--YYYY-MM-DD--r1`, and the single
+incident-bound correction uses `outbox/2026-W36--2026-09-04--r2`. The attempt
 date must belong to the edition. Failed and processed state uses that complete
 package ID, so rejection of a legacy W36 payload does not reject a different
 W36 attempt. Before dispatch, every tracked rejection receipt is verified and

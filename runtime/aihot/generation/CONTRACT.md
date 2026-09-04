@@ -8,10 +8,11 @@ The gate supplies an ISO edition, an attempt date and a package ID:
 
 `YYYY-Www--YYYY-MM-DD`
 
-An operator-authorized correction of a locally rejected daily package uses the
-single supported revision identity `YYYY-Www--YYYY-MM-DD--r1`. Revision zero is
-the normal daily identity and is never renamed or changed. The scheduler never
-creates `r1` automatically, and `r2` or later revisions are not supported.
+An operator-authorized correction of a locally rejected daily package uses
+`YYYY-Www--YYYY-MM-DD--r1`. The single incident-bound content correction uses
+`2026-W36--2026-09-04--r2`. Revision zero is the normal daily identity and is
+never renamed or changed. The scheduler never creates a revision automatically;
+`r3` or later revisions are invalid.
 
 The date must belong to the edition's ISO week. A legacy package named only
 `YYYY-Www` remains valid, but is immutable historical evidence. A daily
@@ -25,7 +26,8 @@ Before research, run the tracked base refresh script and use exactly
 - `report.md`
 
 The handoff is `gneu-aihot-handoff-v2` and contains the existing v1 fields plus
-`"attempt": "YYYY-MM-DD"`. An `r1` handoff also contains `"revision": 1`.
+`"attempt": "YYYY-MM-DD"`. An r1 or r2 handoff also contains the exact numeric
+`revision`.
 Adam never creates `READY`; the tracked validator
 creates it atomically after validation. Existing READY, failed, rejected,
 processed or generation-claim state must never be deleted or overwritten.
@@ -67,6 +69,16 @@ An `r1` run is a fresh generation from the refreshed public baseline and
 current sources. It must never copy, edit, overwrite, or delete the revision-0
 package. If no qualifying material exists, it produces the normal strict
 `no-change` result; content must never be fabricated for freshness.
+
+The r2 identity is not a general retry tier. It is admitted only by the
+append-only, exact-once operator authorization for the immutable 2026-09-04 r1
+whose trusted intake failed on missing evidence before every credential and
+write step. R2 performs fresh research from the refreshed baseline and authors
+the complete trusted article schema, including evidence. It never copies or
+edits r1, and its article dates may not be later than the local run date. Its
+only valid gate context has `reason=operator_content_contract_retry` and
+`revision=2`. The
+ordinary scheduler remains revision-zero-only.
 
 The trusted bridge transports only a validated delta, rebinds it to current
 gneu-se `main`, and dispatches the existing trusted intake. A rejection receipt

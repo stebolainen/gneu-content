@@ -44,7 +44,7 @@ identity = load(
 
 
 class PackageIdentityTests(unittest.TestCase):
-    def test_legacy_revision_zero_and_r1_are_distinct(self) -> None:
+    def test_legacy_revision_zero_r1_and_r2_are_distinct(self) -> None:
         self.assertEqual(identity.parse_package_id("2026-W36"), ("2026-W36", None, None))
         self.assertEqual(
             identity.parse_package_id(SOURCE), ("2026-W36", ATTEMPT, 0)
@@ -52,9 +52,12 @@ class PackageIdentityTests(unittest.TestCase):
         self.assertEqual(
             identity.parse_package_id(TARGET), ("2026-W36", ATTEMPT, 1)
         )
+        self.assertEqual(
+            identity.parse_package_id(SOURCE + "--r2"), ("2026-W36", ATTEMPT, 2)
+        )
 
-    def test_later_revision_and_wrong_iso_week_are_blocked(self) -> None:
-        for package_id in (SOURCE + "--r2", "2026-W36--2026-08-27--r1"):
+    def test_r3_and_wrong_iso_week_are_blocked(self) -> None:
+        for package_id in (SOURCE + "--r3", "2026-W36--2026-08-27--r1"):
             with self.subTest(package_id=package_id):
                 with self.assertRaises(ValueError):
                     identity.parse_package_id(package_id)
@@ -278,7 +281,7 @@ class LocalRetryTests(unittest.TestCase):
                 retry.REASON,
                 NOW + dt.timedelta(days=1),
             )
-        for value in (SOURCE + "--r2", SOURCE + "--r10"):
+        for value in (SOURCE + "--r3", SOURCE + "--r10"):
             self.assertIsNone(gate.DAILY_PACKAGE_RE.fullmatch(value))
 
     def test_tomorrow_normal_revision_zero_is_unaffected_after_terminal_r1(self) -> None:
