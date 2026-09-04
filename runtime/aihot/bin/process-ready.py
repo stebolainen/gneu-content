@@ -16,12 +16,21 @@ from pathlib import Path
 from aihot_rejection import RejectionError, path_present, verify_receipt
 from aihot_local_retry import RetryError, RetryPaths, verify_target_consumed
 from aihot_package_identity import PACKAGE_RE, parse_package_id
+from aihot_ready_retry import (
+    ReadyRetryError,
+    ReadyRetryPaths,
+    consume_for_processing,
+    processed_lineage_fields,
+    record_retry_failure,
+    verify_processed_lineage,
+)
 
 
 BRIDGE = Path("/root/gneu-aihot-bridge")
 
 BIN = BRIDGE / "bin"
 STATE = BRIDGE / "state"
+PROVENANCE = BRIDGE / "PROVENANCE.json"
 
 OUTBOX = Path(
     "/root/.hermes/profiles/gneu/"
@@ -37,6 +46,15 @@ FAILED = STATE / "failed"
 LOCK = STATE / "process-ready.lock"
 
 WEEK_RE = re.compile(r"^\d{4}-W\d{2}$")
+
+
+def ready_retry_paths() -> ReadyRetryPaths:
+    return ReadyRetryPaths(
+        state=STATE,
+        outbox=OUTBOX,
+        provenance=PROVENANCE,
+        bin_dir=BIN,
+    )
 
 
 def now_utc() -> str:
@@ -101,6 +119,32 @@ def run(
         stderr=subprocess.STDOUT,
         timeout=1800,
     )
+
+
+def latch_failure(
+    failed_file: Path,
+    payload: dict,
+    recovery: dict | None,
+    failure_code: str,
+) -> bool:
+    if recovery is None:
+        atomic_json(failed_file, payload)
+        return True
+    try:
+        record_retry_failure(
+            ready_retry_paths(),
+            recovery,
+            payload["failed_stage"],
+            failure_code,
+            payload.get("stages", []),
+        )
+    except ReadyRetryError:
+        print(
+            "BLOCKED_READY_RETRY_FAILURE_STATE "
+            f"{recovery['package_id']}"
+        )
+        return False
+    return True
 
 
 def package_ready(
@@ -240,6 +284,9 @@ def process_package(
     processed_present = path_present(
         processed_file
     )
+    failed_present = path_present(
+        failed_file
+    )
     rejected_present = attempt is None and path_present(rejected_file)
 
     if (
@@ -253,6 +300,30 @@ def process_package(
         return False
 
     if processed_present:
+        if failed_present:
+            try:
+                if processed_file.is_symlink() or not processed_file.is_file():
+                    raise ReadyRetryError("INVALID_PROCESSED_LINEAGE")
+                processed_metadata = processed_file.stat()
+                if (
+                    processed_metadata.st_uid != 0
+                    or processed_metadata.st_gid != 0
+                    or (processed_metadata.st_mode & 0o777) != 0o600
+                ):
+                    raise ReadyRetryError("INVALID_PROCESSED_LINEAGE")
+                processed_data = processed_file.read_bytes()
+                if not processed_data or len(processed_data) > 65536:
+                    raise ReadyRetryError("INVALID_PROCESSED_LINEAGE")
+                processed_value = json.loads(processed_data)
+                verify_processed_lineage(
+                    ready_retry_paths(), package_id, processed_value
+                )
+            except (ReadyRetryError, UnicodeDecodeError, json.JSONDecodeError):
+                print(
+                    f"BLOCKED_STATE_CONFLICT "
+                    f"{package_id}"
+                )
+                return False
         print(
             f"ALREADY_PROCESSED {package_id}"
         )
@@ -277,16 +348,59 @@ def process_package(
         )
         return True
 
-    # A failed run is latched. Never automatically
-    # retry a package that may already have crossed
-    # the GitHub dispatch boundary.
-    if failed_file.exists():
+    recovery = None
+
+    # A failed run is latched. The only retry is an
+    # append-only operator authorization for the
+    # exact pre-dispatch runtime fingerprint.
+    if failed_present:
+        if revision != 1:
+            print(
+                f"FAILED_REQUIRES_OPERATOR {package_id}"
+            )
+            return False
+        try:
+            recovery = consume_for_processing(
+                ready_retry_paths(), package_id
+            )
+        except ReadyRetryError as exc:
+            if str(exc) == "READY_RETRY_ALREADY_FAILED":
+                print(
+                    "READY_RETRY_FAILED_REQUIRES_OPERATOR "
+                    f"{package_id}"
+                )
+            elif str(exc) == "READY_RETRY_ALREADY_CONSUMED":
+                print(
+                    "READY_RETRY_CONSUMED_REQUIRES_OPERATOR "
+                    f"{package_id}"
+                )
+            else:
+                print(
+                    "BLOCKED_INVALID_READY_RETRY_AUTHORIZATION "
+                    f"{package_id}"
+                )
+            return False
+        if recovery is None:
+            print(
+                f"FAILED_REQUIRES_OPERATOR {package_id}"
+            )
+            return False
         print(
-            f"FAILED_REQUIRES_OPERATOR {package_id}"
+            f"PROCESS_READY_RECOVERY {package_id}"
         )
-        return False
 
     if not package_ready(package):
+        if recovery is not None:
+            if not latch_failure(
+                failed_file,
+                {
+                    "failed_stage": "package",
+                    "stages": [],
+                },
+                recovery,
+                "PACKAGE_CHANGED_AFTER_CONSUMPTION",
+            ):
+                return False
         print(
             f"BLOCKED_INVALID_PACKAGE "
             f"{package_id}"
@@ -300,6 +414,17 @@ def process_package(
     try:
         rejection_receipts = verified_rejections()
     except RejectionError as exc:
+        if recovery is not None:
+            if not latch_failure(
+                failed_file,
+                {
+                    "failed_stage": "rejection-state",
+                    "stages": [],
+                },
+                recovery,
+                "INVALID_REJECTION_STATE",
+            ):
+                return False
         print(f"BLOCKED_INVALID_REJECTION_STATE {package_id}: {exc}")
         return False
 
@@ -344,22 +469,26 @@ def process_package(
         )
 
         if cp.returncode != 0:
-            atomic_json(
+            payload = {
+                "schema":
+                    "gneu-aihot-ready-failure-v1",
+                "edition":
+                    edition,
+                **identity,
+                "failed_at":
+                    now_utc(),
+                "failed_stage":
+                    stage,
+                "stages":
+                    output,
+            }
+            if not latch_failure(
                 failed_file,
-                {
-                    "schema":
-                        "gneu-aihot-ready-failure-v1",
-                    "edition":
-                        edition,
-                    **identity,
-                    "failed_at":
-                        now_utc(),
-                    "failed_stage":
-                        stage,
-                    "stages":
-                        output,
-                },
-            )
+                payload,
+                recovery,
+                f"{stage.upper()}_FAILED",
+            ):
+                return False
 
             print(
                 f"AIHOT_READY_FAILED "
@@ -376,24 +505,28 @@ def process_package(
     )
 
     if not transport.is_file():
-        atomic_json(
+        payload = {
+            "schema":
+                "gneu-aihot-ready-failure-v1",
+            "edition":
+                edition,
+            **identity,
+            "failed_at":
+                now_utc(),
+            "failed_stage":
+                "receipt",
+            "reason":
+                "transport state missing",
+            "stages":
+                output,
+        }
+        if not latch_failure(
             failed_file,
-            {
-                "schema":
-                    "gneu-aihot-ready-failure-v1",
-                "edition":
-                    edition,
-                **identity,
-                "failed_at":
-                    now_utc(),
-                "failed_stage":
-                    "receipt",
-                "reason":
-                    "transport state missing",
-                "stages":
-                    output,
-            },
-        )
+            payload,
+            recovery,
+            "TRANSPORT_MISSING",
+        ):
+            return False
 
         print(
             f"AIHOT_READY_FAILED "
@@ -411,24 +544,28 @@ def process_package(
         )
 
     except Exception:
-        atomic_json(
+        payload = {
+            "schema":
+                "gneu-aihot-ready-failure-v1",
+            "edition":
+                edition,
+            **identity,
+            "failed_at":
+                now_utc(),
+            "failed_stage":
+                "receipt-json",
+            "reason":
+                "transport state invalid JSON",
+            "stages":
+                output,
+        }
+        if not latch_failure(
             failed_file,
-            {
-                "schema":
-                    "gneu-aihot-ready-failure-v1",
-                "edition":
-                    edition,
-                **identity,
-                "failed_at":
-                    now_utc(),
-                "failed_stage":
-                    "receipt-json",
-                "reason":
-                    "transport state invalid JSON",
-                "stages":
-                    output,
-            },
-        )
+            payload,
+            recovery,
+            "TRANSPORT_JSON_INVALID",
+        ):
+            return False
 
         print(
             f"AIHOT_READY_FAILED "
@@ -441,33 +578,41 @@ def process_package(
         try:
             payload_sha = decoded_payload_sha256(transport_data)
         except Exception:
-            atomic_json(
+            payload = {
+                "schema": "gneu-aihot-ready-failure-v1",
+                "edition": edition,
+                **identity,
+                "failed_at": now_utc(),
+                "failed_stage": "replay-guard",
+                "reason": "transport failed canonical payload verification",
+                "stages": output,
+            }
+            if not latch_failure(
                 failed_file,
-                {
-                    "schema": "gneu-aihot-ready-failure-v1",
-                    "edition": edition,
-                    **identity,
-                    "failed_at": now_utc(),
-                    "failed_stage": "replay-guard",
-                    "reason": "transport failed canonical payload verification",
-                    "stages": output,
-                },
-            )
+                payload,
+                recovery,
+                "TRANSPORT_CANONICAL_INVALID",
+            ):
+                return False
             print(f"BLOCKED_INVALID_TRANSPORT {package_id}")
             return False
         if any(receipt.get("payload_sha256") == payload_sha for receipt in rejection_receipts):
-            atomic_json(
+            payload = {
+                "schema": "gneu-aihot-ready-failure-v1",
+                "edition": edition,
+                **identity,
+                "failed_at": now_utc(),
+                "failed_stage": "replay-guard",
+                "reason": "canonical payload matches a verified rejection",
+                "stages": output,
+            }
+            if not latch_failure(
                 failed_file,
-                {
-                    "schema": "gneu-aihot-ready-failure-v1",
-                    "edition": edition,
-                    **identity,
-                    "failed_at": now_utc(),
-                    "failed_stage": "replay-guard",
-                    "reason": "canonical payload matches a verified rejection",
-                    "stages": output,
-                },
-            )
+                payload,
+                recovery,
+                "REJECTED_PAYLOAD_REPLAY",
+            ):
+                return False
             print(f"BLOCKED_REJECTED_PACKAGE_REPLAY {package_id}")
             return False
 
@@ -485,17 +630,21 @@ def process_package(
         }
     )
     if cp.returncode != 0:
-        atomic_json(
+        payload = {
+            "schema": "gneu-aihot-ready-failure-v1",
+            "edition": edition,
+            **identity,
+            "failed_at": now_utc(),
+            "failed_stage": "dispatch",
+            "stages": output,
+        }
+        if not latch_failure(
             failed_file,
-            {
-                "schema": "gneu-aihot-ready-failure-v1",
-                "edition": edition,
-                **identity,
-                "failed_at": now_utc(),
-                "failed_stage": "dispatch",
-                "stages": output,
-            },
-        )
+            payload,
+            recovery,
+            "DISPATCH_FAILED",
+        ):
+            return False
         print(f"AIHOT_READY_FAILED {package_id} stage=dispatch")
         return False
 
@@ -522,6 +671,11 @@ def process_package(
         "result":
             "success",
     }
+
+    if recovery is not None:
+        receipt.update(
+            processed_lineage_fields(recovery)
+        )
 
     atomic_json(
         processed_file,

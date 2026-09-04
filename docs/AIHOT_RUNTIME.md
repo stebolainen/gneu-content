@@ -73,6 +73,16 @@ of all downstream state. The ordinary Hermes job consumes that authorization
 exactly once. The scheduler never creates a revision automatically. See
 [`AIHOT_LOCAL_RETRY.md`](AIHOT_LOCAL_RETRY.md).
 
+An `r1` package that passed the local validator but was latched by the single
+verified trusted-validator `date` import runtime defect may receive one
+separate, append-only READY-processing authorization after the fixed runtime is
+human-merged and provisioned. The authorization binds the immutable package,
+READY and original failed receipt to the fixed provenance. The normal READY
+processor consumes it once under its existing lock and re-enters at
+`validate`; build, replay guard and dispatch remain mandatory and ordered. The
+original failed receipt is never changed. See
+[`AIHOT_READY_RECOVERY.md`](AIHOT_READY_RECOVERY.md).
+
 `aihot-freshness.py` performs a bounded read-only check of public
 `data/aihot.json`. Public age below 26 hours is `FRESH`; age at or above 26
 hours is `STALE` with exit code 2. Network, schema or timestamp errors are

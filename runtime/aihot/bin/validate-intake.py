@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import datetime as dt
 import json
 import sys
 import urllib.request
@@ -154,7 +155,7 @@ elif mode == "edition":
 
         value = a.get("date")
         try:
-            article_date = date.fromisoformat(value) if isinstance(value, str) else None
+            article_date = dt.date.fromisoformat(value) if isinstance(value, str) else None
         except ValueError:
             article_date = None
         if article_date is None:

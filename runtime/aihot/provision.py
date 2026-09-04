@@ -82,6 +82,14 @@ INSTALL_SPECS = {
         RUNTIME_ROOT / "bin/authorize-local-retry.py",
         0o700,
     ),
+    "runtime/aihot/bin/aihot_ready_retry.py": (
+        RUNTIME_ROOT / "bin/aihot_ready_retry.py",
+        0o600,
+    ),
+    "runtime/aihot/bin/authorize-ready-retry.py": (
+        RUNTIME_ROOT / "bin/authorize-ready-retry.py",
+        0o700,
+    ),
     "runtime/aihot/generation/gneu-aihot-daily-gate.py": (
         Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-daily-gate.py"),
         0o700,

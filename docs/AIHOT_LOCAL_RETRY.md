@@ -77,6 +77,11 @@ Follow the new package through the ordinary validator, READY processor, replay
 guard, trusted intake, and publication gates. If `r1` also fails locally, stop
 for an operator; never synthesize `r2`.
 
+If READY exists and trusted processing is latched by the specifically verified
+validator import defect, do not regenerate content or alter the failed receipt.
+The distinct, post-hotfix trusted-processing procedure is documented in
+[`AIHOT_READY_RECOVERY.md`](AIHOT_READY_RECOVERY.md).
+
 ## No-change and freshness
 
 A successful no-change run proves that daily research occurred, but the
