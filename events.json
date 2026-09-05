@@ -43,9 +43,9 @@
     {
       "id": "cisa-kev:papercut-ng-mf-cve-2026-81578-2026-08-31",
       "type": "vulnerability",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-08-31T00:00:00Z",
-      "updated_at": "2026-09-02T16:54:39Z",
+      "updated_at": "2026-09-05T04:13:30Z",
       "title": "Åtgärda PaperCut NG/MF för CVE-2026-81578 senast den 14 september",
       "summary": "CISA har lagt till CVE-2026-81578 för PaperCut NG/MF i katalogen över kända utnyttjade sårbarheter (KEV). Sårbarheten låter en oautentiserad fjärrangripare ändra viss systemkonfiguration och kan kedjas med CVE-2026-82078.",
       "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning senast den 14 september 2026.",
