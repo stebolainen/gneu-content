@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 26,
+  "generation": 27,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -36,6 +36,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/2026-09/joint-guidance-communicating-under-pressure-508c.pdf"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:papercut-ng-mf-cve-2026-81578-2026-08-31",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-08-31T00:00:00Z",
+      "updated_at": "2026-09-05T04:13:30Z",
+      "title": "Åtgärda PaperCut NG/MF för CVE-2026-81578 senast den 14 september",
+      "summary": "CISA har lagt till CVE-2026-81578 för PaperCut NG/MF i katalogen över kända utnyttjade sårbarheter (KEV). Sårbarheten låter en oautentiserad fjärrangripare ändra viss systemkonfiguration och kan kedjas med CVE-2026-82078.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning senast den 14 september 2026.",
+      "cves": [
+        "CVE-2026-81578"
+      ],
+      "deadline": "2026-09-14",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
