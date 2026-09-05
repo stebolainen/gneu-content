@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 27,
+  "generation": 26,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -36,27 +36,6 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/2026-09/joint-guidance-communicating-under-pressure-508c.pdf"
-        }
-      ],
-      "confidence": "verified"
-    },
-    {
-      "id": "cisa-kev:chromium-v8-cve-2026-85046-2026-09-04",
-      "type": "vulnerability",
-      "publication_class": "B",
-      "occurred_at": "2026-09-04T00:00:00Z",
-      "updated_at": "2026-09-05T07:15:48Z",
-      "title": "Åtgärda Chromium-baserade webbläsare för CVE-2026-85046 senast den 18 september",
-      "summary": "CISA har lagt till CVE-2026-85046 för Chromium V8 i katalogen över kända utnyttjade sårbarheter (KEV). En preparerad HTML-sida kan låta en fjärrangripare köra godtycklig kod i sandlådan. Sårbarheten kan beröra bland annat Chrome, Edge och Opera.",
-      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning senast den 18 september 2026. Ta produkten ur bruk om åtgärder saknas.",
-      "cves": [
-        "CVE-2026-85046"
-      ],
-      "deadline": "2026-09-18",
-      "sources": [
-        {
-          "id": "cisa-kev",
-          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
