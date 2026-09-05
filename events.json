@@ -27,10 +27,10 @@
       "type": "advisory",
       "publication_class": "B",
       "occurred_at": "2026-09-02T12:34:45Z",
-      "updated_at": "2026-09-05T02:21:22Z",
+      "updated_at": "2026-09-05T21:50:10Z",
       "title": "Myndigheter publicerar vägledning för kommunikation vid it- och OT-driftstörningar",
-      "summary": "CISA, FBI och partnerländer ger tjänsteleverantörer råd för kommunikation vid it- och OT-driftstörningar. Vid en aktiv cyberincident bör innehåll och detaljnivå samordnas med juridik och brottsbekämpning så att upptäckt, utredning och inneslutning inte skadas.",
-      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Vid en aktiv cyberincident: samordna innehåll och detaljnivå med juridik och brottsbekämpning så att kommunikationen inte skadar upptäckt, utredning eller inneslutning.",
+      "summary": "CISA, FBI och partnerländer ger tjänsteleverantörer råd för kommunikation vid it- och OT-driftstörningar. Vid en aktiv cyberincident bör informationen begränsas så att upptäckt, utredning och inneslutning inte skadas och så att juridiska och regulatoriska krav följs.",
+      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Vid en aktiv cyberincident: anpassa detaljnivån så att upptäckt, utredning och inneslutning inte skadas, och följ juridiska och regulatoriska krav.",
       "cves": [],
       "sources": [
         {
