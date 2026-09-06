@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import base64
 import datetime as dt
 import gzip
@@ -19,6 +20,13 @@ FAILURE_SCHEMA = "gneu-aihot-publication-retry-failure-v1"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 PACKAGE_RE = re.compile(r"^20\d{2}-W\d{2}--20\d{2}-\d{2}-\d{2}(?:--r[12])?$")
 WRAPPER = Path("/usr/local/bin/gneu-admin-github")
+
+# Reviewed scripts/aihot_pr_execute.py at gneu-se 4bb9ba39c74323a158460295ab04923c6d9fa53d.
+# Pin all helper/module semantics as well as the entry body: a write hidden in
+# an unreviewed helper, alias, decorator or import must not escape the proof.
+# Only formatting/comments and the entry function's name are normalized away.
+EXECUTOR_AST_SHA256 = "03bf580a7c2f6be7aba3ee7ebccd7c667b0c63991a4168455dbaea7f880e615d"
+COLLISION_FINGERPRINT = "target AI-hot branch already exists"
 
 
 class PublicationRetryError(RuntimeError):
@@ -186,6 +194,100 @@ def remote_read(args: list[str], allow_absent: bool = False):
         raise PublicationRetryError("sanitized remote response invalid") from exc
 
 
+def executor_ast_fingerprint(tree: ast.Module, entry_name: str) -> str:
+    def normalized(node):
+        if isinstance(node, ast.AST):
+            fields = []
+            for key, value in ast.iter_fields(node):
+                # Python 3.12 added an empty field to nongeneric functions.
+                if key == "type_params" and value == []:
+                    continue
+                if (
+                    isinstance(node, ast.FunctionDef) and key == "name"
+                    or isinstance(node, ast.Name) and key == "id"
+                ) and value == entry_name:
+                    value = "__reviewed_executor_entry__"
+                fields.append([key, normalized(value)])
+            return [type(node).__name__, fields]
+        if isinstance(node, list):
+            return [normalized(item) for item in node]
+        return node
+
+    raw = json.dumps(normalized(tree), separators=(",", ":"), ensure_ascii=True).encode()
+    return digest(raw)
+
+
+def prove_executor_boundary(source: str) -> dict:
+    """Static proof for the reviewed executor only; never execute remote code.
+
+    The unique collision guard must be an unconditional entry-body statement,
+    with the exact target arguments and a terminal failure arm. The reviewed
+    whole-module AST binds target construction, fail/SystemExit behavior, the
+    GET-only helpers and all write primitives. Unknown semantic changes block.
+    """
+    try:
+        if not isinstance(source, str) or len(source) > 200_000:
+            raise ValueError("source size")
+        tree = ast.parse(source)
+        expected_guard = ast.parse(
+            'if branch(token, head_ref) is not None:\n'
+            '    fail("target AI-hot branch already exists")\n'
+        ).body[0]
+        shape = ast.dump(expected_guard, include_attributes=False)
+        guards = [node for node in ast.walk(tree) if isinstance(node, ast.If)
+                  and ast.dump(node, include_attributes=False) == shape]
+        if len(guards) != 1:
+            raise ValueError("missing or ambiguous guard")
+        guard = guards[0]
+        containing = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+                      and guard in node.body]
+        if len(containing) != 1:
+            raise ValueError("guard is not in a direct function body")
+        entry = containing[0]
+        functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+        if len(functions) != sum(isinstance(node, ast.FunctionDef) for node in tree.body):
+            raise ValueError("ambiguous function binding")
+        launch = ast.parse(f'if __name__ == "__main__":\n    {entry.name}()\n').body[0]
+        if ast.dump(tree.body[-1], include_attributes=False) != ast.dump(launch, include_attributes=False):
+            raise ValueError("entry is not the module execution path")
+        semantic_sha = executor_ast_fingerprint(tree, entry.name)
+        if semantic_sha != EXECUTOR_AST_SHA256:
+            raise ValueError("unreviewed executor semantics")
+
+        def may_write(node: ast.AST, stack: tuple[str, ...] = ()) -> bool:
+            for call in (item for item in ast.walk(node) if isinstance(item, ast.Call)):
+                if not isinstance(call.func, ast.Name):
+                    continue  # Nonlocal calls are pinned by the reviewed AST.
+                name = call.func.id
+                if name == "api":
+                    if not call.args or not isinstance(call.args[0], ast.Constant):
+                        raise ValueError("dynamic HTTP method")
+                    if call.args[0].value != "GET":
+                        return True
+                elif name in functions:
+                    if name in stack:
+                        raise ValueError("recursive call graph")
+                    if may_write(functions[name], (*stack, name)):
+                        return True
+            return False
+
+        boundary = entry.body.index(guard)
+        if any(may_write(statement) for statement in entry.body[:boundary + 1]):
+            raise ValueError("repository write before collision exit")
+        writes = [statement for statement in entry.body[boundary + 1:] if may_write(statement)]
+        if not writes:
+            raise ValueError("no write in the same execution body")
+        return {
+            "function": entry.name,
+            "guard_line": guard.lineno,
+            "first_write_line": writes[0].lineno,
+            "executor_ast_sha256": semantic_sha,
+        }
+    except (SyntaxError, ValueError, TypeError, RecursionError) as exc:
+        # Never include server-controlled source text in errors.
+        raise PublicationRetryError("pre-write collision boundary not proven") from exc
+
+
 def remote_no_write(package_id: str, evidence: dict[str, object], conflict_pr: int) -> dict:
     run_id = str(evidence["trusted_run_id"])
     head_sha = evidence["remote_head_sha"]
@@ -223,17 +325,18 @@ def remote_no_write(package_id: str, evidence: dict[str, object], conflict_pr: i
         source = base64.b64decode(content["content"]).decode()
     except Exception as exc:
         raise PublicationRetryError("trusted executor source invalid") from exc
-    start = source.find("def execute(")
-    guard = source.find("if branch(token, head_ref) is not None:", start)
-    fingerprint = source.find('fail("target AI-hot branch already exists")', guard)
-    first_write = source.find("candidate_blob = create_blob(", start)
-    if min(start, guard, fingerprint, first_write) < 0 or not start < guard < fingerprint < first_write:
-        raise PublicationRetryError("pre-write collision boundary not proven")
+    raw = source.encode("utf-8")
+    blob_sha = hashlib.sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
+    if content.get("sha") != blob_sha:
+        raise PublicationRetryError("trusted executor blob mismatch")
+    proof = prove_executor_boundary(source)
     return {
         "trusted_run_id": int(run_id), "remote_head_sha": head_sha,
         "conflicting_pr": conflict_pr, "conflicting_ref": ref,
-        "failure_fingerprint": "target AI-hot branch already exists",
+        "failure_fingerprint": COLLISION_FINGERPRINT,
         "executor_blob_sha": content.get("sha"),
+        "executor_source_sha256": digest(raw),
+        "executor_ast_sha256": proof["executor_ast_sha256"],
         "write_boundary": "branch_guard_before_first_blob_write",
     }
 

@@ -1,0 +1,751 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import json
+import os
+import re
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+
+OWNER = "stebolainen"
+REPO = "gneu-se"
+REPO_FULL = f"{OWNER}/{REPO}"
+BASE_REF = "main"
+
+API = "https://api.github.com"
+API_VERSION = "2022-11-28"
+
+WEEK_RE = re.compile(r"^\d{4}-W\d{2}$")
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+EXPECTED_PLAN_KEYS = {
+    "schema",
+    "action",
+    "owner",
+    "repo",
+    "edition",
+    "base_ref",
+    "base_sha",
+    "head_ref",
+    "commit_message",
+    "pr_title",
+    "pr_body",
+    "files",
+}
+
+EXPECTED_FILE_KEYS = {
+    "path",
+    "sha256",
+    "size",
+}
+
+MAX_CANDIDATE = 400_000
+MAX_REPORT = 50_000
+
+
+def fail(msg: str) -> None:
+    raise SystemExit("BLOCKED: " + msg)
+
+
+def canonical_json(obj: object) -> bytes:
+    return (
+        json.dumps(
+            obj,
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def load_canonical(
+    path: Path,
+    label: str,
+) -> tuple[dict, bytes]:
+
+    if path.is_symlink():
+        fail(f"{label} symlink forbidden")
+
+    if not path.is_file():
+        fail(f"{label} missing")
+
+    raw = path.read_bytes()
+
+    try:
+        data = json.loads(raw)
+    except Exception:
+        fail(f"{label} invalid JSON")
+
+    if not isinstance(data, dict):
+        fail(f"{label} must be object")
+
+    if raw != canonical_json(data):
+        fail(f"{label} not canonical JSON")
+
+    return data, raw
+
+
+def hash_bytes(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
+
+
+def normalized_report(path: Path) -> bytes:
+    if path.is_symlink():
+        fail("report symlink forbidden")
+
+    if not path.is_file():
+        fail("report missing")
+
+    raw = path.read_bytes()
+
+    if len(raw) > MAX_REPORT:
+        fail("report too large")
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        fail("report not UTF-8")
+
+    if "\x00" in text:
+        fail("report contains NUL")
+
+    text = text.rstrip() + "\n"
+
+    if len(text.strip()) < 200:
+        fail("report too short")
+
+    return text.encode("utf-8")
+
+
+def validate_inputs(
+    plan_path: Path,
+    candidate_path: Path,
+    report_path: Path,
+) -> tuple[dict, bytes, bytes]:
+
+    plan, _ = load_canonical(
+        plan_path,
+        "plan",
+    )
+
+    if set(plan) != EXPECTED_PLAN_KEYS:
+        fail("plan schema mismatch")
+
+    if plan["schema"] != "gneu-aihot-pr-plan-v1":
+        fail("unsupported plan schema")
+
+    if plan["action"] != "create-pr":
+        fail("executor only accepts create-pr")
+
+    if plan["owner"] != OWNER:
+        fail("owner mismatch")
+
+    if plan["repo"] != REPO:
+        fail("repo mismatch")
+
+    if plan["base_ref"] != BASE_REF:
+        fail("base ref must be main")
+
+    edition = plan["edition"]
+
+    if (
+        not isinstance(edition, str)
+        or not WEEK_RE.fullmatch(edition)
+    ):
+        fail("invalid edition")
+
+    base_sha = plan["base_sha"]
+
+    if (
+        not isinstance(base_sha, str)
+        or not SHA_RE.fullmatch(base_sha)
+    ):
+        fail("invalid base SHA")
+
+    expected_head = f"aihot/{edition}"
+
+    if plan["head_ref"] != expected_head:
+        fail("head ref mismatch")
+
+    if plan["head_ref"] == "main":
+        fail("main head forbidden")
+
+    if not plan["head_ref"].startswith("aihot/"):
+        fail("head prefix forbidden")
+
+    for key in (
+        "commit_message",
+        "pr_title",
+        "pr_body",
+    ):
+        value = plan[key]
+
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+        ):
+            fail(f"{key} invalid")
+
+    files = plan["files"]
+
+    if (
+        not isinstance(files, list)
+        or len(files) != 2
+    ):
+        fail("plan must contain exactly 2 files")
+
+    expected_paths = {
+        "data/aihot.json",
+        f"aihot/drafts/{edition}.report.md",
+    }
+
+    actual_paths: set[str] = set()
+
+    by_path: dict[str, dict] = {}
+
+    for item in files:
+        if not isinstance(item, dict):
+            fail("plan file entry invalid")
+
+        if set(item) != EXPECTED_FILE_KEYS:
+            fail("plan file schema mismatch")
+
+        path = item["path"]
+
+        if not isinstance(path, str):
+            fail("plan file path invalid")
+
+        if path in actual_paths:
+            fail("duplicate plan file")
+
+        actual_paths.add(path)
+        by_path[path] = item
+
+        digest = item["sha256"]
+
+        if (
+            not isinstance(digest, str)
+            or not SHA256_RE.fullmatch(digest)
+        ):
+            fail("plan file SHA-256 invalid")
+
+        size = item["size"]
+
+        if (
+            not isinstance(size, int)
+            or size < 1
+        ):
+            fail("plan file size invalid")
+
+    if actual_paths != expected_paths:
+        fail("unexpected file set")
+
+    candidate, candidate_raw = load_canonical(
+        candidate_path,
+        "candidate",
+    )
+
+    if len(candidate_raw) > MAX_CANDIDATE:
+        fail("candidate too large")
+
+    if set(candidate) != {
+        "generated",
+        "editions",
+        "articles",
+    }:
+        fail("candidate schema mismatch")
+
+    report_raw = normalized_report(
+        report_path
+    )
+
+    expected_candidate = by_path[
+        "data/aihot.json"
+    ]
+
+    if len(candidate_raw) != expected_candidate["size"]:
+        fail("candidate size differs from plan")
+
+    if (
+        hash_bytes(candidate_raw)
+        != expected_candidate["sha256"]
+    ):
+        fail("candidate hash differs from plan")
+
+    report_repo_path = (
+        f"aihot/drafts/{edition}.report.md"
+    )
+
+    expected_report = by_path[
+        report_repo_path
+    ]
+
+    if len(report_raw) != expected_report["size"]:
+        fail("report size differs from plan")
+
+    if (
+        hash_bytes(report_raw)
+        != expected_report["sha256"]
+    ):
+        fail("report hash differs from plan")
+
+    return plan, candidate_raw, report_raw
+
+
+def api(
+    method: str,
+    path: str,
+    token: str,
+    body: dict | None = None,
+    allow_status: set[int] | None = None,
+) -> tuple[int, object]:
+
+    allowed = allow_status or set()
+
+    raw_body = (
+        json.dumps(body).encode("utf-8")
+        if body is not None
+        else None
+    )
+
+    req = urllib.request.Request(
+        API + path,
+        data=raw_body,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": API_VERSION,
+            "User-Agent": "gneu-aihot-pr-executor/1.0",
+            "Content-Type": "application/json",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(
+            req,
+            timeout=30,
+        ) as response:
+            status = response.status
+            raw = response.read()
+
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+
+        if status not in allowed:
+            fail(
+                f"GitHub API HTTP {status}"
+            )
+
+        raw = exc.read()
+
+    except Exception as exc:
+        fail(
+            "GitHub API failure: "
+            + type(exc).__name__
+        )
+
+    if not raw:
+        return status, {}
+
+    try:
+        return status, json.loads(raw)
+    except Exception:
+        fail("GitHub API returned invalid JSON")
+
+
+def branch(
+    token: str,
+    name: str,
+) -> dict | None:
+
+    encoded = urllib.parse.quote(
+        name,
+        safe="",
+    )
+
+    status, data = api(
+        "GET",
+        (
+            f"/repos/{REPO_FULL}/"
+            f"branches/{encoded}"
+        ),
+        token,
+        allow_status={404},
+    )
+
+    if status == 404:
+        return None
+
+    if not isinstance(data, dict):
+        fail("branch response invalid")
+
+    return data
+
+
+def require_current_main(
+    token: str,
+    expected_sha: str,
+) -> None:
+
+    data = branch(
+        token,
+        "main",
+    )
+
+    if data is None:
+        fail("main branch missing")
+
+    commit = data.get("commit")
+
+    if not isinstance(commit, dict):
+        fail("main commit response invalid")
+
+    actual = commit.get("sha")
+
+    if actual != expected_sha:
+        fail(
+            "main moved: expected "
+            f"{expected_sha[:12]} got "
+            f"{str(actual)[:12]}"
+        )
+
+
+def create_blob(
+    token: str,
+    raw: bytes,
+) -> str:
+
+    _, data = api(
+        "POST",
+        f"/repos/{REPO_FULL}/git/blobs",
+        token,
+        {
+            "content":
+                base64.b64encode(
+                    raw
+                ).decode("ascii"),
+            "encoding": "base64",
+        },
+    )
+
+    if not isinstance(data, dict):
+        fail("blob response invalid")
+
+    sha = data.get("sha")
+
+    if (
+        not isinstance(sha, str)
+        or not SHA_RE.fullmatch(sha)
+    ):
+        fail("invalid blob SHA")
+
+    return sha
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--plan",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--candidate",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--report",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+    )
+
+    args = parser.parse_args()
+
+    plan, candidate_raw, report_raw = (
+        validate_inputs(
+            Path(args.plan),
+            Path(args.candidate),
+            Path(args.report),
+        )
+    )
+
+    edition = plan["edition"]
+    base_sha = plan["base_sha"]
+    head_ref = plan["head_ref"]
+
+    print("AIHOT_PR_EXECUTOR_INPUT: PASS")
+    print("edition:", edition)
+    print("base_main:", base_sha)
+    print("head_ref:", head_ref)
+
+    if args.validate_only:
+        print(
+            "AIHOT_PR_EXECUTOR: "
+            "VALIDATE_ONLY_PASS"
+        )
+        return
+
+    token = os.environ.get(
+        "AIHOT_PR_WRITER_TOKEN",
+        "",
+    )
+
+    if len(token) < 20:
+        fail(
+            "AIHOT_PR_WRITER_TOKEN missing"
+        )
+
+    # Before creating any reachable Git object,
+    # main must still equal the validated base.
+    require_current_main(
+        token,
+        base_sha,
+    )
+
+    if branch(token, head_ref) is not None:
+        fail("target AI-hot branch already exists")
+
+    # Read exact base commit/tree.
+    _, base_commit = api(
+        "GET",
+        (
+            f"/repos/{REPO_FULL}/"
+            f"git/commits/{base_sha}"
+        ),
+        token,
+    )
+
+    if not isinstance(base_commit, dict):
+        fail("base commit response invalid")
+
+    tree = base_commit.get("tree")
+
+    if not isinstance(tree, dict):
+        fail("base tree response invalid")
+
+    base_tree_sha = tree.get("sha")
+
+    if (
+        not isinstance(base_tree_sha, str)
+        or not SHA_RE.fullmatch(base_tree_sha)
+    ):
+        fail("base tree SHA invalid")
+
+    # Unattached objects are harmless if a later
+    # race check blocks publication.
+    candidate_blob = create_blob(
+        token,
+        candidate_raw,
+    )
+
+    report_blob = create_blob(
+        token,
+        report_raw,
+    )
+
+    report_repo_path = (
+        f"aihot/drafts/{edition}.report.md"
+    )
+
+    _, tree_result = api(
+        "POST",
+        f"/repos/{REPO_FULL}/git/trees",
+        token,
+        {
+            "base_tree": base_tree_sha,
+            "tree": [
+                {
+                    "path": "data/aihot.json",
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": candidate_blob,
+                },
+                {
+                    "path": report_repo_path,
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": report_blob,
+                },
+            ],
+        },
+    )
+
+    if not isinstance(tree_result, dict):
+        fail("tree response invalid")
+
+    new_tree_sha = tree_result.get("sha")
+
+    if (
+        not isinstance(new_tree_sha, str)
+        or not SHA_RE.fullmatch(new_tree_sha)
+    ):
+        fail("new tree SHA invalid")
+
+    _, commit_result = api(
+        "POST",
+        f"/repos/{REPO_FULL}/git/commits",
+        token,
+        {
+            "message": plan["commit_message"],
+            "tree": new_tree_sha,
+            "parents": [base_sha],
+        },
+    )
+
+    if not isinstance(commit_result, dict):
+        fail("commit response invalid")
+
+    commit_sha = commit_result.get("sha")
+
+    if (
+        not isinstance(commit_sha, str)
+        or not SHA_RE.fullmatch(commit_sha)
+    ):
+        fail("new commit SHA invalid")
+
+    # Race check immediately before making
+    # anything reachable.
+    require_current_main(
+        token,
+        base_sha,
+    )
+
+    if branch(token, head_ref) is not None:
+        fail(
+            "target branch appeared "
+            "during execution"
+        )
+
+    _, ref_result = api(
+        "POST",
+        f"/repos/{REPO_FULL}/git/refs",
+        token,
+        {
+            "ref": f"refs/heads/{head_ref}",
+            "sha": commit_sha,
+        },
+    )
+
+    if not isinstance(ref_result, dict):
+        fail("ref response invalid")
+
+    created_ref = ref_result.get("ref")
+
+    if created_ref != f"refs/heads/{head_ref}":
+        fail("created unexpected ref")
+
+    # Main may have moved after the branch ref was
+    # created. Refuse to open a PR against any base
+    # other than the exact validated main snapshot.
+    require_current_main(
+        token,
+        base_sha,
+    )
+
+    _, pr = api(
+        "POST",
+        f"/repos/{REPO_FULL}/pulls",
+        token,
+        {
+            "title": plan["pr_title"],
+            "body": plan["pr_body"],
+            "head": head_ref,
+            "base": "main",
+            "maintainer_can_modify": False,
+        },
+    )
+
+    if not isinstance(pr, dict):
+        fail("PR response invalid")
+
+    number = pr.get("number")
+
+    if (
+        not isinstance(number, int)
+        or number < 1
+    ):
+        fail("invalid PR number")
+
+    if pr.get("state") != "open":
+        fail("created PR is not open")
+
+    head = pr.get("head")
+    base = pr.get("base")
+
+    if (
+        not isinstance(head, dict)
+        or not isinstance(base, dict)
+    ):
+        fail("PR refs invalid")
+
+    if head.get("ref") != head_ref:
+        fail("PR head ref mismatch")
+
+    if head.get("sha") != commit_sha:
+        fail("PR head SHA mismatch")
+
+    if base.get("ref") != "main":
+        fail("PR base ref mismatch")
+
+    if base.get("sha") != base_sha:
+        fail(
+            "PR base SHA mismatch: expected "
+            f"{base_sha[:12]} got "
+            f"{str(base.get('sha'))[:12]}"
+        )
+
+    # Final exact changed-file check.
+    _, changed = api(
+        "GET",
+        (
+            f"/repos/{REPO_FULL}/"
+            f"pulls/{number}/files"
+            "?per_page=100"
+        ),
+        token,
+    )
+
+    if not isinstance(changed, list):
+        fail("PR changed files response invalid")
+
+    filenames = sorted(
+        str(row.get("filename"))
+        for row in changed
+        if isinstance(row, dict)
+    )
+
+    expected = sorted([
+        "data/aihot.json",
+        report_repo_path,
+    ])
+
+    if filenames != expected:
+        fail(
+            "created PR changed-file set "
+            "is not exact"
+        )
+
+    print("AIHOT_PR_CREATE: PASS")
+    print("pr:", number)
+    print("head_sha:", commit_sha)
+    print("base_sha:", base_sha)
+    print("files:", len(filenames))
+    print("merge: NOT_PERFORMED")
+
+
+if __name__ == "__main__":
+    main()
