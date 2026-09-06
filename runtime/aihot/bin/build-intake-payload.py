@@ -131,13 +131,19 @@ def require_regular_file(
         )
 
 
-if len(sys.argv) != 2:
+verify_existing = False
+if len(sys.argv) == 3 and sys.argv[1] == "--verify-existing":
+    verify_existing = True
+    package_arg = sys.argv[2]
+elif len(sys.argv) == 2:
+    package_arg = sys.argv[1]
+else:
     fail(
         "usage: build-intake-payload.py "
-        "PACKAGE_ID"
+        "[--verify-existing] PACKAGE_ID"
     )
 
-package_id = sys.argv[1]
+package_id = package_arg
 try:
     edition, attempt, revision = parse_package_id(package_id)
 except ValueError as exc:
@@ -519,17 +525,6 @@ payload_sha = hashlib.sha256(
 ).hexdigest()
 
 
-# 10. Atomic trusted state output.
-STATE.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-os.chmod(
-    STATE,
-    0o700,
-)
-
 out = STATE / (
     f"{package_id}.transport.json"
 )
@@ -543,6 +538,33 @@ transport = {
     "payload_b64":
         encoded,
 }
+
+expected_transport = (
+    json.dumps(
+        transport,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    + "\n"
+).encode("utf-8")
+
+if verify_existing:
+    require_regular_file(out)
+    if out.read_bytes() != expected_transport:
+        fail("existing transport differs from deterministic build")
+    if out.stat().st_mode & 0o077:
+        fail("existing transport permissions too broad")
+    print("AIHOT_PAYLOAD_BUILD_VERIFY: PASS")
+    print("package_id:", package_id)
+    print("transport_sha256:", hashlib.sha256(expected_transport).hexdigest())
+    raise SystemExit(0)
+
+# 10. Atomic trusted state output.
+STATE.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+os.chmod(STATE, 0o700)
 
 fd, tmp_name = tempfile.mkstemp(
     prefix=f".{package_id}.",

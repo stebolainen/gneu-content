@@ -144,6 +144,16 @@ arbitrary runtime failures are not authorizable by that mechanism.
 Do not hand-edit installed runtime files. Correct tracked source through a new
 Admin PR, merge it, and provision the exact verified merge commit.
 
+A dispatch failure caused solely by an already existing `aihot/EDITION`
+branch is not retried automatically. After sanitized remote proof that trusted
+validation, token and repository scope passed, that the executor stopped at
+its branch guard before its first blob write, and that the conflicting PR was
+closed without merge and its branch removed, an operator may authorize one
+append-only publication retry. The retry revalidates the package, verifies the
+existing deterministic transport byte-for-byte, checks rejected-payload replay,
+and dispatches through the normal trusted path. See
+[`../../docs/AIHOT_PUBLICATION_RECOVERY.md`](../../docs/AIHOT_PUBLICATION_RECOVERY.md).
+
 ## Daily attempt identity
 
 Legacy `outbox/YYYY-Www` packages and their edition-keyed state remain valid
