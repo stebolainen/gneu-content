@@ -33,6 +33,14 @@ from aihot_ready_retry import (
     record_retry_failure,
     verify_processed_lineage,
 )
+from aihot_publication_retry import (
+    PublicationRetryError,
+    consume_for_processing as consume_publication_retry,
+    processed_fields as publication_processed_fields,
+    production_paths as publication_retry_paths,
+    record_failure as record_publication_retry_failure,
+    verify_processed_lineage as verify_publication_processed_lineage,
+)
 
 # Backward-compatible test seam for the existing r1 authorization verifier.
 verify_target_consumed = verify_local_retry_consumed
@@ -143,6 +151,15 @@ def latch_failure(
         atomic_json(failed_file, payload)
         return True
     try:
+        if recovery.get("recovery_type") == "publication":
+            record_publication_retry_failure(
+                publication_retry_paths(),
+                recovery,
+                payload["failed_stage"],
+                failure_code,
+                payload.get("stages", []),
+            )
+            return True
         record_retry_failure(
             ready_retry_paths(),
             recovery,
@@ -150,7 +167,7 @@ def latch_failure(
             failure_code,
             payload.get("stages", []),
         )
-    except ReadyRetryError:
+    except (ReadyRetryError, PublicationRetryError):
         print(
             "BLOCKED_READY_RETRY_FAILURE_STATE "
             f"{recovery['package_id']}"
@@ -333,10 +350,20 @@ def process_package(
                 if not processed_data or len(processed_data) > 65536:
                     raise ReadyRetryError("INVALID_PROCESSED_LINEAGE")
                 processed_value = json.loads(processed_data)
-                verify_processed_lineage(
-                    ready_retry_paths(), package_id, processed_value
-                )
-            except (ReadyRetryError, UnicodeDecodeError, json.JSONDecodeError):
+                if "publication_retry_authorization_sha256" in processed_value:
+                    verify_publication_processed_lineage(
+                        publication_retry_paths(), package_id, processed_value
+                    )
+                else:
+                    verify_processed_lineage(
+                        ready_retry_paths(), package_id, processed_value
+                    )
+            except (
+                ReadyRetryError,
+                PublicationRetryError,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+            ):
                 print(
                     f"BLOCKED_STATE_CONFLICT "
                     f"{package_id}"
@@ -372,11 +399,20 @@ def process_package(
     # append-only operator authorization for the
     # exact pre-dispatch runtime fingerprint.
     if failed_present:
-        if revision != 1:
-            print(
-                f"FAILED_REQUIRES_OPERATOR {package_id}"
+        try:
+            recovery = consume_publication_retry(
+                publication_retry_paths(), package_id
             )
+        except PublicationRetryError:
+            print(f"PUBLICATION_RETRY_REQUIRES_OPERATOR {package_id}")
             return False
+        if recovery is not None:
+            print(f"PROCESS_PUBLICATION_RECOVERY {package_id}")
+        elif revision != 1:
+            print(f"FAILED_REQUIRES_OPERATOR {package_id}")
+            return False
+
+    if failed_present and recovery is None:
         try:
             recovery = consume_for_processing(
                 ready_retry_paths(), package_id
@@ -465,6 +501,12 @@ def process_package(
                 str(
                     BIN
                     / "build-intake-payload.py"
+                ),
+                *(
+                    ["--verify-existing"]
+                    if recovery is not None
+                    and recovery.get("recovery_type") == "publication"
+                    else []
                 ),
                 package_id,
             ],
@@ -691,9 +733,10 @@ def process_package(
     }
 
     if recovery is not None:
-        receipt.update(
-            processed_lineage_fields(recovery)
-        )
+        if recovery.get("recovery_type") == "publication":
+            receipt.update(publication_processed_fields(recovery))
+        else:
+            receipt.update(processed_lineage_fields(recovery))
 
     atomic_json(
         processed_file,
