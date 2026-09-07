@@ -43,7 +43,7 @@
     {
       "id": "cisa-kev:papercut-ng-mf-cve-2026-81578-2026-08-31",
       "type": "vulnerability",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-08-31T00:00:00Z",
       "updated_at": "2026-09-06T21:23:01Z",
       "title": "Åtgärda PaperCut NG/MF för CVE-2026-81578 senast den 14 september",
