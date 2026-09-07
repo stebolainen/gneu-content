@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
+import re
+import stat
 import subprocess
 import sys
 import time
@@ -1022,12 +1025,270 @@ def execute(profile: str, command):
             revoke(token)
 
 
+class TechnicalPRError(RuntimeError):
+    """Only constant, non-response error codes may cross this boundary."""
+
+
+def technical_block(code="BLOCKED_TECHNICAL_PR"):
+    raise TechnicalPRError(code)
+
+
+def technical_request(value):
+    keys = {"expected_main_sha", "branch", "title", "message", "files"}
+    if type(value) is not dict or set(value) != keys:
+        technical_block()
+    sha = value["expected_main_sha"]
+    branch = value["branch"]
+    if type(sha) is not str or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        technical_block()
+    if (type(branch) is not str or len(branch) > 120
+            or not re.fullmatch(r"admin/[a-z0-9]+(?:-[a-z0-9]+)*", branch)):
+        technical_block()
+    for name in ("title", "message"):
+        text = value[name]
+        if (type(text) is not str or not 1 <= len(text) <= 160
+                or any(ord(c) < 32 for c in text)):
+            technical_block()
+        technical_output_guard(text)
+    files = value["files"]
+    if type(files) is not list or not 1 <= len(files) <= 40:
+        technical_block()
+    seen = set()
+    total = 0
+    for row in files:
+        if type(row) is not dict or set(row) != {"path", "content"}:
+            technical_block()
+        path, content = row["path"], row["content"]
+        if (type(path) is not str or len(path) > 240
+                or not re.fullmatch(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*", path)
+                or any(p in {".", "..", ".git"} for p in path.split("/"))
+                or path in seen):
+            technical_block()
+        # Positive technical path policy. All data/, aihot/, sitemap and
+        # website/publication paths are excluded, including unknown new ones.
+        allowed = (
+            re.fullmatch(r"scripts/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.(?:py|php|sh|json|md)", path)
+            or re.fullmatch(r"docs/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.md", path)
+            or re.fullmatch(r"\.github/workflows/[A-Za-z0-9_-]+\.ya?ml", path)
+            or re.fullmatch(r"test_[A-Za-z0-9_]+\.py", path)
+        )
+        if not allowed or path.lower() in {"scripts/config.php"}:
+            technical_block()
+        if any(p.lower() in {"credentials", "secrets", ".env"} for p in path.split("/")):
+            technical_block()
+        if type(content) is not str or "\0" in content:
+            technical_block()
+        size = len(content.encode("utf-8"))
+        if size > 200_000:
+            technical_block()
+        total += size
+        if total > 800_000:
+            technical_block()
+        technical_output_guard(content)
+        seen.add(path)
+    return value
+
+
+def technical_output_guard(value):
+    # Supplement the existing structural guard with credential-shaped strings.
+    try:
+        guard_gneu_se_output(value)
+    except RuntimeError:
+        technical_block()
+    raw = json.dumps(value, ensure_ascii=False)
+    if re.search(r"-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})|\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", raw):
+        technical_block()
+    if re.search(r"https?://[^\s]+[?&](?:sig|signature|token|access_token|x-amz-[a-z-]+|x-goog-[a-z-]+)=", raw, re.I):
+        technical_block()
+
+
+def load_technical_request(path):
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                technical_block()
+            result[key] = value
+        return result
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 1_000_000:
+            technical_block()
+        raw = handle.read(1_000_001)
+    if len(raw) > 1_000_000:
+        technical_block()
+    return technical_request(json.loads(raw, object_pairs_hook=pairs))
+
+
+def mint_gneu_se_technical(profile, workflows):
+    if profile != "gneu-admin" or type(workflows) is not bool:
+        technical_block()
+    inst = installation(profile)
+    if inst.get("id") != GNEU_SE_INSTALLATION_ID:
+        technical_block()
+    permissions = {"contents": "write", "pull_requests": "write"}
+    if workflows:
+        permissions["workflows"] = "write"
+    result = github_request("POST", f"/app/installations/{GNEU_SE_INSTALLATION_ID}/access_tokens",
+                            make_jwt(profile), {"repositories": [GNEU_SE_REPO], "permissions": permissions})
+    token = result.get("token")
+    if type(token) is not str or not token:
+        technical_block()
+    try:
+        actual = result.get("permissions")
+        if (type(actual) is not dict or actual.get("metadata", "read") != "read"
+                or {k: v for k, v in actual.items() if k != "metadata"} != permissions):
+            technical_block("BLOCKED_TOKEN_PERMISSIONS")
+        validate_gneu_se_repository_scope(github_request("GET", "/installation/repositories", token))
+    except Exception:
+        revoke(token)
+        raise
+    return token
+
+
+def technical_tree(result):
+    if type(result) is not dict or result.get("truncated") is not False or type(result.get("tree")) is not list:
+        technical_block()
+    entries = {}
+    for row in result["tree"]:
+        if type(row) is not dict:
+            technical_block()
+        path = row.get("path")
+        if type(path) is not str or path in entries:
+            technical_block()
+        sha = _response_sha(row, "sha")
+        entries[path] = (row.get("mode"), row.get("type"), sha)
+    return entries
+
+
+def create_gneu_se_technical_pr(profile, request):
+    # All caller data is validated before mint. No command/URL/refspec input.
+    request = technical_request(request)
+    if profile != "gneu-admin":
+        technical_block()
+    expected, branch = request["expected_main_sha"], request["branch"]
+    root = f"/repos/{GNEU_SE_FULL_REPO}"
+    token = ""
+    try:
+        token = mint_gneu_se_technical(profile, any(
+            row["path"].startswith(".github/workflows/") for row in request["files"]))
+
+        def get(suffix):
+            return github_request("GET", root + suffix, token)
+
+        def current_main():
+            ref = get("/git/ref/heads/main")
+            if (ref.get("ref") != "refs/heads/main" or ref.get("object", {}).get("type") != "commit"
+                    or _response_sha(ref["object"], "sha") != expected):
+                technical_block("STALE_BASE")
+
+        def branch_absent():
+            # List matching refs: an empty list is authoritative absence;
+            # do not interpret arbitrary HTTP errors as absent.
+            refs = get("/git/matching-refs/heads/" + branch)
+            if type(refs) is not list or refs:
+                technical_block("BRANCH_EXISTS_OR_AMBIGUOUS")
+
+        def post(suffix, body):
+            current_main()  # Recheck before EVERY repository mutation.
+            return github_request("POST", root + suffix, token, body)
+
+        current_main()
+        branch_absent()
+        pulls = get("/pulls?state=all&head=" + OWNER + ":" + branch + "&per_page=1")
+        if type(pulls) is not list or pulls:
+            technical_block()
+        parent = get("/git/commits/" + expected)
+        if _response_sha(parent, "sha") != expected:
+            technical_block()
+        tree_sha = _response_sha(parent["tree"], "sha")
+        original = technical_tree(get("/git/trees/" + tree_sha + "?recursive=1"))
+        delta = {}
+        for row in request["files"]:
+            path = row["path"]
+            parts = path.split("/")
+            for i in range(1, len(parts)):
+                ancestor = original.get("/".join(parts[:i]))
+                if ancestor is not None and ancestor[:2] != ("040000", "tree"):
+                    technical_block()
+            previous = original.get(path)
+            if previous is not None and previous[:2] != ("100644", "blob"):
+                technical_block()  # no symlink, submodule, executable/mode changes
+            raw = row["content"].encode("utf-8")
+            blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+            delta[path] = ("100644", "blob", blob)
+        if all(original.get(path) == entry for path, entry in delta.items()):
+            technical_block("NO_CHANGE")
+        branch_absent()
+        tree = post("/git/trees", {"base_tree": tree_sha, "tree": [
+            {"path": row["path"], "mode": "100644", "type": "blob", "content": row["content"]}
+            for row in request["files"]]})
+        new_tree = _response_sha(tree, "sha")
+        actual = technical_tree(get("/git/trees/" + new_tree + "?recursive=1"))
+        wanted = {p: e for p, e in original.items() if e[1] != "tree"}
+        wanted.update(delta)
+        if {p: e for p, e in actual.items() if e[1] != "tree"} != wanted:
+            technical_block()
+        commit = post("/git/commits", {"message": request["message"], "tree": new_tree, "parents": [expected]})
+        commit_sha = _response_sha(commit, "sha")
+        check = get("/git/commits/" + commit_sha)
+        if (check.get("tree", {}).get("sha") != new_tree
+                or [p.get("sha") for p in check.get("parents", [])] != [expected]):
+            technical_block()
+        branch_absent()
+        ref = post("/git/refs", {"ref": "refs/heads/" + branch, "sha": commit_sha})
+        if ref.get("ref") != "refs/heads/" + branch or ref.get("object", {}).get("sha") != commit_sha:
+            technical_block()
+        # Create-only refs; there is no PATCH, force update or branch cleanup.
+        readback = get("/git/ref/heads/" + branch)
+        if readback.get("object", {}).get("sha") != commit_sha:
+            technical_block()
+        pull = post("/pulls", {"title": request["title"], "head": branch, "base": "main",
+                              "body": "Technical Admin proposal. Human review and merge required."})
+        number = _response_id(pull, "number")
+        pull = get("/pulls/" + str(number))
+        if (pull.get("head", {}).get("sha") != commit_sha or pull.get("head", {}).get("ref") != branch
+                or pull.get("base", {}).get("ref") != "main" or pull.get("base", {}).get("sha") != expected
+                or pull.get("state") != "open"):
+            technical_block()
+        current_main()
+        safe = {"repo": GNEU_SE_FULL_REPO, "branch": branch, "expected_main_sha": expected,
+                "current_main_sha": expected, "commit_sha": commit_sha, "pr_number": number,
+                "pr_title": request["title"], "head": branch, "base": "main", "state": "open"}
+        technical_output_guard(safe)
+        return safe
+    finally:
+        if token:
+            revoke(token)
+
+
+def technical_pr_cli(profile, args):
+    try:
+        if profile != "gneu-admin" or len(args) != 3 or args[0] not in {"check", "create"} or args[1] != "--request":
+            technical_block()
+        request = load_technical_request(args[2])
+        if args[0] == "check":
+            print("TECHNICAL_PR_LOCAL_POLICY_PASS")  # no network/mint/write
+        else:
+            print(json.dumps(create_gneu_se_technical_pr(profile, request), sort_keys=True, separators=(",", ":")))
+        return 0
+    except Exception as exc:
+        # Never expose exception text from files, API, JWT/signing or response.
+        code = str(exc) if type(exc) is TechnicalPRError else "BLOCKED_TECHNICAL_PR"
+        if code not in {"BLOCKED_TECHNICAL_PR", "STALE_BASE", "BRANCH_EXISTS_OR_AMBIGUOUS", "BLOCKED_TOKEN_PERMISSIONS", "NO_CHANGE"}:
+            code = "BLOCKED_TECHNICAL_PR"
+        print(code, file=sys.stderr)
+        return 1
+
+
 def main():
     if len(sys.argv) < 3:
         print(
             "usage: gneu-github-app PROFILE check | "
             "exec -- COMMAND... | gneu-se-check | "
-            "gneu-se-read OPERATION [ARGS...]",
+            "gneu-se-read OPERATION [ARGS...] | "
+            "gneu-se-admin-pr check|create --request FILE",
             file=sys.stderr,
         )
         return 2
@@ -1040,6 +1301,9 @@ def main():
         return 2
 
     try:
+        if action == "gneu-se-admin-pr":
+            return technical_pr_cli(profile, sys.argv[3:])
+
         if action == "check":
             check(profile)
             return 0

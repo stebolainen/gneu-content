@@ -80,6 +80,92 @@ cancel, branchmutation, PR-mutation, contents- och workflowskrivning, releases
 och permissionsmutation förblir blockerade. Den äldre `check`/`exec`-vägen och
 dess tokenpolicy för `stebolainen/gneu-content` är oförändrade.
 
+## Separat teknisk gneu-se PR-writer
+
+Efter human merge och separat provisioning finns en ny route:
+
+```text
+gneu-admin-github gneu-se-admin-pr check --request /absolute/request.json
+gneu-admin-github gneu-se-admin-pr create --request /absolute/request.json
+```
+
+`check` är en helt lokal schema-/policykontroll utan mint eller nätverk. Den
+bevisar inte remote base/branch-state. `create` utför hela create-only-cykeln;
+det finns inga generella shell-, Git-, URL-, API- eller permissionsargument.
+Requestfilen måste vara en begränsad regular file, inte symlink/FIFO. JSON
+avvisar dubbla eller okända keys. Exempel (syntetisk SHA; ersätt med verifierad
+current main):
+
+```json
+{
+  "expected_main_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "branch": "admin/technical-example",
+  "title": "Technical example",
+  "message": "Technical example",
+  "files": [{"path": "docs/technical-example.md", "content": "Technical documentation.\n"}]
+}
+```
+
+### Roller och token
+
+- `gneu-se-read` = observation only, oförändrad GET-policy och read-token.
+- `gneu-se-admin-pr` = endast teknisk ny Admin-branch och PR.
+- Human = review och merge; denna route kan aldrig mergea.
+
+Writer mintar separat per operation, endast från `gneu-admin` och installation
+`155274448`, med `repositories: ["gneu-se"]`. Requesten är exakt
+`contents: write`, `pull_requests: write`; endast om en tillåten workflowfil
+ingår läggs `workflows: write` till. Metadata är implicit read. Mint-resultatets
+permissions måste matcha exakt (utöver implicit metadata), och tokenets faktiska
+repositorylista måste vara exakt `stebolainen/gneu-se` innan första repoanropet.
+Actions, administration, secrets, variables, environments och övriga permissions
+begärs aldrig. Token stannar i broker-minnet och återkallas i `finally`; inget
+caller-kommando får credentials. Ingen live writer-token eller gneu-se-write
+behövs för PR-sessionens syntetiska regressionstester.
+
+### Create-only, expected base och fel
+
+`expected_main_sha` krävs alltid för en request. Före varje write läses main
+igen och måste matcha exakt, annars `STALE_BASE`. En ny commit får exakt en
+parent, denna main-SHA. Endast en ny ref till den commiten skapas, aldrig en
+ref-update. Detta motsvarar en ny branch direkt ovanpå exact main med en enda
+teknisk commit. Det finns ingen automatisk rebase eller append-commit-route.
+
+Branchsyntax är den snävare delmängden `admin/<lowercase-hyphenated-slug>`.
+Redan existerande/matchande ref eller tidigare PR för branch blockerar. PR-base
+är hårdkodad `main`. Efter skapande verifieras commit-parent/tree, branch/head,
+PR och aktuell main igen. GitHub erbjuder ingen atomisk transaktion som låser
+main över alla anrop: en extern race kan lämna orphan Git-objekt eller en ny
+Admin-branch/PR medan routen failar. Den kan fortfarande aldrig skriva main.
+Ingen automatisk retry, force, overwrite, rollback, delete eller close görs;
+operatören inspekterar eventuell partiell state innan nästa humanbeslut.
+
+### Filpolicy
+
+Positiv allowlist: tekniska `.py/.php/.sh/.json/.md` under `scripts/`, Markdown
+under `docs/`, root `test_*.py` samt exakt `.github/workflows/<name>.yml|yaml`.
+`scripts/config.php`, secret-/credentialkataloger, path traversal, symlinks,
+submodules, executable-/modeändringar och deletions blockeras. Endast nya eller
+befintliga regular blobs mode `100644` kan skrivas. Requesten har högst 40 filer,
+200 KB per fil och 800 KB sammanlagt UTF-8-innehåll.
+
+Alla `data/`, `aihot/`, `sitemap.xml`, `ai-hot.html` och andra publiceringsytor
+är därmed uteslutna, inte bara de nu kända canonical AI-hot-filerna. Brokern
+verifierar föräldrarnas Git-typer och jämför hela resulting trädet med exakt
+allowlistad delta innan commit/ref/PR. Inga response-objekt eller filinnehåll
+skrivs ut; endast validerad repo/branch/base/commit/PR-metadata projiceras.
+Felmeddelanden är fasta koder och återger inte rå exceptions.
+
+Detta är inte production deployment eller AI-hot publication authorization.
+Tekniska workflowförslag är säkerhetsrelevanta: GitHub kan köra sina normala
+push/PR-checks efter branch/PR-skapande. Avsaknad av `actions: write` är inte ett
+förbud mot sådana automatiska triggers. Human review och befintliga GitHub
+workflow-/secret-skydd krävs; brokern exekverar aldrig föreslagen kod själv.
+
+Regression: `test_admin_gneu_se_writer.py`, befintliga Admin auth-policy- och
+sanitizationtester. Samtliga tidigare read-/gneu-content-funktioner jämförs
+AST-mässigt med trusted baseline. Inga ändringar i gneu-content-policyn.
+
 ## Installation efter merge
 
 Runtimefilerna får aldrig handredigeras. Installera dem endast efter att
