@@ -188,3 +188,16 @@ payload, or content. It creates only `state/rejected/<edition>.json`, using an
 atomic create-without-overwrite. It does not use GitHub credentials. See
 [`../../docs/AIHOT_OPERATOR_RECOVERY.md`](../../docs/AIHOT_OPERATOR_RECOVERY.md)
 for the required remote review and operator procedure.
+
+## Historical terminal dispositions
+
+The separate historical terminal mechanism closes only three explicitly
+allowlisted, immutable pre-existing queue blockers. It writes one append-only
+`state/historical-terminal-dispositions/<exact-package-id>.json` receipt with
+`retry_allowed: false`; it never changes the failed package or any retry
+record. The READY processor verifies the exact package, failure code and all
+required evidence hashes before returning
+`HISTORICAL_TERMINAL_NON_ACTIONABLE` and continuing its queue scan. Missing,
+unknown, wildcard, malformed, changed, or conflicting dispositions remain
+blocking. See
+[`../../docs/AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md`](../../docs/AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md).

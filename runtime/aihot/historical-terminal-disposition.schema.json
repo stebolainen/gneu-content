@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gneu.se/schemas/aihot-historical-terminal-disposition-v1.json",
+  "title": "GNEU AI-hot historical terminal disposition receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "disposition",
+    "status",
+    "retry_allowed",
+    "package_id",
+    "edition",
+    "attempt",
+    "revision",
+    "failure_code",
+    "failure_stage",
+    "failure_detail",
+    "evidence_sha256",
+    "human_approval",
+    "operator_reason",
+    "disposed_at"
+  ],
+  "properties": {
+    "schema": {"const": "gneu-aihot-historical-terminal-disposition-v1"},
+    "disposition": {"const": "historical_terminal"},
+    "status": {"const": "closed_non_actionable"},
+    "retry_allowed": {"const": false},
+    "package_id": {
+      "enum": [
+        "2026-W36--2026-09-04--r1",
+        "2026-W36--2026-09-04--r2",
+        "2026-W37--2026-09-07"
+      ]
+    },
+    "edition": {"enum": ["2026-W36", "2026-W37"]},
+    "attempt": {"enum": ["2026-09-04", "2026-09-07"]},
+    "revision": {"enum": [0, 1, 2]},
+    "failure_code": {
+      "enum": [
+        "RUNTIME_SOURCE_COMMIT_MISMATCH",
+        "INVALID_RUNTIME_PROVENANCE",
+        "CANDIDATE_EDITION_PREFIX_DIFFERS_FROM_ORIGIN_MAIN"
+      ]
+    },
+    "failure_stage": {
+      "enum": ["ready-retry-lineage", "content-retry-lineage", "build"]
+    },
+    "failure_detail": {
+      "enum": [
+        "RUNTIME_SOURCE_COMMIT_MISMATCH",
+        "INVALID_RUNTIME_PROVENANCE",
+        "candidate edition prefix differs from origin/main"
+      ]
+    },
+    "evidence_sha256": {
+      "oneOf": [
+        {"$ref": "#/$defs/r1Evidence"},
+        {"$ref": "#/$defs/r2Evidence"},
+        {"$ref": "#/$defs/buildEvidence"}
+      ]
+    },
+    "human_approval": {"type": "string", "minLength": 8, "maxLength": 500},
+    "operator_reason": {"type": "string", "minLength": 8, "maxLength": 500},
+    "disposed_at": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"package_id": {"const": "2026-W36--2026-09-04--r1"}}},
+      "then": {
+        "properties": {
+          "edition": {"const": "2026-W36"},
+          "attempt": {"const": "2026-09-04"},
+          "revision": {"const": 1},
+          "failure_code": {"const": "RUNTIME_SOURCE_COMMIT_MISMATCH"},
+          "failure_stage": {"const": "ready-retry-lineage"},
+          "failure_detail": {"const": "RUNTIME_SOURCE_COMMIT_MISMATCH"},
+          "evidence_sha256": {"$ref": "#/$defs/r1Evidence"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"package_id": {"const": "2026-W36--2026-09-04--r2"}}},
+      "then": {
+        "properties": {
+          "edition": {"const": "2026-W36"},
+          "attempt": {"const": "2026-09-04"},
+          "revision": {"const": 2},
+          "failure_code": {"const": "INVALID_RUNTIME_PROVENANCE"},
+          "failure_stage": {"const": "content-retry-lineage"},
+          "failure_detail": {"const": "INVALID_RUNTIME_PROVENANCE"},
+          "evidence_sha256": {"$ref": "#/$defs/r2Evidence"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"package_id": {"const": "2026-W37--2026-09-07"}}},
+      "then": {
+        "properties": {
+          "edition": {"const": "2026-W37"},
+          "attempt": {"const": "2026-09-07"},
+          "revision": {"const": 0},
+          "failure_code": {"const": "CANDIDATE_EDITION_PREFIX_DIFFERS_FROM_ORIGIN_MAIN"},
+          "failure_stage": {"const": "build"},
+          "failure_detail": {"const": "candidate edition prefix differs from origin/main"},
+          "evidence_sha256": {"$ref": "#/$defs/buildEvidence"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "buildEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "failed_sha256",
+        "ready_sha256",
+        "handoff_sha256",
+        "candidate_sha256",
+        "report_sha256"
+      ],
+      "properties": {
+        "failed_sha256": {"$ref": "#/$defs/sha256"},
+        "ready_sha256": {"$ref": "#/$defs/sha256"},
+        "handoff_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_sha256": {"$ref": "#/$defs/sha256"},
+        "report_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "r1Evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "failed_sha256",
+        "ready_sha256",
+        "handoff_sha256",
+        "candidate_sha256",
+        "report_sha256",
+        "local_retry_authorization_sha256",
+        "local_retry_consumed_sha256",
+        "ready_retry_authorization_sha256",
+        "ready_retry_consumed_sha256",
+        "ready_retry_failure_sha256"
+      ],
+      "properties": {
+        "failed_sha256": {"$ref": "#/$defs/sha256"},
+        "ready_sha256": {"$ref": "#/$defs/sha256"},
+        "handoff_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_sha256": {"$ref": "#/$defs/sha256"},
+        "report_sha256": {"$ref": "#/$defs/sha256"},
+        "local_retry_authorization_sha256": {"$ref": "#/$defs/sha256"},
+        "local_retry_consumed_sha256": {"$ref": "#/$defs/sha256"},
+        "ready_retry_authorization_sha256": {"$ref": "#/$defs/sha256"},
+        "ready_retry_consumed_sha256": {"$ref": "#/$defs/sha256"},
+        "ready_retry_failure_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "r2Evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "failed_sha256",
+        "ready_sha256",
+        "handoff_sha256",
+        "candidate_sha256",
+        "report_sha256",
+        "content_retry_authorization_sha256",
+        "content_retry_consumed_sha256"
+      ],
+      "properties": {
+        "failed_sha256": {"$ref": "#/$defs/sha256"},
+        "ready_sha256": {"$ref": "#/$defs/sha256"},
+        "handoff_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_sha256": {"$ref": "#/$defs/sha256"},
+        "report_sha256": {"$ref": "#/$defs/sha256"},
+        "content_retry_authorization_sha256": {"$ref": "#/$defs/sha256"},
+        "content_retry_consumed_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}
