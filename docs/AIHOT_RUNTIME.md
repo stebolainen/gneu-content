@@ -31,6 +31,14 @@ duplicate successful processing. A failed package remains latched because its
 run may have crossed the GitHub dispatch boundary; that exact package is never
 retried automatically.
 
+The separately reviewed historical terminal disposition is an append-only,
+no-retry closure for three exact pre-existing queue lineages. It is not a
+general failure allowlist. Its receipt is verified against immutable evidence
+before the processor treats that exact package as non-actionable and continues
+the queue scan. Future failures without an exact valid disposition retain the
+existing fail-closed behavior. The operator sequence is documented in
+[`AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md`](AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md).
+
 The v1 operator receipt remains edition-named because it preserves the legacy
 package for which it was created. It does not blanket-reject a sibling daily
 attempt. Daily attempt names include the Stockholm date, and that date must be

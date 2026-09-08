@@ -14,6 +14,10 @@ import sys
 from pathlib import Path
 
 from aihot_rejection import RejectionError, path_present, verify_receipt
+from aihot_historical_disposition import (
+    HistoricalDispositionError,
+    find_verified_disposition,
+)
 from aihot_local_retry import (
     RetryError,
     RetryPaths,
@@ -277,6 +281,25 @@ def process_package(
     )
 
     package = OUTBOX / package_id
+
+    try:
+        historical_disposition = find_verified_disposition(
+            package_id,
+            state_root=STATE,
+            outbox_root=OUTBOX,
+        )
+    except HistoricalDispositionError as exc:
+        print(
+            "BLOCKED_INVALID_HISTORICAL_DISPOSITION "
+            f"{package_id}: {exc}"
+        )
+        return False
+    if historical_disposition is not None:
+        print(
+            "HISTORICAL_TERMINAL_NON_ACTIONABLE "
+            f"{package_id}"
+        )
+        return True
 
     if revision == 1:
         try:

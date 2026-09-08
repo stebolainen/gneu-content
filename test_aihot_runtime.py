@@ -25,6 +25,8 @@ verified = PROVISION.verify_sources(ROOT, manifest)
 assert verified == manifest, "tracked runtime hashes do not match manifest"
 
 expected_modes = {
+    "runtime/aihot/bin/aihot_historical_disposition.py": 0o600,
+    "runtime/aihot/bin/historical-terminal-disposition.py": 0o700,
     "runtime/aihot/bin/aihot_rejection.py": 0o600,
     "runtime/aihot/bin/operator-disposition.py": 0o700,
     "runtime/aihot/bin/process-ready.py": 0o700,
@@ -149,5 +151,14 @@ receipt_schema = json.loads(
 assert receipt_schema["properties"]["schema"]["const"] == "gneu-aihot-rejection-v1"
 assert receipt_schema["properties"]["disposition"]["const"] == "rejected"
 assert set(receipt_schema["required"]) == set(receipt_schema["properties"])
+
+historical_schema = json.loads(
+    (ROOT / "runtime/aihot/historical-terminal-disposition.schema.json").read_text()
+)
+assert historical_schema["properties"]["schema"]["const"] == (
+    "gneu-aihot-historical-terminal-disposition-v1"
+)
+assert historical_schema["properties"]["retry_allowed"]["const"] is False
+assert set(historical_schema["required"]) == set(historical_schema["properties"])
 
 print("AI-hot runtime provenance tests OK")
