@@ -21,6 +21,7 @@ BIN = ROOT / "runtime/aihot/bin"
 sys.path.insert(0, str(BIN))
 
 import aihot_historical_disposition as historical
+from aihot_package_identity import parse_package_id
 
 PROCESS_SPEC = importlib.util.spec_from_file_location(
     "aihot_process_ready_historical", BIN / "process-ready.py"
@@ -73,12 +74,17 @@ class HistoricalFixture:
     def make_case(self, package_id: str) -> None:
         self.make_package(package_id)
         case = historical.HISTORICAL_CASES[package_id]
+        edition, attempt, revision = parse_package_id(package_id)
         failed = {
             "schema": "gneu-aihot-ready-failure-v1",
+            "edition": edition,
             "package_id": package_id,
+            "attempt": attempt,
             "failed_stage": "dispatch",
             "stages": [],
         }
+        if revision in {1, 2}:
+            failed["revision"] = revision
         if case.failure_stage == "build":
             failed.update(
                 {
@@ -198,14 +204,14 @@ class HistoricalDispositionTests(unittest.TestCase):
         self.configure_processor()
         output = io.StringIO()
         with redirect_stdout(output):
-            self.assertTrue(process_ready.process_package(package))
-        self.assertIn("HISTORICAL_TERMINAL_NON_ACTIONABLE", output.getvalue())
+            self.assertTrue(process_ready.process_package(package, historical=True))
+        self.assertIn("HISTORICAL_TERMINAL_SKIPPED", output.getvalue())
 
     def test_r2_exact_disposition_and_r3_forbidden(self) -> None:
         package = "2026-W36--2026-09-04--r2"
         self.fixture.append(package)
         self.configure_processor()
-        self.assertTrue(process_ready.process_package(package))
+        self.assertTrue(process_ready.process_package(package, historical=True))
         self.assert_blocked(
             lambda: historical.append_disposition(
                 "2026-W36--2026-09-04--r3",
@@ -222,7 +228,7 @@ class HistoricalDispositionTests(unittest.TestCase):
         package = "2026-W37--2026-09-07"
         self.fixture.append(package)
         self.configure_processor()
-        self.assertTrue(process_ready.process_package(package))
+        self.assertTrue(process_ready.process_package(package, historical=True))
 
     def test_wrong_package_and_wildcard_are_blocked(self) -> None:
         for package in ("2026-W38--2026-09-14", "2026-W37--*"):
@@ -302,21 +308,39 @@ class HistoricalDispositionTests(unittest.TestCase):
             process_ready.consume_publication_retry = original
         self.assertIn("FAILED_REQUIRES_OPERATOR", output.getvalue())
 
-    def test_invalid_receipt_hash_binding_blocks_processor(self) -> None:
+    def test_invalid_receipt_hash_binding_does_not_control_queue_liveness(self) -> None:
         package = "2026-W37--2026-09-07"
         self.fixture.append(package)
-        write(self.fixture.outbox / package / "report.md", b"changed immutable report\n")
+        receipt_path = historical.disposition_path(self.fixture.state, package)
+        receipt = json.loads(receipt_path.read_text())
+        receipt["evidence_sha256"]["report_sha256"] = "0" * 64
+        receipt_path.write_bytes(historical.canonical_json(receipt))
+        self.assert_blocked(
+            lambda: historical.verify_receipt(
+                package,
+                state_root=self.fixture.state,
+                outbox_root=self.fixture.outbox,
+            )
+        )
         self.configure_processor()
         output = io.StringIO()
         with redirect_stdout(output):
-            self.assertFalse(process_ready.process_package(package))
-        self.assertIn("BLOCKED_INVALID_HISTORICAL_DISPOSITION", output.getvalue())
+            self.assertTrue(process_ready.process_package(package, historical=True))
+        self.assertIn("HISTORICAL_TERMINAL_SKIPPED", output.getvalue())
 
     def test_disposed_history_allows_today_no_change_to_pass(self) -> None:
         for package in historical.HISTORICAL_CASES:
             self.fixture.append(package)
         today = "2026-W37--2026-09-08"
         self.fixture.make_package(today)
+        write_json(
+            self.fixture.outbox / today / "handoff.json",
+            {
+                "package_id": today,
+                "mode": "no-change",
+                "base_sha256": "c" * 64,
+            },
+        )
         payload_raw = canonical({"package_id": today, "mode": "no-change"})[:-1]
         compressed = gzip.compress(payload_raw, mtime=0)
         write_json(
@@ -344,9 +368,9 @@ class HistoricalDispositionTests(unittest.TestCase):
             process_ready.run = original_run
         text = output.getvalue()
         for package in historical.HISTORICAL_CASES:
-            self.assertIn(f"HISTORICAL_TERMINAL_NON_ACTIONABLE {package}", text)
-        self.assertIn(f"AIHOT_READY_PROCESSED {today}", text)
-        self.assertEqual(len(calls), 3)
+            self.assertIn(f"HISTORICAL_TERMINAL_SKIPPED {package}", text)
+        self.assertIn(f"AIHOT_READY_NO_CHANGE_PROCESSED {today}", text)
+        self.assertEqual(len(calls), 1)
         self.assertTrue((self.fixture.state / "processed" / f"{today}.json").is_file())
 
 

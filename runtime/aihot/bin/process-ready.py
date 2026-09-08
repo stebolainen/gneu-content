@@ -11,13 +11,10 @@ import os
 import re
 import subprocess
 import sys
+import stat
 from pathlib import Path
 
 from aihot_rejection import RejectionError, path_present, verify_receipt
-from aihot_historical_disposition import (
-    HistoricalDispositionError,
-    find_verified_disposition,
-)
 from aihot_local_retry import (
     RetryError,
     RetryPaths,
@@ -70,6 +67,20 @@ FAILED = STATE / "failed"
 LOCK = STATE / "process-ready.lock"
 
 WEEK_RE = re.compile(r"^\d{4}-W\d{2}$")
+
+HISTORICAL_FAILURE_STAGES = frozenset(
+    {
+        "package",
+        "rejection-state",
+        "validate",
+        "no-change",
+        "build",
+        "receipt",
+        "receipt-json",
+        "replay-guard",
+        "dispatch",
+    }
+)
 
 
 def ready_retry_paths() -> ReadyRetryPaths:
@@ -260,8 +271,87 @@ def decoded_payload_sha256(transport: dict) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def verify_historical_failed_latch(package_id: str, failed_file: Path) -> str:
+    """Verify one immutable failed latch before treating it as historical."""
+
+    try:
+        edition, attempt, revision = parse_package_id(package_id)
+        before = failed_file.lstat()
+    except (ValueError, TypeError, FileNotFoundError) as exc:
+        raise ValueError("historical failed latch missing or invalid") from exc
+    if (
+        stat.S_ISLNK(before.st_mode)
+        or not stat.S_ISREG(before.st_mode)
+        or before.st_uid != os.geteuid()
+        or before.st_mode & 0o077
+        or before.st_size < 1
+        or before.st_size > 65536
+    ):
+        raise ValueError("historical failed latch metadata invalid")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(failed_file, flags)
+    try:
+        opened = os.fstat(descriptor)
+        if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+            raise ValueError("historical failed latch changed while opening")
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = os.read(descriptor, min(65536, 65537 - total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+            if total > 65536:
+                raise ValueError("historical failed latch size invalid")
+        raw = b"".join(chunks)
+        if not raw:
+            raise ValueError("historical failed latch size invalid")
+        after = os.fstat(descriptor)
+        if (after.st_dev, after.st_ino, after.st_size) != (
+            opened.st_dev,
+            opened.st_ino,
+            opened.st_size,
+        ):
+            raise ValueError("historical failed latch changed while reading")
+    finally:
+        os.close(descriptor)
+    try:
+        value = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("historical failed latch JSON invalid") from exc
+    if not isinstance(value, dict):
+        raise ValueError("historical failed latch JSON object required")
+    if value.get("schema") != "gneu-aihot-ready-failure-v1":
+        raise ValueError("historical failed latch schema invalid")
+    if value.get("edition") != edition:
+        raise ValueError("historical failed latch edition mismatch")
+    if attempt is not None:
+        if value.get("package_id") != package_id or value.get("attempt") != attempt:
+            raise ValueError("historical failed latch identity mismatch")
+    if revision in {1, 2} and value.get("revision") != revision:
+        raise ValueError("historical failed latch revision mismatch")
+    stage = value.get("failed_stage")
+    if stage not in HISTORICAL_FAILURE_STAGES:
+        raise ValueError("historical failed latch stage invalid")
+    stages = value.get("stages")
+    if not isinstance(stages, list):
+        raise ValueError("historical failed latch stage evidence invalid")
+    for item in stages:
+        if (
+            not isinstance(item, dict)
+            or not isinstance(item.get("stage"), str)
+            or not isinstance(item.get("returncode"), int)
+            or not isinstance(item.get("output"), str)
+        ):
+            raise ValueError("historical failed latch stage evidence invalid")
+    return stage
+
+
 def process_package(
     package_id: str,
+    *,
+    historical: bool = False,
 ) -> bool:
 
     try:
@@ -282,22 +372,29 @@ def process_package(
 
     package = OUTBOX / package_id
 
-    try:
-        historical_disposition = find_verified_disposition(
-            package_id,
-            state_root=STATE,
-            outbox_root=OUTBOX,
-        )
-    except HistoricalDispositionError as exc:
+    processed_file = PROCESSED / f"{package_id}.json"
+    failed_file = FAILED / f"{package_id}.json"
+    rejected_file = STATE / "rejected" / f"{package_id}.json"
+
+    processed_present = path_present(processed_file)
+    failed_present = path_present(failed_file)
+    rejected_present = attempt is None and path_present(rejected_file)
+
+    if historical and failed_present and not processed_present and not rejected_present:
+        if not package_ready(package):
+            print(f"BLOCKED_INVALID_HISTORICAL_FAILURE {package_id}: package invalid")
+            return False
+        try:
+            failed_stage = verify_historical_failed_latch(package_id, failed_file)
+        except ValueError as exc:
+            print(
+                "BLOCKED_INVALID_HISTORICAL_FAILURE "
+                f"{package_id}: {exc}"
+            )
+            return False
         print(
-            "BLOCKED_INVALID_HISTORICAL_DISPOSITION "
-            f"{package_id}: {exc}"
-        )
-        return False
-    if historical_disposition is not None:
-        print(
-            "HISTORICAL_TERMINAL_NON_ACTIONABLE "
-            f"{package_id}"
+            "HISTORICAL_TERMINAL_SKIPPED "
+            f"{package_id} stage={failed_stage}"
         )
         return True
 
@@ -322,30 +419,6 @@ def process_package(
         except ContentRetryError:
             print(f"BLOCKED_INVALID_CONTENT_RETRY_AUTHORIZATION {package_id}")
             return False
-
-    processed_file = (
-        PROCESSED
-        / f"{package_id}.json"
-    )
-
-    failed_file = (
-        FAILED
-        / f"{package_id}.json"
-    )
-
-    rejected_file = (
-        STATE
-        / "rejected"
-        / f"{package_id}.json"
-    )
-
-    processed_present = path_present(
-        processed_file
-    )
-    failed_present = path_present(
-        failed_file
-    )
-    rejected_present = attempt is None and path_present(rejected_file)
 
     if (
         processed_present
@@ -539,6 +612,12 @@ def process_package(
     output = []
 
     for stage, argv in stages:
+        handoff_before = None
+        if stage == "validate":
+            try:
+                handoff_before = (package / "handoff.json").read_bytes()
+            except OSError:
+                pass
         cp = run(argv)
 
         output.append(
@@ -580,6 +659,50 @@ def process_package(
             )
 
             return False
+
+        if stage == "validate":
+            try:
+                handoff_after = (package / "handoff.json").read_bytes()
+                if not handoff_before or handoff_after != handoff_before:
+                    raise ValueError("handoff changed during validation")
+                handoff = json.loads(handoff_after)
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                handoff = None
+            except ValueError:
+                handoff = None
+            if not isinstance(handoff, dict):
+                payload = {
+                    "schema": "gneu-aihot-ready-failure-v1",
+                    "edition": edition,
+                    **identity,
+                    "failed_at": now_utc(),
+                    "failed_stage": "no-change",
+                    "stages": output,
+                }
+                if not latch_failure(
+                    failed_file,
+                    payload,
+                    recovery,
+                    "HANDOFF_CHANGED_AFTER_VALIDATION",
+                ):
+                    return False
+                print(f"AIHOT_READY_FAILED {package_id} stage=no-change")
+                return False
+            if handoff.get("mode") == "no-change" and recovery is None:
+                receipt = {
+                    "schema": "gneu-aihot-ready-processed-v1",
+                    "edition": edition,
+                    **identity,
+                    "processed_at": now_utc(),
+                    "base_main_sha": None,
+                    "base_aihot_sha256": handoff.get("base_sha256"),
+                    "payload_sha256": None,
+                    "mode": "no-change",
+                    "result": "success",
+                }
+                atomic_json(processed_file, receipt)
+                print(f"AIHOT_READY_NO_CHANGE_PROCESSED {package_id}")
+                return True
 
     transport = (
         STATE
@@ -818,9 +941,12 @@ def main() -> int:
 
         ok = True
 
+        current_package_id = candidates[-1]
+
         for package_id in candidates:
             if not process_package(
-                package_id
+                package_id,
+                historical=package_id != current_package_id,
             ):
                 ok = False
 
