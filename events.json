@@ -61,6 +61,31 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "msrc:windows-exploited-cves-2026-09-08",
+      "type": "patch",
+      "publication_class": "B",
+      "occurred_at": "2026-09-08T14:00:00Z",
+      "updated_at": "2026-09-08T14:00:00Z",
+      "title": "Microsoft korrigerar två aktivt utnyttjade sårbarheter i Windows",
+      "summary": "Microsoft uppger att CVE-2026-81963 i Windows Update Stack och CVE-2026-85880 i Windows ALPC utnyttjas aktivt. Båda är lokala sårbarheter som kan ge SYSTEM-behörighet. De berör olika versioner av Windows 10, Windows 11 och Windows Server.",
+      "action": "Installera Microsofts tillämpliga säkerhetsuppdateringar för september 2026 på berörda Windows-system.",
+      "cves": [
+        "CVE-2026-81963",
+        "CVE-2026-85880"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-81963"
+        },
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-85880"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
