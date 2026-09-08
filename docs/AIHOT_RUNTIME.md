@@ -18,7 +18,8 @@ or the single incident-bound 2026-09-04 r2 correction
   -> dispatch trusted intake
      -> processed/<package-id>.json on success
      -> failed/<package-id>.json on failure
-        -> FAILED_REQUIRES_OPERATOR for that package
+        -> FAILED_REQUIRES_OPERATOR while it is the current package
+        -> HISTORICAL_TERMINAL_SKIPPED after a later READY identity exists
 
 legacy rejected/<week>.json
   -> verifies and terminates its exact legacy package
@@ -31,12 +32,18 @@ duplicate successful processing. A failed package remains latched because its
 run may have crossed the GitHub dispatch boundary; that exact package is never
 retried automatically.
 
-The separately reviewed historical terminal disposition is an append-only,
-no-retry closure for three exact pre-existing queue lineages. It is not a
-general failure allowlist. Its receipt is verified against immutable evidence
-before the processor treats that exact package as non-actionable and continues
-the queue scan. Future failures without an exact valid disposition retain the
-existing fail-closed behavior. The operator sequence is documented in
+The READY queue is ordered by canonical package identity. A valid immutable
+failed latch blocks while its package is the newest READY identity. Once a
+later READY identity exists, the failed package is historical and terminal:
+the processor verifies its receipt identity, owner, mode, schema, stage and
+bounded stage evidence, logs `HISTORICAL_TERMINAL_SKIPPED`, and continues the
+queue. It never retries, regenerates, dispatches, deletes, or rewrites that
+package. A malformed historical latch still blocks, and the newest unresolved
+failure remains `FAILED_REQUIRES_OPERATOR`.
+
+The explicit historical-disposition receipts introduced for the three 2026
+incident lineages remain available as append-only audit records, but queue
+liveness does not depend on their presence. See
 [`AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md`](AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md).
 
 The v1 operator receipt remains edition-named because it preserves the legacy
@@ -61,6 +68,11 @@ admitted run is 07:00 across CET and CEST. The gate atomically claims one local
 calendar-day attempt. Hermes independently prevents overlap and collapses
 missed recurring occurrences to one catch-up. The READY timer continues to
 poll independently and does not prove generation freshness.
+
+`gneu-aihot-ready.timer` is normally enabled and active. Verified historical
+terminal failures do not make the one-shot service fail, so they do not require
+the timer to be stopped. Only the newest unresolved or invalid queue state
+causes a nonzero processor result and operator notification.
 
 Gate CLI inspection is explicit and side-effect-free: `--help`, `help`,
 `inspect`, and `check` never enter the claim path. The no-argument invocation is
@@ -109,9 +121,12 @@ hours is `STALE` with exit code 2. Network, schema or timestamp errors are
 locally observed freshness state in Hermes execution output.
 
 A no-change package records successful research but does not change the public
-append-only content payload or its `generated` timestamp. Research freshness
-and public content-edition freshness are therefore distinct; this runtime does
-not silently rewrite content freshness.
+append-only content payload or its `generated` timestamp. After trusted local
+intake validation succeeds, the READY processor writes its terminal processed
+receipt directly; it does not build transport, dispatch GitHub intake, create a
+PR, or write content. Research freshness and public content-edition freshness
+are therefore distinct; this runtime does not silently rewrite content
+freshness.
 
 ## AI-hot content contract
 

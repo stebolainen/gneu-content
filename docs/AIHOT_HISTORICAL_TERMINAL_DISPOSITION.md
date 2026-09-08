@@ -1,9 +1,15 @@
 # AI-hot historical terminal disposition recovery
 
-This GNEU Admin runbook closes only the three explicitly reviewed historical
-READY queue blockers listed below. It does not retry, regenerate, dispatch,
-delete, rename, or modify any package, failed latch, authorization, consumed
-receipt, retry failure, transport, or other immutable evidence.
+This GNEU Admin runbook records optional append-only audit dispositions for the
+three explicitly reviewed historical READY failures listed below. It does not
+retry, regenerate, dispatch, delete, rename, or modify any package, failed
+latch, authorization, consumed receipt, retry failure, transport, or other
+immutable evidence.
+
+The normal READY processor does not require these dispositions for liveness.
+Once a later READY identity exists, a valid immutable failed latch is historical
+terminal state and is logged as `HISTORICAL_TERMINAL_SKIPPED`. The newest
+unresolved failure and malformed historical evidence remain fail-closed.
 
 The deployed runtime and this runbook must come from the same reviewed and
 merged `origin/main`. A source-tree checkout is never used to write runtime
@@ -33,7 +39,7 @@ required immutable package and lineage record. An identical repeated command
 is an idempotent no-op. Any different receipt, argument, state byte, missing
 evidence, extra evidence key, or unknown directory entry is `BLOCKED`.
 
-## Required operator sequence
+## Optional audit-disposition sequence
 
 Use the exact deployed runtime only after this change has been human-reviewed,
 merged to trusted `main`, separately provisioned, and source/runtime hashes
@@ -72,7 +78,8 @@ match.
    Require `VERIFIED_HISTORICAL_TERMINAL`. Confirm old receipt and evidence
    hashes are unchanged and no retry authorization, generation, transport, or
    dispatch occurred.
-6. Run the READY processor manually exactly once:
+6. If this optional audit operation is part of an independently approved
+   recovery, run the READY processor manually exactly once:
 
    ```text
    systemctl reset-failed gneu-aihot-ready.service

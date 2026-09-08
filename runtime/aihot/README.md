@@ -191,13 +191,15 @@ for the required remote review and operator procedure.
 
 ## Historical terminal dispositions
 
-The separate historical terminal mechanism closes only three explicitly
-allowlisted, immutable pre-existing queue blockers. It writes one append-only
+The separate historical terminal mechanism can preserve append-only audit
+receipts for three explicitly allowlisted incident lineages. It writes one
 `state/historical-terminal-dispositions/<exact-package-id>.json` receipt with
-`retry_allowed: false`; it never changes the failed package or any retry
-record. The READY processor verifies the exact package, failure code and all
-required evidence hashes before returning
-`HISTORICAL_TERMINAL_NON_ACTIONABLE` and continuing its queue scan. Missing,
-unknown, wildcard, malformed, changed, or conflicting dispositions remain
-blocking. See
+`retry_allowed: false` and never changes the failed package or retry record.
+
+Queue liveness no longer depends on those explicit receipts. A failed package
+that precedes the newest READY identity is terminal historical state. The
+processor verifies its immutable failed latch, logs
+`HISTORICAL_TERMINAL_SKIPPED`, and continues without retry, generation,
+transport, dispatch, content write, or PR. A malformed historical latch and the
+newest unresolved failure remain blocking. See
 [`../../docs/AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md`](../../docs/AIHOT_HISTORICAL_TERMINAL_DISPOSITION.md).
