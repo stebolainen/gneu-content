@@ -61,27 +61,6 @@
         }
       ],
       "confidence": "verified"
-    },
-    {
-      "id": "cisa-kev:CVE-2026-75650-2026-09-08",
-      "type": "vulnerability",
-      "publication_class": "A",
-      "occurred_at": "2026-09-08T00:00:00Z",
-      "updated_at": "2026-09-08T00:00:00Z",
-      "title": "CISA lägger till Adobe Commerce-sårbarhet i KEV-katalogen",
-      "summary": "CISA har lagt till CVE-2026-75650 i KEV-katalogen. Sårbarheten i Adobe Commerce och Magento Open Source kan möjliggöra godtycklig kodexekvering.",
-      "action": "Tillämpa leverantörens åtgärder senast den 11 september 2026 enligt CISA:s anvisning.",
-      "cves": [
-        "CVE-2026-75650"
-      ],
-      "deadline": "2026-09-11",
-      "sources": [
-        {
-          "id": "cisa-kev",
-          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-        }
-      ],
-      "confidence": "verified"
     }
   ]
 }
