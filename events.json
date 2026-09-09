@@ -1,13 +1,13 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 26,
+  "generation": 27,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
       "type": "patch",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-08-24T14:00:00Z",
-      "updated_at": "2026-08-30T18:59:58Z",
+      "updated_at": "2026-09-05T01:24:18Z",
       "title": "Uppdatera VS Code-tillägget MSSQL till version 1.43.0 eller senare",
       "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Versioner av Visual Studio Code-tillägget MSSQL från 1.0.0 men äldre än 1.43.0 anges som sårbara; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
       "action": "Uppdatera Visual Studio Code-tillägget MSSQL till version 1.43.0 eller senare enligt Microsofts angivna korrigerade version.",
@@ -25,17 +25,60 @@
     {
       "id": "cisa:communicating-under-pressure-2026-09-02",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-02T12:34:45Z",
-      "updated_at": "2026-09-02T12:34:45Z",
+      "updated_at": "2026-09-07T06:26:19Z",
       "title": "Myndigheter publicerar vägledning för kommunikation vid it- och OT-driftstörningar",
-      "summary": "CISA, FBI och cybersäkerhetscenter i Australien, Kanada, Nya Zeeland och Storbritannien har publicerat vägledning för tjänsteleverantörers kommunikation vid it- och OT-driftstörningar, oavsett om orsaken är skadlig eller inte.",
-      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Kommunicera bekräftade fakta, osäkerheter och tidsstämplade uppdateringar utan spekulation eller marknadsföringsspråk.",
+      "summary": "CISA, FBI och partnerländernas cybersäkerhetsmyndigheter ger tjänsteleverantörer råd för kommunikation vid it- och OT-driftstörningar. Vid en aktiv cyberincident bör informationen begränsas så att upptäckt, utredning och inneslutning inte skadas och så att juridiska och regulatoriska krav följs.",
+      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Kommunicera bekräftade fakta, osäkerheter och tidsstämplade uppdateringar; begränsa detaljer vid aktiva cyberincidenter så att insatsen inte skadas.",
       "cves": [],
       "sources": [
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/2026-09/joint-guidance-communicating-under-pressure-508c.pdf"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:papercut-ng-mf-cves-2026-81578-82078-2026-08-31",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-08-31T00:00:00Z",
+      "updated_at": "2026-09-07T20:37:34Z",
+      "title": "Åtgärda två kedjbara PaperCut NG/MF-sårbarheter senast den 14 september",
+      "summary": "CISA har lagt till CVE-2026-81578 och CVE-2026-82078 för PaperCut NG/MF i katalogen över kända utnyttjade sårbarheter (KEV). Den första låter en oautentiserad fjärrangripare ändra viss systemkonfiguration; tillsammans kan de ge körning av Java-bytecode som serverprocessen.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s anvisning senast den 14 september 2026. Ta produkten ur bruk om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-81578",
+        "CVE-2026-82078"
+      ],
+      "deadline": "2026-09-14",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-75650-2026-09-08",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-08T00:00:00Z",
+      "updated_at": "2026-09-08T00:00:00Z",
+      "title": "CISA lägger till Adobe Commerce-sårbarhet i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2026-75650 i KEV-katalogen. Sårbarheten i Adobe Commerce och Magento Open Source kan möjliggöra godtycklig kodexekvering.",
+      "action": "Tillämpa leverantörens åtgärder senast den 11 september 2026 enligt CISA:s anvisning.",
+      "cves": [
+        "CVE-2026-75650"
+      ],
+      "deadline": "2026-09-11",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
