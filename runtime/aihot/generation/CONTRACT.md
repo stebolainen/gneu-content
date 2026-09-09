@@ -38,13 +38,21 @@ ordinary scheduler gate verifies and consumes that authorization exactly once
 under the generation lock. There is no age- or timeout-based retry.
 
 The content contract remains append-only. If the current edition is absent,
-mode `edition` adds exactly one edition and 1–6 articles. If there is no
-publishable new material, or the current edition is already present in the
-public baseline, mode `no-change` contains no delta and the report still records
-that day's research. Existing editions, articles and top-level `generated` are
-never changed by Adam. Updating an already published edition requires a
-separate human-reviewed gneu-se contract change and is not smuggled through
-this Admin runtime.
+mode `edition` adds exactly one edition and 1–6 articles. If the current
+edition already exists, mode `current-week-append` may append 1–6 new articles
+only when that edition is the latest trusted edition and the current ISO week in
+Europe/Stockholm. Its edition delta is empty; existing editions and articles
+remain byte/object-identical prefixes, and every appended article has a unique
+ID, points to that edition, and has a date in its ISO week. After the ISO week
+ends, this mode is rejected locally for that candidate. It is forwarded as a
+human-review shape; it does not authorize a merge. If there is no publishable
+new material, mode `no-change` contains no delta and the report still records
+that day's research. Top-level `generated` is never changed by Adam.
+
+The canonical daily package identity is already `YYYY-Www--YYYY-MM-DD`.
+Handoff v2 binds its `edition` and `attempt`; the bridge transports that exact
+`package_id` and `attempt` with a current-week append so a downstream trusted
+writer can later create distinct review artefacts without inventing identity.
 
 Every new article must satisfy the complete machine-readable contract installed
 as `/root/gneu-aihot-bridge/bin/aihot-content-schema.json`. In particular, the

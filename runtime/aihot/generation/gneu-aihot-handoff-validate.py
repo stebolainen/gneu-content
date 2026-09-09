@@ -22,8 +22,10 @@ from aihot_content_retry import (
 from aihot_package_identity import parse_package_id
 from aihot_content_contract import (
     ContentContractError,
+    append_only_delta,
     load_contract,
     validate_article,
+    validate_current_week_append,
 )
 
 
@@ -112,7 +114,7 @@ def main() -> None:
     if revision not in {1, 2} and "revision" in handoff:
         fail("unexpected handoff revision")
     mode = handoff.get("mode")
-    if mode not in ("edition", "no-change"):
+    if mode not in ("edition", "no-change", "current-week-append"):
         fail("invalid mode")
     if handoff.get("base_sha256") != base_sha or handoff.get("base_generated") != base.get("generated"):
         fail("base binding mismatch")
@@ -122,17 +124,19 @@ def main() -> None:
     ba, ca = base.get("articles"), candidate.get("articles")
     if not all(isinstance(value, list) for value in (be, ce, ba, ca)):
         fail("editions/articles must be lists")
-    if ce[: len(be)] != be or ca[: len(ba)] != ba:
-        fail("published material changed")
     if {k: v for k, v in base.items() if k not in ("editions", "articles")} != {
         k: v for k, v in candidate.items() if k not in ("editions", "articles")
     }:
         fail("top-level material changed")
-    added_editions, added_articles = ce[len(be) :], ca[len(ba) :]
+    try:
+        delta = append_only_delta(base, candidate)
+    except ContentContractError as exc:
+        fail(str(exc))
+    added_editions, added_articles = delta["editions"], delta["articles"]
     if mode == "no-change":
         if added_editions or added_articles:
             fail("no-change contains new material")
-    else:
+    elif mode == "edition":
         if (
             len(added_editions) != 1
             or not isinstance(added_editions[0], dict)
@@ -156,6 +160,16 @@ def main() -> None:
             except ContentContractError as exc:
                 fail(str(exc))
             seen.add(article_id)
+    else:
+        try:
+            validate_current_week_append(
+                base,
+                candidate,
+                edition,
+                CONTENT_CONTRACT,
+            )
+        except ContentContractError as exc:
+            fail(str(exc))
     if len((package / "report.md").read_text().strip()) < 200:
         fail("report.md is too short")
 

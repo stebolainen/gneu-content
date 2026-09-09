@@ -12,7 +12,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-from aihot_content_contract import transparent_delta
+from aihot_content_contract import (
+    ContentContractError,
+    append_only_delta,
+    load_contract,
+    validate_current_week_append,
+)
 from aihot_package_identity import parse_package_id
 
 
@@ -348,6 +353,7 @@ mode = handoff.get("mode")
 if mode not in {
     "edition",
     "no-change",
+    "current-week-append",
 }:
     fail("invalid handoff mode")
 
@@ -378,29 +384,10 @@ if (
 be = main["editions"]
 ba = main["articles"]
 
-if len(ce) < len(be):
-    fail(
-        "candidate lost main editions"
-    )
-
-if len(ca) < len(ba):
-    fail(
-        "candidate lost main articles"
-    )
-
-if ce[:len(be)] != be:
-    fail(
-        "candidate edition prefix "
-        "differs from origin/main"
-    )
-
-if ca[:len(ba)] != ba:
-    fail(
-        "candidate article prefix "
-        "differs from origin/main"
-    )
-
-delta = transparent_delta(main, candidate)
+try:
+    delta = append_only_delta(main, candidate)
+except ContentContractError as exc:
+    fail(str(exc))
 added_editions = delta["editions"]
 added_articles = delta["articles"]
 
@@ -455,6 +442,19 @@ elif mode == "edition":
                 "mismatch"
             )
 
+else:
+    try:
+        checked_delta = validate_current_week_append(
+            main,
+            candidate,
+            edition,
+            load_contract(),
+        )
+    except ContentContractError as exc:
+        fail(str(exc))
+    if checked_delta != delta:
+        fail("current-week-append delta changed during validation")
+
 
 # 8. Report is transported as data.
 report_raw = (
@@ -484,6 +484,8 @@ if "\x00" in report:
 #    Do NOT propagate Adam/live raw SHA.
 payload = {
     "version": 1,
+    "package_id": package_id,
+    "attempt": attempt,
     "edition": edition,
     "mode": mode,
     "base_main_sha": main_sha,

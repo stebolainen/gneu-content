@@ -6,9 +6,10 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 
 SCHEMA_PATH = Path(__file__).with_name("aihot-content-schema.json")
@@ -230,3 +231,65 @@ def transparent_delta(base: dict, candidate: dict) -> dict[str, list]:
         "editions": candidate["editions"][len(base["editions"]) :],
         "articles": candidate["articles"][len(base["articles"]) :],
     }
+
+
+def append_only_delta(base: dict, candidate: dict) -> dict[str, list]:
+    """Validate immutable prefixes, then return the transparent suffix."""
+    for label, value in (("base", base), ("candidate", candidate)):
+        if not isinstance(value, dict):
+            fail(f"{label} is not object")
+        if not isinstance(value.get("editions"), list) or not isinstance(
+            value.get("articles"), list
+        ):
+            fail(f"{label} editions/articles invalid")
+    if len(candidate["editions"]) < len(base["editions"]):
+        fail("candidate lost published editions")
+    if len(candidate["articles"]) < len(base["articles"]):
+        fail("candidate lost published articles")
+    if candidate["editions"][: len(base["editions"])] != base["editions"]:
+        fail("candidate edits or reorders published editions")
+    if candidate["articles"][: len(base["articles"])] != base["articles"]:
+        fail("candidate edits or reorders published articles")
+    return transparent_delta(base, candidate)
+
+
+def stockholm_iso_edition(now: datetime | None = None) -> str:
+    """Return the current ISO edition in the authoritative local timezone."""
+    stockholm = ZoneInfo("Europe/Stockholm")
+    local = datetime.now(stockholm) if now is None else now.astimezone(stockholm)
+    iso = local.isocalendar()
+    return f"{iso.year}-W{iso.week:02d}"
+
+
+def validate_current_week_append(
+    base: dict,
+    candidate: dict,
+    edition: str,
+    contract: dict,
+    *,
+    current_edition: str | None = None,
+) -> dict[str, list]:
+    """Validate one candidate-local append to the current published edition."""
+    delta = append_only_delta(base, candidate)
+    if delta["editions"]:
+        fail("current-week-append contains new edition")
+    articles = delta["articles"]
+    if not 1 <= len(articles) <= 6:
+        fail("current-week-append requires 1-6 new articles")
+    editions = base["editions"]
+    if not editions or not isinstance(editions[-1], dict):
+        fail("current-week-append latest edition missing")
+    if editions[-1].get("id") != edition:
+        fail("current-week-append target is not latest edition")
+    if (current_edition or stockholm_iso_edition()) != edition:
+        fail("current-week-append target is not current ISO week")
+    existing = {
+        str(item.get("id"))
+        for item in base["articles"]
+        if isinstance(item, dict) and item.get("id") is not None
+    }
+    seen: set[str] = set()
+    for article in articles:
+        validate_article(article, edition, existing, seen, contract)
+        seen.add(article["id"])
+    return delta

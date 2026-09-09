@@ -10,8 +10,10 @@ from pathlib import Path
 
 from aihot_content_contract import (
     ContentContractError,
+    append_only_delta,
     load_contract,
     validate_article,
+    validate_current_week_append,
 )
 from aihot_package_identity import parse_package_id
 
@@ -106,12 +108,6 @@ ca = candidate.get("articles")
 if not all(isinstance(x, list) for x in (be, ce, ba, ca)):
     fail("editions/articles must be lists")
 
-if ce[:len(be)] != be:
-    fail("published editions mutated")
-
-if ca[:len(ba)] != ba:
-    fail("published articles mutated")
-
 # Nothing else at top-level may change.
 bo = {k: v for k, v in base.items() if k not in ("editions", "articles")}
 co = {k: v for k, v in candidate.items() if k not in ("editions", "articles")}
@@ -119,8 +115,12 @@ co = {k: v for k, v in candidate.items() if k not in ("editions", "articles")}
 if bo != co:
     fail("unexpected top-level mutation")
 
-added_e = ce[len(be):]
-added_a = ca[len(ba):]
+try:
+    delta = append_only_delta(base, candidate)
+except ContentContractError as exc:
+    fail(str(exc))
+added_e = delta["editions"]
+added_a = delta["articles"]
 
 mode = handoff.get("mode")
 
@@ -159,6 +159,17 @@ elif mode == "edition":
         except ContentContractError as exc:
             fail(str(exc))
         seen.add(aid)
+
+elif mode == "current-week-append":
+    try:
+        validate_current_week_append(
+            base,
+            candidate,
+            edition,
+            CONTENT_CONTRACT,
+        )
+    except ContentContractError as exc:
+        fail(str(exc))
 
 else:
     fail("invalid mode")
