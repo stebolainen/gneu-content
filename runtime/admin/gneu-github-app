@@ -1213,16 +1213,20 @@ def create_gneu_se_technical_pr(profile, request):
                 if ancestor is not None and ancestor[:2] != ("040000", "tree"):
                     technical_block()
             previous = original.get(path)
-            if previous is not None and previous[:2] != ("100644", "blob"):
-                technical_block()  # no symlink, submodule, executable/mode changes
+            if previous is not None and previous[:2] not in {
+                ("100644", "blob"),
+                ("100755", "blob"),
+            }:
+                technical_block()  # no symlink, submodule or mode changes
+            mode = previous[0] if previous is not None else "100644"
             raw = row["content"].encode("utf-8")
             blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
-            delta[path] = ("100644", "blob", blob)
+            delta[path] = (mode, "blob", blob)
         if all(original.get(path) == entry for path, entry in delta.items()):
             technical_block("NO_CHANGE")
         branch_absent()
         tree = post("/git/trees", {"base_tree": tree_sha, "tree": [
-            {"path": row["path"], "mode": "100644", "type": "blob", "content": row["content"]}
+            {"path": row["path"], "mode": delta[row["path"]][0], "type": "blob", "content": row["content"]}
             for row in request["files"]]})
         new_tree = _response_sha(tree, "sha")
         actual = technical_tree(get("/git/trees/" + new_tree + "?recursive=1"))

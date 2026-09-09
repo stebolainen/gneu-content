@@ -145,8 +145,9 @@ operatören inspekterar eventuell partiell state innan nästa humanbeslut.
 Positiv allowlist: tekniska `.py/.php/.sh/.json/.md` under `scripts/`, Markdown
 under `docs/`, root `test_*.py` samt exakt `.github/workflows/<name>.yml|yaml`.
 `scripts/config.php`, secret-/credentialkataloger, path traversal, symlinks,
-submodules, executable-/modeändringar och deletions blockeras. Endast nya eller
-befintliga regular blobs mode `100644` kan skrivas. Requesten har högst 40 filer,
+submodules, modeändringar och deletions blockeras. Nya filer skrivs fortsatt som
+regular blobs mode `100644`; befintliga regular blobs mode `100644` eller
+`100755` får uppdateras endast med exakt sitt befintliga mode bevarat. Requesten har högst 40 filer,
 200 KB per fil och 800 KB sammanlagt UTF-8-innehåll.
 
 Alla `data/`, `aihot/`, `sitemap.xml`, `ai-hot.html` och andra publiceringsytor
