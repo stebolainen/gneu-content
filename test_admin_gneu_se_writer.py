@@ -39,6 +39,7 @@ class API:
         self.bad_scope = False
         self.extra_tree = False
         self.old_mode = None
+        self.old_type = "blob"
         self.move_after = None
 
     def __call__(self, method, path, bearer, body=None):
@@ -67,14 +68,14 @@ class API:
                 return {"sha": BASE, "tree": {"sha": OLD_TREE}}
             return {"sha": COMMIT, "tree": {"sha": NEW_TREE}, "parents": [{"sha": BASE}]}
         if suffix == "/git/trees/" + OLD_TREE + "?recursive=1":
-            rows = [] if self.old_mode is None else [{"path": self.req["files"][0]["path"], "mode": self.old_mode, "type": "blob", "sha": "e" * 40}]
+            rows = [] if self.old_mode is None else [{"path": self.req["files"][0]["path"], "mode": self.old_mode, "type": self.old_type, "sha": "e" * 40}]
             return {"truncated": False, "tree": rows}
         if suffix == "/git/trees/" + NEW_TREE + "?recursive=1":
             rows = []
             for item in self.req["files"]:
                 raw = item["content"].encode()
                 sha = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
-                rows.append({"path": item["path"], "mode": "100644", "type": "blob", "sha": sha})
+                rows.append({"path": item["path"], "mode": self.old_mode or "100644", "type": "blob", "sha": sha})
             if self.extra_tree:
                 rows.append({"path": "data/aihot.json", "mode": "100644", "type": "blob", "sha": "f" * 40})
             return {"truncated": False, "tree": rows}
@@ -189,10 +190,19 @@ class WriterTests(unittest.TestCase):
             self.assertNotIn("synthetic-jwt",out.getvalue()+err.getvalue())
             self.assertEqual(api.calls[-1][:2],("DELETE","/installation/token"))
 
-    def test_unexpected_tree_symlink_executable_block(self):
-        for mode in ["120000", "160000", "100755"]:
+    def test_existing_regular_blob_modes_are_preserved(self):
+        for mode in ["100644", "100755"]:
             req = request(); api = API(req); api.old_mode = mode
-            with self.subTest(mode=mode), self.assertRaises(b.TechnicalPRError): self.execute(req, api)
+            with self.subTest(mode=mode):
+                _, api = self.execute(req, api)
+                tree_write = next(body for method, path, body in api.calls if method == "POST" and path == ROOT + "/git/trees")
+                self.assertEqual(tree_write["tree"][0]["mode"], mode)
+
+    def test_special_or_unknown_existing_objects_block(self):
+        for mode, kind in [("120000", "blob"), ("160000", "commit"), ("040000", "tree"), ("100640", "blob")]:
+            req = request(); api = API(req); api.old_mode = mode
+            api.old_type = kind
+            with self.subTest(mode=mode, kind=kind), self.assertRaises(b.TechnicalPRError): self.execute(req, api)
             self.assertFalse(any(m == "POST" and p.startswith(ROOT) for m, p, _ in api.calls))
         req = request(); api = API(req); api.extra_tree = True
         with self.assertRaises(b.TechnicalPRError): self.execute(req, api)
