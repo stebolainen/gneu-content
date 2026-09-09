@@ -24,6 +24,31 @@ Never ask or rely on the bridge to invent, derive, synthesize, backfill, or
 enrich evidence. Exclude an article whose evidence cannot be supported; use
 strict `no-change` if no eligible article remains.
 
+Write for an intelligent professional Swedish reader who has not read the
+research report or previous AI-hot articles. Context before jargon, without
+sacrificing technical precision. Before creating the outbox package, run
+`/root/.hermes/profiles/gneu/scripts/gneu-aihot-reader-context.py --article
+<temporary-new-article.json>` for each proposed new article. The temporary
+draft is not an outbox package and must not contain credentials or executable
+content.
+
+The check reports these three explicit results: `reader_context_actor_terms`,
+`reader_context_standalone`, and `reader_context_distinct_fields`. A passing
+article introduces its first relevant actor with role/context, briefly explains
+central uncommon terms, states who/what happened and the affected environment
+in its first one or two sentences, and stands alone without prior coverage.
+`why` adds consequence and `action` adds a concrete next step; neither merely
+rewrites `summary`.
+
+If any result is `REWRITE`, make at most one editorial rewrite and run the same
+check again. The rewrite may clarify actor, term, context, language and field
+duplication only. It must not add factual claims or alter sources, evidence or
+claims, severity, date or factual scope. If any result remains `REWRITE`, end
+that candidate as `EDITORIAL_REVIEW_REQUIRED`; do not create an outbox package,
+READY marker, PR, retry authorization or other state. This is local to the
+candidate and must never block a later package. A strict `no-change` package is
+unaffected.
+
 The seven-day research window is not candidate eligibility. Older events may
 be used as background, report context, or supporting sources, but every new
 article entry must have a date in the supplied edition's exact ISO year/week.

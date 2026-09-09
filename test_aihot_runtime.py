@@ -53,6 +53,7 @@ expected_modes = {
     "runtime/aihot/generation/gneu-aihot-daily-gate.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-base-refresh.py": 0o700,
     "runtime/aihot/generation/gneu-aihot-handoff-validate.py": 0o700,
+    "runtime/aihot/generation/gneu-aihot-reader-context.py": 0o700,
     "runtime/aihot/generation/CONTRACT.md": 0o600,
     "runtime/aihot/generation/ADAM_DAILY.md": 0o600,
     "runtime/aihot/generation/hermes-scheduler.json": 0o600,
