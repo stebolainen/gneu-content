@@ -12,7 +12,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 
@@ -236,6 +236,107 @@ class PureContentContractTests(unittest.TestCase):
         self.assertEqual(json.loads(raw)["articles"][0], self.valid)
         self.assertIn("evidence", json.loads(raw)["articles"][0])
 
+    def test_current_week_append_accepts_existing_latest_edition(self) -> None:
+        article = copy.deepcopy(self.valid)
+        article["edition"] = "2026-W36"
+        base = {
+            "generated": "2026-09-01T00:00:00+00:00",
+            "editions": [{"id": "2026-W35"}, {"id": "2026-W36"}],
+            "articles": [{"id": "old", "edition": "2026-W35"}],
+        }
+        candidate = copy.deepcopy(base)
+        candidate["articles"].append(article)
+        delta = contract.validate_current_week_append(
+            base, candidate, "2026-W36", self.schema, current_edition="2026-W36"
+        )
+        self.assertEqual(delta["editions"], [])
+        self.assertEqual(delta["articles"], [article])
+        self.assertEqual(base["editions"], candidate["editions"])
+        self.assertEqual(base["articles"], candidate["articles"][:-1])
+
+    def test_current_week_append_accepts_six_and_rejects_shape_mutations(self) -> None:
+        base = {
+            "generated": "2026-09-01T00:00:00+00:00",
+            "editions": [{"id": "2026-W36"}],
+            "articles": [{"id": "old", "edition": "2026-W36"}],
+        }
+        candidate = copy.deepcopy(base)
+        for index in range(6):
+            article = copy.deepcopy(self.valid)
+            article["id"] = f"current-week-{index}"
+            candidate["articles"].append(article)
+        self.assertEqual(
+            len(contract.validate_current_week_append(
+                base, candidate, "2026-W36", self.schema, current_edition="2026-W36"
+            )["articles"]),
+            6,
+        )
+        variants = []
+        changed_edition = copy.deepcopy(candidate)
+        changed_edition["editions"][0]["label"] = "changed"
+        variants.append((changed_edition, "edits or reorders published editions"))
+        changed_article = copy.deepcopy(candidate)
+        changed_article["articles"][0]["id"] = "changed"
+        variants.append((changed_article, "edits or reorders published articles"))
+        removed_article = copy.deepcopy(candidate)
+        del removed_article["articles"][0]
+        variants.append((removed_article, "edits or reorders published articles"))
+        reordered = copy.deepcopy(candidate)
+        reordered["articles"][0], reordered["articles"][1] = reordered["articles"][1], reordered["articles"][0]
+        variants.append((reordered, "edits or reorders published articles"))
+        duplicate = copy.deepcopy(candidate)
+        duplicate["articles"][-1]["id"] = "old"
+        variants.append((duplicate, "already exists"))
+        wrong_edition = copy.deepcopy(candidate)
+        wrong_edition["articles"][-1]["edition"] = "2026-W35"
+        variants.append((wrong_edition, "wrong edition"))
+        wrong_date = copy.deepcopy(candidate)
+        wrong_date["articles"][-1]["date"] = "2026-09-07"
+        variants.append((wrong_date, "outside 2026-W36"))
+        empty = copy.deepcopy(base)
+        variants.append((empty, "requires 1-6"))
+        too_many = copy.deepcopy(candidate)
+        extra = copy.deepcopy(self.valid)
+        extra["id"] = "seventh-current-week"
+        too_many["articles"].append(extra)
+        variants.append((too_many, "requires 1-6"))
+        for value, message in variants:
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(contract.ContentContractError, message):
+                    contract.validate_current_week_append(
+                        base, value, "2026-W36", self.schema, current_edition="2026-W36"
+                    )
+        older_article = copy.deepcopy(self.valid)
+        older_article["edition"] = "2026-W35"
+        older_article["date"] = "2026-08-27"
+        older_candidate = copy.deepcopy(base)
+        older_candidate["articles"].append(older_article)
+        with self.assertRaisesRegex(contract.ContentContractError, "not latest"):
+            contract.validate_current_week_append(
+                base, older_candidate, "2026-W35", self.schema, current_edition="2026-W35"
+            )
+
+    def test_current_week_append_rejects_when_stockholm_week_has_advanced(self) -> None:
+        base = {
+            "generated": "2026-09-01T00:00:00+00:00",
+            "editions": [{"id": "2026-W36"}],
+            "articles": [],
+        }
+        candidate = copy.deepcopy(base)
+        candidate["articles"].append(copy.deepcopy(self.valid))
+        with self.assertRaisesRegex(contract.ContentContractError, "not current ISO week"):
+            contract.validate_current_week_append(
+                base, candidate, "2026-W36", self.schema, current_edition="2026-W37"
+            )
+        self.assertEqual(
+            contract.stockholm_iso_edition(datetime(2026, 9, 6, 21, 59, tzinfo=timezone.utc)),
+            "2026-W36",
+        )
+        self.assertEqual(
+            contract.stockholm_iso_edition(datetime(2026, 9, 6, 22, 0, tzinfo=timezone.utc)),
+            "2026-W37",
+        )
+
 
 class ValidatorIntegrationTests(unittest.TestCase):
     def make_package(self, root: Path, article: dict, *, ready: bool = False) -> tuple[Path, bytes]:
@@ -348,6 +449,88 @@ class ValidatorIntegrationTests(unittest.TestCase):
             self.assertEqual(cp.returncode, 0, cp.stdout)
             self.assertIn("PASS_INTAKE", cp.stdout)
             authoritative_simulation(fixture("valid-article.json"))
+
+    def test_current_week_append_passes_handoff_before_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inbox = root / "inbox"
+            outbox = root / "outbox"
+            inbox.mkdir()
+            outbox.mkdir()
+            package = outbox / "2026-W36--2026-09-04"
+            package.mkdir()
+            base = {
+                "generated": "2026-09-01T00:00:00+00:00",
+                "editions": [{"id": "2026-W36", "summary": "immutable"}],
+                "articles": [{"id": "old", "edition": "2026-W36"}],
+            }
+            raw = json.dumps(base, ensure_ascii=False, separators=(",", ":")).encode()
+            (inbox / "current.json").write_bytes(raw)
+            article = copy.deepcopy(fixture("valid-article.json"))
+            candidate = copy.deepcopy(base)
+            candidate["articles"].append(article)
+            (package / "candidate.json").write_text(json.dumps(candidate), encoding="utf-8")
+            (package / "handoff.json").write_text(json.dumps({
+                "schema": "gneu-aihot-handoff-v2", "producer": "adam",
+                "edition": "2026-W36", "attempt": "2026-09-04",
+                "mode": "current-week-append", "base_sha256": hashlib.sha256(raw).hexdigest(),
+                "base_generated": base["generated"],
+            }), encoding="utf-8")
+            (package / "report.md").write_text("current week append regression report " * 20)
+            original = contract.stockholm_iso_edition
+            contract.stockholm_iso_edition = lambda: "2026-W36"
+            try:
+                output, passed = self.call_handoff(root)
+            finally:
+                contract.stockholm_iso_edition = original
+            self.assertTrue(passed, output)
+            self.assertTrue((package / "READY").is_file())
+            self.assertEqual(candidate["editions"], base["editions"])
+
+    def test_current_week_append_failure_is_candidate_local_before_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inbox = root / "inbox"
+            outbox = root / "outbox"
+            inbox.mkdir()
+            outbox.mkdir()
+            package = outbox / "2026-W36--2026-09-04"
+            package.mkdir()
+            base = {
+                "generated": "2026-09-01T00:00:00+00:00",
+                "editions": [{"id": "2026-W36"}],
+                "articles": [],
+            }
+            raw = json.dumps(base, ensure_ascii=False, separators=(",", ":")).encode()
+            (inbox / "current.json").write_bytes(raw)
+            candidate = copy.deepcopy(base)
+            candidate["articles"].append(copy.deepcopy(fixture("valid-article.json")))
+            candidate_raw = json.dumps(candidate, separators=(",", ":")).encode()
+            (package / "candidate.json").write_bytes(candidate_raw)
+            (package / "handoff.json").write_text(json.dumps({
+                "schema": "gneu-aihot-handoff-v2", "producer": "adam",
+                "edition": "2026-W36", "attempt": "2026-09-04",
+                "mode": "current-week-append", "base_sha256": hashlib.sha256(raw).hexdigest(),
+                "base_generated": base["generated"],
+            }), encoding="utf-8")
+            (package / "report.md").write_text("candidate-local failure regression report " * 20)
+            original = contract.stockholm_iso_edition
+            contract.stockholm_iso_edition = lambda: "2026-W37"
+            try:
+                output, passed = self.call_handoff(root)
+            finally:
+                contract.stockholm_iso_edition = original
+            self.assertFalse(passed)
+            self.assertIn("not current ISO week", output)
+            self.assertFalse((package / "READY").exists())
+            self.assertEqual((package / "candidate.json").read_bytes(), candidate_raw)
+            self.assertFalse((root / "state").exists())
+
+    def test_payload_builder_carries_canonical_package_identity(self) -> None:
+        source = (BIN / "build-intake-payload.py").read_text(encoding="utf-8")
+        self.assertIn('"package_id": package_id', source)
+        self.assertIn('"attempt": attempt', source)
+        self.assertIn('"current-week-append"', source)
 
 
 if __name__ == "__main__":
