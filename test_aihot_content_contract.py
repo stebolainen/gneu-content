@@ -487,6 +487,45 @@ class ValidatorIntegrationTests(unittest.TestCase):
             self.assertTrue((package / "READY").is_file())
             self.assertEqual(candidate["editions"], base["editions"])
 
+    def test_current_week_append_failure_is_candidate_local_before_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inbox = root / "inbox"
+            outbox = root / "outbox"
+            inbox.mkdir()
+            outbox.mkdir()
+            package = outbox / "2026-W36--2026-09-04"
+            package.mkdir()
+            base = {
+                "generated": "2026-09-01T00:00:00+00:00",
+                "editions": [{"id": "2026-W36"}],
+                "articles": [],
+            }
+            raw = json.dumps(base, ensure_ascii=False, separators=(",", ":")).encode()
+            (inbox / "current.json").write_bytes(raw)
+            candidate = copy.deepcopy(base)
+            candidate["articles"].append(copy.deepcopy(fixture("valid-article.json")))
+            candidate_raw = json.dumps(candidate, separators=(",", ":")).encode()
+            (package / "candidate.json").write_bytes(candidate_raw)
+            (package / "handoff.json").write_text(json.dumps({
+                "schema": "gneu-aihot-handoff-v2", "producer": "adam",
+                "edition": "2026-W36", "attempt": "2026-09-04",
+                "mode": "current-week-append", "base_sha256": hashlib.sha256(raw).hexdigest(),
+                "base_generated": base["generated"],
+            }), encoding="utf-8")
+            (package / "report.md").write_text("candidate-local failure regression report " * 20)
+            original = contract.stockholm_iso_edition
+            contract.stockholm_iso_edition = lambda: "2026-W37"
+            try:
+                output, passed = self.call_handoff(root)
+            finally:
+                contract.stockholm_iso_edition = original
+            self.assertFalse(passed)
+            self.assertIn("not current ISO week", output)
+            self.assertFalse((package / "READY").exists())
+            self.assertEqual((package / "candidate.json").read_bytes(), candidate_raw)
+            self.assertFalse((root / "state").exists())
+
     def test_payload_builder_carries_canonical_package_identity(self) -> None:
         source = (BIN / "build-intake-payload.py").read_text(encoding="utf-8")
         self.assertIn('"package_id": package_id', source)
