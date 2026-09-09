@@ -56,6 +56,23 @@ derive, synthesize, backfill, or enrich evidence or any other article field.
 If adequate evidence cannot be authored, exclude the article; if no qualifying
 articles remain, create a strict `no-change` package.
 
+## Reader-context check (pre-handoff only)
+
+Before creating an outbox package, Adam runs the state-free
+`gneu-aihot-reader-context.py` check on every proposed new article. It reports
+exactly `reader_context_actor_terms`, `reader_context_standalone` and
+`reader_context_distinct_fields` as `PASS` or `REWRITE`. It is an editorial
+authoring check, not part of READY validation, retry authorization, release,
+fast lane, timer or service state.
+
+On `REWRITE`, Adam may make one editorial rewrite of that article only, then
+runs the same three checks again. The rewrite may clarify existing facts and
+remove repetition, but must not change sources, evidence (including claims),
+severity, dates or factual scope. If any check remains `REWRITE`, mark that
+candidate `EDITORIAL_REVIEW_REQUIRED` and create no outbox package or PR for
+it. Do not create a latch, receipt, retry authorization or historical state;
+the next daily package remains independent. `no-change` bypasses this check.
+
 The research window and candidate eligibility are separate rules. Research
 normally looks back approximately seven days and may use earlier events as
 background, report context, or supporting sources. Every article entry added

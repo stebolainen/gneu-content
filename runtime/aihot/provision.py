@@ -134,6 +134,10 @@ INSTALL_SPECS = {
         Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-handoff-validate.py"),
         0o700,
     ),
+    "runtime/aihot/generation/gneu-aihot-reader-context.py": (
+        Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-reader-context.py"),
+        0o700,
+    ),
     "runtime/aihot/generation/CONTRACT.md": (
         Path("/root/.hermes/profiles/gneu/aihot-handoff/CONTRACT.md"),
         0o600,
