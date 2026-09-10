@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 26,
+  "generation": 27,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -36,6 +36,24 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/2026-09/joint-guidance-communicating-under-pressure-508c.pdf"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:patchtisdag-2026-09-10",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-09-10T11:50:00Z",
+      "updated_at": "2026-09-10T11:50:00Z",
+      "title": "CERT-SE rekommenderar snabba installationer av september månads säkerhetsuppdateringar",
+      "summary": "CERT-SE uppger att Cisco, Microsoft, SAP, Ivanti och Adobe har släppt månatliga säkerhetsuppdateringar för september. Microsofts omgång anges omfatta 973 sårbarheter, varav 113 kritiska.",
+      "action": "Installera säkerhetsuppdateringarna så snart som möjligt enligt respektive leverantörs anvisningar, i enlighet med CERT-SE:s rekommendation.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/09/patchtisdag-september-2026-samlad-information-om-manadens-sakerhetsuppdateringar.html"
         }
       ],
       "confidence": "verified"
