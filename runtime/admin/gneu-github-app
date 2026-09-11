@@ -1067,7 +1067,8 @@ def technical_request(value):
         # Positive technical path policy. All data/, aihot/, sitemap and
         # website/publication paths are excluded, including unknown new ones.
         allowed = (
-            re.fullmatch(r"scripts/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.(?:py|php|sh|json|md)", path)
+            path == "deploy.sh"
+            or re.fullmatch(r"scripts/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.(?:py|php|sh|json|md)", path)
             or re.fullmatch(r"docs/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_.-]+\.md", path)
             or re.fullmatch(r"\.github/workflows/[A-Za-z0-9_-]+\.ya?ml", path)
             or re.fullmatch(r"test_[A-Za-z0-9_]+\.py", path)
@@ -1213,6 +1214,8 @@ def create_gneu_se_technical_pr(profile, request):
                 if ancestor is not None and ancestor[:2] != ("040000", "tree"):
                     technical_block()
             previous = original.get(path)
+            if path == "deploy.sh" and previous is None:
+                technical_block()
             if previous is not None and previous[:2] not in {
                 ("100644", "blob"),
                 ("100755", "blob"),

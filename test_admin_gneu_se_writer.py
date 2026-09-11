@@ -138,9 +138,32 @@ class WriterTests(unittest.TestCase):
             with self.subTest(branch=branch), self.assertRaises(b.TechnicalPRError): b.technical_request(req)
 
     def test_content_and_path_escapes_block(self):
-        for path in ["data/aihot.json", "data/aihot.xml", "aihot/drafts/2026-W36.report.md", "sitemap.xml", "ai-hot.html", "scripts/config.php", "scripts/../data/aihot.json", "/scripts/a.py", "scripts/a.py/../../data/aihot.json", ".git/config", "scripts/secrets/a.json", ".github/workflows/x.yml/evil"]:
+        for path in ["data/aihot.json", "data/aihot.xml", "aihot/drafts/2026-W36.report.md", "sitemap.xml", "ai-hot.html", "README.md", "arbitrary.sh", "scripts/config.php", "scripts/../data/aihot.json", "/scripts/a.py", "scripts/a.py/../../data/aihot.json", ".git/config", "scripts/secrets/a.json", ".github/workflows/x.yml/evil"]:
             req = request(); req["files"][0]["path"] = path
             with self.subTest(path=path), self.assertRaises(b.TechnicalPRError): b.technical_request(req)
+
+    def test_existing_deploy_script_is_exactly_allowlisted_and_mode_preserved(self):
+        req = request()
+        req["files"] = [
+            {"path": "deploy.sh", "content": "#!/bin/sh\nexit 0\n"},
+            {"path": "scripts/test_deploy_contract.sh", "content": "#!/bin/sh\nexit 0\n"},
+        ]
+        self.assertIs(b.technical_request(req), req)
+
+        req["files"] = req["files"][:1]
+        api = API(req); api.old_mode = "100755"
+        _, api = self.execute(req, api)
+        tree_write = next(body for method, path, body in api.calls if method == "POST" and path == ROOT + "/git/trees")
+        self.assertEqual(tree_write["tree"], [{"path": "deploy.sh", "mode": "100755", "type": "blob", "content": req["files"][0]["content"]}])
+
+    def test_deploy_script_cannot_be_created_or_change_type_or_mode(self):
+        req = request(); req["files"][0] = {"path": "deploy.sh", "content": "#!/bin/sh\nexit 0\n"}
+        with self.assertRaises(b.TechnicalPRError): self.execute(req, API(req))
+        for mode, kind in [("120000", "blob"), ("160000", "commit"), ("040000", "tree")]:
+            api = API(req); api.old_mode = mode; api.old_type = kind
+            with self.subTest(mode=mode, kind=kind), self.assertRaises(b.TechnicalPRError): self.execute(req, api)
+        req["files"][0]["mode"] = "100644"
+        with self.assertRaises(b.TechnicalPRError): b.technical_request(req)
 
     def test_stale_existing_scope_block_before_repo_write(self):
         for flag in ["stale", "exists", "bad_scope"]:
