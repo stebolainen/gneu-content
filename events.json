@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 26,
+  "generation": 27,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -36,6 +36,24 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/2026-09/joint-guidance-communicating-under-pressure-508c.pdf"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:ascii-smuggling-phishing-2026-09-03",
+      "type": "threat_report",
+      "publication_class": "A",
+      "occurred_at": "2026-09-03T16:00:00Z",
+      "updated_at": "2026-09-03T16:00:00Z",
+      "title": "Microsoft ser nätfiske som döljer lockord med osynliga Unicode-tecken",
+      "summary": "Microsoft observerade en storskalig nätfiskekampanj där osynliga Unicode-taggar infogades i finansiella lockord för att försvåra e-postfiltrering. Aktiviteten ökade kraftigt den 9 februari 2026 och låg kvar på förhöjd nivå i omkring tre månader.",
+      "action": "Normalisera eller ta bort Unicode-taggar och andra osynliga tecken i ämnesrad och meddelandetext innan spam- och nätfiskesignaturer tillämpas, enligt Microsofts rekommendation.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://www.microsoft.com/en-us/security/blog/2026/09/03/ascii-smuggling-crosses-over-from-ai-prompt-injection-to-phishing-evasion/"
         }
       ],
       "confidence": "verified"
