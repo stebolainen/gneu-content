@@ -59,28 +59,6 @@
       "confidence": "verified"
     },
     {
-      "id": "cisa-kev:papercut-ng-mf-cves-2026-81578-82078-2026-08-31",
-      "type": "vulnerability",
-      "publication_class": "B",
-      "occurred_at": "2026-08-31T00:00:00Z",
-      "updated_at": "2026-09-07T20:37:34Z",
-      "title": "CISA listar två kedjbara PaperCut NG/MF-sårbarheter som aktivt utnyttjade",
-      "summary": "CISA har lagt till CVE-2026-81578 och CVE-2026-82078 för PaperCut NG/MF i katalogen över kända utnyttjade sårbarheter (KEV). Den första låter en oautentiserad fjärrangripare ändra viss systemkonfiguration; tillsammans kan de ge körning av Java-bytecode som serverprocessen.",
-      "action": "Tillämpa PaperCuts åtgärder senast den 14 september 2026. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04- och forensikvägledning och avveckla produkten om åtgärder saknas.",
-      "cves": [
-        "CVE-2026-81578",
-        "CVE-2026-82078"
-      ],
-      "deadline": "2026-09-14",
-      "sources": [
-        {
-          "id": "cisa-kev",
-          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-        }
-      ],
-      "confidence": "verified"
-    },
-    {
       "id": "cisa:CVE-2026-67277-CVE-2026-86060-kev-2026-09-10",
       "type": "vulnerability",
       "publication_class": "B",
