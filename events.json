@@ -85,10 +85,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-10T00:00:00Z",
-      "updated_at": "2026-09-11T02:39:53Z",
+      "updated_at": "2026-09-11T16:15:38Z",
       "title": "CISA lägger till två aktivt utnyttjade sårbarheter i MikroTik RouterOS",
       "summary": "CISA har lagt till CVE-2026-86060 och CVE-2026-67277 i KEV-katalogen. CVE-2026-86060 kan ändra RouterOS betrodda policymask och ge privilegieeskalering; CVE-2026-67277 kan utan autentisering exponera kärnminne och orsaka överbelastning i btest-tjänsten.",
-      "action": "Identifiera berörda RouterOS-enheter och tillämpa MikroTiks åtgärder senast den 13 september 2026. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav för CVE-2026-86060; avveckla produkten om åtgärder saknas.",
+      "action": "Identifiera berörda RouterOS-enheter och tillämpa MikroTiks åtgärder senast den 13 september 2026. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-67277",
         "CVE-2026-86060"
