@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 27,
+  "generation": 28,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -54,6 +54,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/news/cisa-releases-updated-insider-threat-guide-new-insights-mitigate-physical-and-cyber-threats"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-59310-ransomware-2026-09-11",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-11T15:39:54Z",
+      "updated_at": "2026-09-11T15:39:54Z",
+      "title": "CISA kopplar exploaterad VMware vCenter-sårbarhet till ransomwarekampanjer",
+      "summary": "CISA anger nu att CVE-2026-59310 i VMware vCenter används i kända ransomwarekampanjer. Sårbarheten är en katalogtraversering som kan låta en aktör med nätverksåtkomst till vCenter köra godtycklig kod.",
+      "action": "Tillämpa åtgärder enligt leverantörens instruktioner. Om åtgärder saknas, sluta använda produkten. Bedöm tillgångarnas internetexponering och följ tillämplig CISA-vägledning.",
+      "cves": [
+        "CVE-2026-59310"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
