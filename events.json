@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 27,
+  "generation": 28,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -54,6 +54,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/news/cisa-releases-updated-insider-threat-guide-new-insights-mitigate-physical-and-cyber-threats"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-85706-kev-2026-09-11",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-11T00:00:00Z",
+      "updated_at": "2026-09-11T19:32:16Z",
+      "title": "CISA lägger till aktivt utnyttjad GitLab-sårbarhet i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2026-85706 i KEV-katalogen. Sårbarheten i GitLab Community Edition och Enterprise Edition kan låta en oautentiserad användare läsa godtyckliga filer via repository commits-API:t.",
+      "action": "Tillämpa leverantörens åtgärder senast den 14 september 2026. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-85706"
+      ],
+      "deadline": "2026-09-14",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
