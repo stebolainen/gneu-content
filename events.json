@@ -63,10 +63,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-10T00:00:00Z",
-      "updated_at": "2026-09-11T20:05:02Z",
+      "updated_at": "2026-09-12T22:48:18Z",
       "title": "CISA lägger till två aktivt utnyttjade sårbarheter i MikroTik RouterOS",
       "summary": "CISA har lagt till CVE-2026-86060 och CVE-2026-67277 i KEV-katalogen. CVE-2026-86060 kan ändra RouterOS betrodda policymask och ge privilegieeskalering; CVE-2026-67277 kan utan autentisering exponera kärnminne och orsaka överbelastning i btest-tjänsten.",
-      "action": "Identifiera berörda RouterOS-enheter och tillämpa MikroTiks åtgärder senast den 13 september 2026. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav för CVE-2026-86060; avveckla produkten om åtgärder saknas.",
+      "action": "Identifiera berörda RouterOS-enheter och tillämpa MikroTiks åtgärder. CISA anger 13 september 2026 som tidsfrist. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav för CVE-2026-86060; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-67277",
         "CVE-2026-86060"
@@ -123,10 +123,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-11T00:00:00Z",
-      "updated_at": "2026-09-11T21:04:25Z",
+      "updated_at": "2026-09-12T22:48:18Z",
       "title": "CISA lägger till aktivt utnyttjad ScreenConnect-sårbarhet i KEV-katalogen",
       "summary": "CISA har lagt till CVE-2026-84869 i KEV-katalogen. Sårbarheten i ConnectWise ScreenConnect kan medge obehörig filöverföring och körning via en aktiv fjärrsession utan auktorisering eller värdens bekräftelse.",
-      "action": "Identifiera berörda ScreenConnect-installationer och tillämpa leverantörens åtgärder senast den 14 september 2026. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "action": "Identifiera berörda ScreenConnect-installationer och tillämpa leverantörens åtgärder. CISA anger 14 september 2026 som tidsfrist. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-84869"
       ],
@@ -144,10 +144,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-11T00:00:00Z",
-      "updated_at": "2026-09-12T12:03:39Z",
+      "updated_at": "2026-09-12T22:48:18Z",
       "title": "CISA lägger till aktivt utnyttjad GitLab-sårbarhet i KEV-katalogen",
       "summary": "CISA har lagt till CVE-2026-85706 i KEV-katalogen. Sårbarheten i GitLab Community Edition och Enterprise Edition kan låta en oautentiserad användare läsa godtyckliga filer via repository commits-API:t.",
-      "action": "Tillämpa leverantörens åtgärder senast den 14 september 2026. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "action": "Tillämpa leverantörens åtgärder. CISA anger 14 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-85706"
       ],
@@ -165,10 +165,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-11T00:00:00Z",
-      "updated_at": "2026-09-12T17:53:08Z",
+      "updated_at": "2026-09-12T22:48:18Z",
       "title": "CISA lägger till två aktivt utnyttjade sårbarheter i JFrog Artifactory",
       "summary": "CISA har lagt till CVE-2026-42016 och CVE-2026-42018 i KEV-katalogen. Bristerna i JFrog Artifactory kan medge privilegiehöjning genom felaktig tokenvalidering respektive exponering av interna token och känsliga resurser.",
-      "action": "Tillämpa leverantörens åtgärder senast den 25 september 2026. Bedöm varje tillgångs internetexponering och följ tillämplig BOD 26-04-vägledning; avveckla produkten om åtgärder saknas.",
+      "action": "Tillämpa leverantörens åtgärder. CISA anger 25 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering och följ tillämplig BOD 26-04-vägledning; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-42016",
         "CVE-2026-42018"
