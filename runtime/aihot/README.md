@@ -90,11 +90,26 @@ runtime installation and provenance checks pass:
 /root/gneu-aihot-bridge/bin/configure-generation-scheduler.py check
 ```
 
-The tracked Hermes contract uses `0 5,6 * * *` on the UTC Hermes host. The
-tracked gate admits exactly one run at or after 07:00 Europe/Stockholm, so the
-two UTC candidates cover CET and CEST. Hermes collapses missed recurring
-occurrences to one catch-up and prevents an overlapping run of the same job.
-The gate's atomic date claim adds a same-day deduplication boundary.
+The tracked Hermes contract uses `0 5,6,7 * * *` on the UTC Hermes host. The
+first eligible slot is the primary 07:00 Europe/Stockholm run and the next
+slot is its only possible same-day fallback across both CET and CEST. The
+remaining UTC slot is a DST-safe terminal observation. Hermes collapses missed
+recurring occurrences to one catch-up and prevents an overlapping run of the
+same job. The gate's atomic date claim remains immutable.
+
+An exact `usage_limit_reached`/HTTP 429 provider failure may be re-admitted
+once only when the execution ledger proves that the primary invocation failed
+and its root-owned provider request evidence proves the exhausted request was
+the initial user input, before any tool/research result. No citation, outbox,
+candidate, handoff, READY, intake, failed, rejected or processed state may
+exist. The gate writes one append-only
+`state/generation/pre-research-fallback/YYYY-MM-DD.json` receipt bound to the
+claim, provider-evidence hash and both Hermes execution IDs before returning
+`FALLBACK_RETRY`.
+`PRIMARY_TRANSIENT_FAILURE` is observable before consumption. A failed
+fallback is terminal. The scheduler reconciler treats these gate states and an
+unsafe/no-op fallback state as unhealthy even if Hermes' latest raw cron slot
+was silent, so that slot cannot mask the provider failure as healthy.
 
 Public freshness is observable with:
 

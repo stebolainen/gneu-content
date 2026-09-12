@@ -7,12 +7,24 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 
 CONFIG = Path("/root/gneu-aihot-bridge/config/hermes-scheduler.json")
 JOBS = Path("/root/.hermes/profiles/gneu/cron/jobs.json")
 HERMES = "/usr/local/bin/hermes"
+GATE = Path("/root/.hermes/profiles/gneu/scripts/gneu-aihot-daily-gate.py")
+UNHEALTHY_DAILY_STATES = {
+    "PRIMARY_TRANSIENT_FAILURE",
+    "PRIMARY_FAILURE_TERMINAL",
+    "PRIMARY_NO_PACKAGE_TERMINAL",
+    "FALLBACK_TRANSIENT_FAILURE_TERMINAL",
+    "FALLBACK_FAILURE_TERMINAL",
+    "FALLBACK_NO_PACKAGE_TERMINAL",
+    "daily_attempt_requires_operator",
+    "unsafe_pre_research_fallback_state",
+}
 
 
 class SchedulerError(RuntimeError):
@@ -59,6 +71,25 @@ def current_job(job_id: str) -> dict:
     return matches[0]
 
 
+def daily_status() -> str:
+    result = subprocess.run(
+        [sys.executable, str(GATE), "inspect"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        value = json.loads(result.stdout)
+        context = value["context"]
+        reason = context["reason"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise SchedulerError("invalid daily gate status") from exc
+    if value.get("status") != "AIHOT_DAILY_GATE_INSPECT" or not isinstance(reason, str):
+        raise SchedulerError("invalid daily gate status")
+    return reason
+
+
 def check() -> None:
     contract = expected()
     timezone = subprocess.run(
@@ -87,10 +118,14 @@ def check() -> None:
         raise SchedulerError("AI-hot schedule mismatch")
     if job.get("enabled") is not True or job.get("state") == "paused":
         raise SchedulerError("AI-hot scheduler job is not active")
+    status = daily_status()
+    if status in UNHEALTHY_DAILY_STATES:
+        raise SchedulerError(status)
     print(
         "AIHOT_GENERATION_SCHEDULER: PASS "
         f"job={contract['job_id']} schedule={contract['schedule']} "
-        f"local={contract['local_time']} timezone={contract['operator_timezone']}"
+        f"local={contract['local_time']} timezone={contract['operator_timezone']} "
+        f"daily_status={status}"
     )
 
 
@@ -133,4 +168,4 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (SchedulerError, subprocess.CalledProcessError) as exc:
-        raise SystemExit(f"BLOCKED: {type(exc).__name__}")
+        raise SystemExit(f"BLOCKED: {exc}")

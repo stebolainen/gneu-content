@@ -9,6 +9,7 @@ import fcntl
 import json
 import os
 import re
+import sqlite3
 import sys
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -18,7 +19,17 @@ SOURCE_BIN = Path(__file__).resolve().parents[1] / "bin"
 RUNTIME_BIN = Path("/root/gneu-aihot-bridge/bin")
 sys.path.insert(0, str(SOURCE_BIN if (SOURCE_BIN / "aihot_claim_resume.py").is_file() else RUNTIME_BIN))
 
-from aihot_claim_resume import ResumeError, ResumePaths, consume_authorization
+from aihot_claim_resume import (
+    ResumeError,
+    ResumePaths,
+    atomic_create as create_immutable,
+    consume_authorization,
+    load_canonical,
+    load_claim,
+    load_job_id,
+    parse_timestamp,
+    sha256_bytes,
+)
 from aihot_local_retry import (
     RetryError,
     RetryPaths,
@@ -41,10 +52,25 @@ BASE_META = Path("/root/.hermes/profiles/gneu/aihot-handoff/inbox/current.meta.j
 SCHEDULER_CONFIG = Path("/root/gneu-aihot-bridge/config/hermes-scheduler.json")
 EXECUTIONS_DB = Path("/root/.hermes/profiles/gneu/cron/executions.db")
 CRON_OUTPUT = Path("/root/.hermes/profiles/gneu/cron/output")
+REQUEST_DUMPS = Path("/root/.hermes/profiles/gneu/sessions")
+TRUSTED_UID = 0
 FRESHNESS_SECONDS = 26 * 60 * 60
 DAILY_PACKAGE_RE = re.compile(
     r"^\d{4}-W\d{2}--\d{4}-\d{2}-\d{2}(?:--r[12])?$"
 )
+ACTIVE_EXECUTION_STATUSES = {"claimed", "running"}
+TERMINAL_EXECUTION_STATUSES = {"completed", "failed", "unknown"}
+TRANSIENT_PROVIDER_ERRORS = {
+    "usage_limit_reached",
+    "HTTP 429: The usage limit has been reached",
+    "HTTP 429: usage_limit_reached",
+    "RuntimeError: HTTP 429: The usage limit has been reached",
+    "RuntimeError: HTTP 429: usage_limit_reached",
+}
+
+
+class FallbackStateError(RuntimeError):
+    """A non-secret, fail-closed pre-research fallback state error."""
 
 
 def atomic_json(path: Path, value: dict) -> None:
@@ -67,6 +93,337 @@ def atomic_json(path: Path, value: dict) -> None:
             temporary.unlink()
         except FileNotFoundError:
             pass
+
+
+def fallback_path(attempt: str) -> Path:
+    return CLAIMS / "pre-research-fallback" / f"{attempt}.json"
+
+
+def package_state_exists(package_id: str) -> bool:
+    paths = (
+        OUTBOX / package_id,
+        OUTBOX.parent / f"citations-{package_id}.json",
+        STATE / "processed" / f"{package_id}.json",
+        STATE / "failed" / f"{package_id}.json",
+        STATE / "rejected" / f"{package_id}.json",
+        STATE / "intake" / f"{package_id}.transport.json",
+    )
+    return any(os.path.lexists(path) for path in paths)
+
+
+def load_executions(claim: dict) -> list[dict]:
+    if EXECUTIONS_DB.is_symlink() or not EXECUTIONS_DB.is_file():
+        raise FallbackStateError("invalid execution ledger")
+    paths = resume_paths()
+    try:
+        job_id = load_job_id(paths)
+    except ResumeError as exc:
+        raise FallbackStateError("invalid scheduler config") from exc
+    try:
+        connection = sqlite3.connect(f"file:{EXECUTIONS_DB}?mode=ro", uri=True)
+        try:
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(executions)")}
+            required = {
+                "id", "job_id", "source", "status", "claimed_at",
+                "started_at", "finished_at", "error",
+            }
+            if not required.issubset(columns):
+                raise FallbackStateError("invalid execution ledger")
+            rows = connection.execute(
+                """SELECT id, source, status, claimed_at, started_at, finished_at, error
+                   FROM executions WHERE job_id = ? ORDER BY claimed_at, id""",
+                (job_id,),
+            ).fetchall()
+        finally:
+            connection.close()
+    except (OSError, sqlite3.Error) as exc:
+        raise FallbackStateError("invalid execution ledger") from exc
+
+    result = []
+    for row in rows:
+        execution_id, source, status, claimed_at, started_at, finished_at, error = row
+        try:
+            execution_time = parse_timestamp(claimed_at, "INVALID_EXECUTION_LEDGER")
+        except ResumeError as exc:
+            raise FallbackStateError("invalid execution timestamp") from exc
+        if execution_time.astimezone(ZONE).date().isoformat() != claim["attempt"]:
+            continue
+        if (
+            not isinstance(execution_id, str)
+            or not re.fullmatch(r"[0-9a-f]{32}", execution_id)
+            or source != "builtin"
+            or status not in ACTIVE_EXECUTION_STATUSES | TERMINAL_EXECUTION_STATUSES
+        ):
+            raise FallbackStateError("invalid execution row")
+        if started_at is not None:
+            try:
+                start_time = parse_timestamp(started_at, "INVALID_EXECUTION_LEDGER")
+            except ResumeError as exc:
+                raise FallbackStateError("invalid execution timestamp") from exc
+        else:
+            start_time = None
+        if status in TERMINAL_EXECUTION_STATUSES:
+            if start_time is None or finished_at is None:
+                raise FallbackStateError("terminal execution lacks finish time")
+            try:
+                finish_time = parse_timestamp(finished_at, "INVALID_EXECUTION_LEDGER")
+            except ResumeError as exc:
+                raise FallbackStateError("invalid execution timestamp") from exc
+            if not execution_time <= start_time <= finish_time:
+                raise FallbackStateError("invalid execution timestamp order")
+        else:
+            if finished_at is not None:
+                raise FallbackStateError("active execution has finish time")
+            finish_time = None
+        if error is not None and (not isinstance(error, str) or len(error) > 512):
+            raise FallbackStateError("invalid execution error")
+        result.append(
+            {
+                "id": execution_id,
+                "status": status,
+                "claimed_at": execution_time,
+                "started_at": start_time,
+                "finished_at": finish_time,
+                "error": error,
+            }
+        )
+    return result
+
+
+def load_generation_claim(
+    attempt: str, edition: str, package_id: str
+) -> tuple[dict, bytes]:
+    try:
+        claim, data = load_claim(resume_paths(), attempt)
+    except ResumeError as exc:
+        raise FallbackStateError("invalid claim") from exc
+    if claim["edition"] != edition or claim["attempt"] != attempt or claim["package_id"] != package_id:
+        raise FallbackStateError("claim identity mismatch")
+    try:
+        claimed_at = parse_timestamp(claim["claimed_at"], "INVALID_CLAIM")
+    except ResumeError as exc:
+        raise FallbackStateError("invalid claim timestamp") from exc
+    if claimed_at.astimezone(ZONE).date().isoformat() != attempt:
+        raise FallbackStateError("claim day mismatch")
+    return claim, data
+
+
+def pre_research_provider_failure(primary: dict) -> str:
+    if REQUEST_DUMPS.is_symlink() or not REQUEST_DUMPS.is_dir():
+        raise FallbackStateError("invalid provider evidence directory")
+    directory_stat = REQUEST_DUMPS.stat()
+    if directory_stat.st_uid != TRUSTED_UID or (directory_stat.st_mode & 0o077):
+        raise FallbackStateError("invalid provider evidence directory")
+    try:
+        job_id = load_job_id(resume_paths())
+    except ResumeError as exc:
+        raise FallbackStateError("invalid scheduler config") from exc
+    prefix = f"request_dump_cron_{job_id}_"
+    candidates = []
+    for path in REQUEST_DUMPS.glob(f"{prefix}*.json"):
+        if path.is_symlink() or not path.is_file():
+            continue
+        stat_result = path.stat()
+        modified = dt.datetime.fromtimestamp(stat_result.st_mtime, dt.timezone.utc)
+        if not (
+            primary["started_at"] - dt.timedelta(seconds=2)
+            <= modified
+            <= primary["finished_at"] + dt.timedelta(seconds=2)
+        ):
+            continue
+        if (
+            stat_result.st_uid != TRUSTED_UID
+            or (stat_result.st_mode & 0o777) != 0o600
+            or not 0 < stat_result.st_size <= 2 * 1024 * 1024
+        ):
+            raise FallbackStateError("invalid provider evidence file")
+        raw = path.read_bytes()
+        try:
+            value = json.loads(raw)
+            request = value["request"]
+            error = value["error"]
+            body = request["body"]
+            inputs = body["input"]
+            timestamp = dt.datetime.fromisoformat(value["timestamp"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise FallbackStateError("invalid provider evidence") from exc
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=dt.timezone.utc)
+        else:
+            timestamp = timestamp.astimezone(dt.timezone.utc)
+        initial_input = (
+            isinstance(inputs, list)
+            and len(inputs) == 1
+            and isinstance(inputs[0], dict)
+            and inputs[0].get("role") == "user"
+            and isinstance(inputs[0].get("content"), str)
+        )
+        session_id = value.get("session_id") if isinstance(value, dict) else None
+        if (
+            not isinstance(value, dict)
+            or not isinstance(session_id, str)
+            or not re.fullmatch(rf"cron_{job_id}_\d{{8}}_\d{{6}}", session_id)
+            or value.get("reason") != "max_retries_exhausted"
+            or not isinstance(request, dict)
+            or not isinstance(body, dict)
+            or not isinstance(error, dict)
+            or error.get("type") != "usage_limit_reached"
+            or error.get("status_code") != 429
+            or not initial_input
+            or not primary["started_at"] <= timestamp <= primary["finished_at"]
+        ):
+            continue
+        candidates.append(sha256_bytes(raw))
+    if len(candidates) != 1:
+        raise FallbackStateError("pre-research provider failure not proven")
+    return candidates[0]
+
+
+def load_fallback(attempt: str, claim: dict, claim_data: bytes) -> dict | None:
+    path = fallback_path(attempt)
+    if not os.path.lexists(path):
+        return None
+    try:
+        value, _ = load_canonical(
+            path,
+            {
+                "schema", "status", "edition", "attempt", "package_id",
+                "claim_sha256", "primary_execution_id", "fallback_execution_id",
+                "provider_error", "provider_failure_sha256", "consumed_at",
+            },
+            "gneu-aihot-pre-research-fallback-v1",
+            "INVALID_FALLBACK_RECEIPT",
+        )
+    except ResumeError as exc:
+        raise FallbackStateError("invalid fallback receipt") from exc
+    if (
+        value["status"] != "FALLBACK_RETRY"
+        or value["edition"] != claim["edition"]
+        or value["attempt"] != attempt
+        or value["package_id"] != claim["package_id"]
+        or value["claim_sha256"] != sha256_bytes(claim_data)
+        or value["provider_error"] != "usage_limit_reached"
+        or not re.fullmatch(r"[0-9a-f]{64}", value["provider_failure_sha256"])
+        or not re.fullmatch(r"[0-9a-f]{32}", value["primary_execution_id"])
+        or not re.fullmatch(r"[0-9a-f]{32}", value["fallback_execution_id"])
+    ):
+        raise FallbackStateError("invalid fallback receipt")
+    try:
+        parse_timestamp(value["consumed_at"], "INVALID_FALLBACK_RECEIPT")
+    except ResumeError as exc:
+        raise FallbackStateError("invalid fallback receipt timestamp") from exc
+    return value
+
+
+def classify_claimed_attempt(
+    attempt: str,
+    edition: str,
+    package_id: str,
+    now: dt.datetime,
+) -> tuple[str, dict | None, dict | None]:
+    if now.astimezone(ZONE).date().isoformat() != attempt:
+        return "daily_attempt_already_claimed", None, None
+    if package_state_exists(package_id):
+        return "daily_attempt_requires_operator", None, None
+    claim, claim_data = load_generation_claim(attempt, edition, package_id)
+    executions = load_executions(claim)
+    receipt = load_fallback(attempt, claim, claim_data)
+    if receipt is not None:
+        primary_matches = [
+            row for row in executions if row["id"] == receipt["primary_execution_id"]
+        ]
+        matches = [row for row in executions if row["id"] == receipt["fallback_execution_id"]]
+        if (
+            len(primary_matches) != 1
+            or primary_matches[0]["status"] != "failed"
+            or primary_matches[0]["error"] not in TRANSIENT_PROVIDER_ERRORS
+            or len(matches) != 1
+            or matches[0]["claimed_at"] < primary_matches[0]["finished_at"]
+            or pre_research_provider_failure(primary_matches[0])
+            != receipt["provider_failure_sha256"]
+        ):
+            raise FallbackStateError("fallback execution missing")
+        fallback = matches[0]
+        if fallback["status"] in ACTIVE_EXECUTION_STATUSES:
+            return "FALLBACK_RETRY", None, fallback
+        if fallback["status"] == "failed":
+            reason = (
+                "FALLBACK_TRANSIENT_FAILURE_TERMINAL"
+                if fallback["error"] in TRANSIENT_PROVIDER_ERRORS
+                else "FALLBACK_FAILURE_TERMINAL"
+            )
+            return reason, None, fallback
+        if fallback["status"] == "unknown":
+            return "FALLBACK_FAILURE_TERMINAL", None, fallback
+        return "FALLBACK_NO_PACKAGE_TERMINAL", None, fallback
+
+    claim_time = parse_timestamp(claim["claimed_at"], "INVALID_CLAIM")
+    claim_ceiling = claim_time + dt.timedelta(seconds=1)
+    terminal = [
+        row for row in executions
+        if row["status"] in TERMINAL_EXECUTION_STATUSES
+        and row["claimed_at"] <= claim_ceiling
+        and row["started_at"] <= claim_ceiling
+        and row["finished_at"] >= claim_time
+    ]
+    if not terminal:
+        return "daily_attempt_already_claimed", None, None
+    if len(terminal) != 1:
+        raise FallbackStateError("ambiguous primary execution")
+    primary = terminal[0]
+    if primary["status"] == "completed":
+        return "PRIMARY_NO_PACKAGE_TERMINAL", primary, None
+    if primary["error"] not in TRANSIENT_PROVIDER_ERRORS:
+        return "PRIMARY_FAILURE_TERMINAL", primary, None
+    try:
+        pre_research_provider_failure(primary)
+    except (FallbackStateError, ResumeError):
+        return "PRIMARY_FAILURE_TERMINAL", primary, None
+    return "PRIMARY_TRANSIENT_FAILURE", primary, None
+
+
+def consume_pre_research_fallback(
+    attempt: str,
+    edition: str,
+    package_id: str,
+    now: dt.datetime,
+) -> dict:
+    reason, primary, _ = classify_claimed_attempt(attempt, edition, package_id, now)
+    if reason != "PRIMARY_TRANSIENT_FAILURE" or primary is None:
+        return {"wakeAgent": False, "reason": reason}
+    claim, claim_data = load_generation_claim(attempt, edition, package_id)
+    executions = load_executions(claim)
+    active = [
+        row for row in executions
+        if row["status"] == "running"
+        and row["claimed_at"] >= primary["finished_at"]
+        and row["claimed_at"] <= now
+    ]
+    if len(active) != 1:
+        return {"wakeAgent": False, "reason": "PRIMARY_TRANSIENT_FAILURE"}
+    provider_failure_sha256 = pre_research_provider_failure(primary)
+    try:
+        create_immutable(
+            fallback_path(attempt),
+            {
+                "schema": "gneu-aihot-pre-research-fallback-v1",
+                "status": "FALLBACK_RETRY",
+                "edition": edition,
+                "attempt": attempt,
+                "package_id": package_id,
+                "claim_sha256": sha256_bytes(claim_data),
+                "primary_execution_id": primary["id"],
+                "fallback_execution_id": active[0]["id"],
+                "provider_error": "usage_limit_reached",
+                "provider_failure_sha256": provider_failure_sha256,
+                "consumed_at": now.astimezone(dt.timezone.utc)
+                .replace(microsecond=0)
+                .isoformat(),
+            },
+        )
+    except (OSError, ResumeError) as exc:
+        raise FallbackStateError("could not create fallback receipt") from exc
+    return {"wakeAgent": True, "reason": "FALLBACK_RETRY"}
 
 
 def resume_paths() -> ResumePaths:
@@ -149,7 +506,12 @@ def inspect(now: dt.datetime | None = None) -> dict:
     elif os.path.lexists(CLAIMS / "resume-authorized" / f"{attempt}.json"):
         reason = "operator_resume_authorized"
     elif os.path.lexists(CLAIMS / f"{attempt}.json"):
-        reason = "daily_attempt_already_claimed"
+        try:
+            reason, _, _ = classify_claimed_attempt(
+                attempt, context["edition"], package_id, now
+            )
+        except FallbackStateError:
+            reason = "unsafe_pre_research_fallback_state"
     else:
         reason = "daily_attempt_unclaimed"
     return {
@@ -294,15 +656,20 @@ def evaluate(now: dt.datetime | None = None) -> dict:
             )
             return {"wakeAgent": False, "context": {**context, "reason": reason}}
         if os.path.lexists(claim):
-            try:
-                resume_state, original_claim = consume_authorization(
-                    resume_paths(), attempt, now
-                )
-            except ResumeError:
-                return {
-                    "wakeAgent": False,
-                    "context": {**context, "reason": "unsafe_resume_state"},
-                }
+            resume_state, original_claim = "not-authorized", None
+            if (
+                os.path.lexists(CLAIMS / "resume-authorized" / f"{attempt}.json")
+                or os.path.lexists(CLAIMS / "resume-consumed" / f"{attempt}.json")
+            ):
+                try:
+                    resume_state, original_claim = consume_authorization(
+                        resume_paths(), attempt, now
+                    )
+                except ResumeError:
+                    return {
+                        "wakeAgent": False,
+                        "context": {**context, "reason": "unsafe_resume_state"},
+                    }
             if resume_state == "consumed" and original_claim is not None:
                 return {
                     "wakeAgent": True,
@@ -314,6 +681,29 @@ def evaluate(now: dt.datetime | None = None) -> dict:
                         "reason": "operator_resume_claim",
                     },
                 }
+            if resume_state == "not-authorized":
+                try:
+                    fallback = consume_pre_research_fallback(
+                        attempt, edition, package_id, now
+                    )
+                except FallbackStateError:
+                    return {
+                        "wakeAgent": False,
+                        "context": {
+                            **context,
+                            "reason": "unsafe_pre_research_fallback_state",
+                        },
+                    }
+                if fallback["wakeAgent"]:
+                    return {
+                        "wakeAgent": True,
+                        "context": {**context, "reason": "FALLBACK_RETRY"},
+                    }
+                if fallback["reason"] != "daily_attempt_already_claimed":
+                    return {
+                        "wakeAgent": False,
+                        "context": {**context, "reason": fallback["reason"]},
+                    }
             reason = (
                 "resume_already_consumed"
                 if resume_state == "already-consumed"
@@ -346,7 +736,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "help":
         parser.print_help()
         return 0
-    value = inspect() if args.command in {"inspect", "check"} else evaluate()
+    inspection = args.command in {"inspect", "check"}
+    value = inspect() if inspection else evaluate()
     print(json.dumps(value, separators=(",", ":")))
     return 0
 

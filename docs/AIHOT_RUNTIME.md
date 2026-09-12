@@ -63,11 +63,13 @@ remote evidence.
 ## Daily generation and freshness
 
 Generation and READY processing are separate schedulers. The Hermes generation
-job uses the tracked UTC pair `0 5,6 * * *` plus a Europe/Stockholm gate, so the
-admitted run is 07:00 across CET and CEST. The gate atomically claims one local
-calendar-day attempt. Hermes independently prevents overlap and collapses
-missed recurring occurrences to one catch-up. The READY timer continues to
-poll independently and does not prove generation freshness.
+job uses the tracked UTC slots `0 5,6,7 * * *` plus a Europe/Stockholm gate.
+The first eligible slot is 07:00 across CET and CEST, the next slot is its one
+DST-safe fallback opportunity, and the remaining slot only observes terminal
+state. The gate atomically claims one local calendar-day attempt. Hermes
+independently prevents overlap and collapses missed recurring occurrences to
+one catch-up. The READY timer continues to poll independently and does not
+prove generation freshness.
 
 `gneu-aihot-ready.timer` is normally enabled and active. Verified historical
 terminal failures do not make the one-shot service fail, so they do not require
@@ -78,13 +80,26 @@ Gate CLI inspection is explicit and side-effect-free: `--help`, `help`,
 `inspect`, and `check` never enter the claim path. The no-argument invocation is
 reserved for the Hermes scheduler and is the normal claim-creating operation.
 
-An existing claim is never deleted to retry. If evidence proves that a claim
-was created outside the Hermes agent boundary, the root-only operator tool may
-create one append-only authorization bound to the exact claim hash. The normal
-Hermes job then consumes it once and records a second append-only receipt before
-waking the agent. Without the authorization, with an invalid binding, or after
+An existing claim is never deleted or changed to retry. One automatic fallback
+is allowed only after the Hermes ledger records the primary invocation's exact
+`usage_limit_reached`/HTTP 429 provider failure and citation, outbox, candidate,
+handoff, READY, transport, rejected, failed and processed state are all absent.
+The root-owned provider request evidence must also show only the initial user
+input and no tool/research result. The gate writes one append-only receipt bound
+to the claim, provider-evidence hash and both execution IDs before returning
+`FALLBACK_RETRY`; a second failure is terminal. Other
+claims stay closed. If evidence instead proves that a claim was created outside
+the Hermes agent boundary, the root-only operator tool may create one
+append-only authorization bound to the exact claim hash. The normal Hermes job
+then consumes it once and records a second append-only receipt before waking
+the agent. Without the authorization, with an invalid binding, or after
 consumption, the gate stays closed. See
 [`AIHOT_CLAIM_RECOVERY.md`](AIHOT_CLAIM_RECOVERY.md).
+
+The tracked scheduler check combines Hermes job configuration with the gate's
+read-only daily status. `PRIMARY_TRANSIENT_FAILURE`, terminal fallback results
+and unsafe fallback state are never reported as a healthy scheduler merely
+because a later Hermes slot returned `wakeAgent=false`.
 
 A daily package that fails local validation before READY is likewise immutable.
 For the single allowlisted `ARTICLE_DATE_OUTSIDE_EDITION` class, a root-only

@@ -2,7 +2,7 @@
   "schema": "gneu-aihot-hermes-scheduler-v1",
   "job_id": "fbd796dbb875",
   "name": "gneu-aihot-daily",
-  "schedule": "0 5,6 * * *",
+  "schedule": "0 5,6,7 * * *",
   "scheduler_timezone": "Etc/UTC",
   "operator_timezone": "Europe/Stockholm",
   "local_time": "07:00",
