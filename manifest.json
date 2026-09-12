@@ -1,7 +1,7 @@
 {
   "schema": "gneu-content-manifest-v1",
   "generation": 28,
-  "generated_at": "2026-09-12T22:49:36Z",
-  "events_sha256": "c16dd50091ca7c2752b154bdf70c59e0e6b3bdc55095347c291edbf8d21037d4",
-  "event_count": 9
+  "generated_at": "2026-09-12T23:48:21Z",
+  "events_sha256": "bc7692903246b21105088a21163be438ae75644368a351ef9c30e9776473f1ca",
+  "event_count": 10
 }
