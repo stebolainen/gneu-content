@@ -1,14 +1,14 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 27,
+  "generation": 28,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
       "type": "patch",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-08-24T14:00:00Z",
-      "updated_at": "2026-08-30T18:59:58Z",
-      "title": "Uppdatera VS Code-tillägget MSSQL till version 1.43.0 eller senare",
+      "updated_at": "2026-09-05T01:24:18Z",
+      "title": "Microsoft uppdaterar CVE-2026-47292 med korrigerad MSSQL-version",
       "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Versioner av Visual Studio Code-tillägget MSSQL från 1.0.0 men äldre än 1.43.0 anges som sårbara; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
       "action": "Uppdatera Visual Studio Code-tillägget MSSQL till version 1.43.0 eller senare enligt Microsofts angivna korrigerade version.",
       "cves": [
@@ -25,12 +25,12 @@
     {
       "id": "cisa:communicating-under-pressure-2026-09-02",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-02T12:34:45Z",
-      "updated_at": "2026-09-02T12:34:45Z",
+      "updated_at": "2026-09-07T06:26:19Z",
       "title": "Myndigheter publicerar vägledning för kommunikation vid it- och OT-driftstörningar",
-      "summary": "CISA, FBI och cybersäkerhetscenter i Australien, Kanada, Nya Zeeland och Storbritannien har publicerat vägledning för tjänsteleverantörers kommunikation vid it- och OT-driftstörningar, oavsett om orsaken är skadlig eller inte.",
-      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Kommunicera bekräftade fakta, osäkerheter och tidsstämplade uppdateringar utan spekulation eller marknadsföringsspråk.",
+      "summary": "CISA, FBI och partnerländernas cybersäkerhetsmyndigheter ger tjänsteleverantörer råd för kommunikation vid it- och OT-driftstörningar. Vid en aktiv cyberincident bör informationen begränsas så att upptäckt, utredning och inneslutning inte skadas och så att juridiska och regulatoriska krav följs.",
+      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Kommunicera bekräftade fakta, osäkerheter och tidsstämplade uppdateringar; begränsa detaljer vid aktiva cyberincidenter så att insatsen inte skadas.",
       "cves": [],
       "sources": [
         {
@@ -43,9 +43,9 @@
     {
       "id": "cisa:insider-threat-guide-2026-09-09",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-09T00:00:00Z",
-      "updated_at": "2026-09-09T00:00:00Z",
+      "updated_at": "2026-09-11T15:11:44Z",
       "title": "CISA uppdaterar vägledning för program mot insiderhot",
       "summary": "CISA har uppdaterat Insider Threat Mitigation Guide med praktiska steg för att utveckla eller förbättra program mot insiderhot. 2026-versionen behandlar hybrid- och distansarbete, AI-baserad manipulation, åtkomstkontroll och risker vid avslut av anställningar.",
       "action": "Granska den uppdaterade vägledningen, bedöm organisationens befintliga program och genomför de rekommenderade stegen för att stärka hanteringen av insiderhot.",
@@ -54,6 +54,108 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/news/cisa-releases-updated-insider-threat-guide-new-insights-mitigate-physical-and-cyber-threats"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-67277-CVE-2026-86060-kev-2026-09-10",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-10T00:00:00Z",
+      "updated_at": "2026-09-11T20:05:02Z",
+      "title": "CISA lägger till två aktivt utnyttjade sårbarheter i MikroTik RouterOS",
+      "summary": "CISA har lagt till CVE-2026-86060 och CVE-2026-67277 i KEV-katalogen. CVE-2026-86060 kan ändra RouterOS betrodda policymask och ge privilegieeskalering; CVE-2026-67277 kan utan autentisering exponera kärnminne och orsaka överbelastning i btest-tjänsten.",
+      "action": "Identifiera berörda RouterOS-enheter och tillämpa MikroTiks åtgärder senast den 13 september 2026. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav för CVE-2026-86060; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-67277",
+        "CVE-2026-86060"
+      ],
+      "deadline": "2026-09-13",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:ascii-smuggling-phishing-2026-09-03",
+      "type": "threat_report",
+      "publication_class": "B",
+      "occurred_at": "2026-09-03T16:00:00Z",
+      "updated_at": "2026-09-11T18:10:23Z",
+      "title": "Microsoft ser nätfiske som döljer lockord med osynliga Unicode-tecken",
+      "summary": "Microsoft observerade en storskalig nätfiskekampanj där osynliga Unicode-taggar infogades i finansiella lockord för att försvåra e-postfiltrering. Aktiviteten ökade kraftigt den 9 februari 2026 och låg kvar på förhöjd nivå i omkring tre månader.",
+      "action": "Normalisera eller ta bort Unicode-taggar och andra osynliga tecken i ämnesrad och meddelandetext innan spam- och nätfiskesignaturer tillämpas, enligt Microsofts rekommendation.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://www.microsoft.com/en-us/security/blog/2026/09/03/ascii-smuggling-crosses-over-from-ai-prompt-injection-to-phishing-evasion/"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-59310-ransomware-2026-09-11",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-11T15:39:54Z",
+      "updated_at": "2026-09-11T18:10:23Z",
+      "title": "CISA kopplar exploaterad VMware vCenter-sårbarhet till ransomwarekampanjer",
+      "summary": "CISA anger nu att CVE-2026-59310 i VMware vCenter används i kända ransomwarekampanjer. Sårbarheten är en katalogtraversering som kan låta en aktör med nätverksåtkomst till vCenter köra godtycklig kod.",
+      "action": "Om CVE-2026-59310 inte redan är åtgärdad: tillämpa leverantörens åtgärder omedelbart, bedöm internetexponering och följ CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-59310"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-84869-kev-2026-09-11",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-11T00:00:00Z",
+      "updated_at": "2026-09-11T21:04:25Z",
+      "title": "CISA lägger till aktivt utnyttjad ScreenConnect-sårbarhet i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2026-84869 i KEV-katalogen. Sårbarheten i ConnectWise ScreenConnect kan medge obehörig filöverföring och körning via en aktiv fjärrsession utan auktorisering eller värdens bekräftelse.",
+      "action": "Identifiera berörda ScreenConnect-installationer och tillämpa leverantörens åtgärder senast den 14 september 2026. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-84869"
+      ],
+      "deadline": "2026-09-14",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-85706-kev-2026-09-11",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-11T00:00:00Z",
+      "updated_at": "2026-09-11T19:32:16Z",
+      "title": "CISA lägger till aktivt utnyttjad GitLab-sårbarhet i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2026-85706 i KEV-katalogen. Sårbarheten i GitLab Community Edition och Enterprise Edition kan låta en oautentiserad användare läsa godtyckliga filer via repository commits-API:t.",
+      "action": "Tillämpa leverantörens åtgärder senast den 14 september 2026. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-85706"
+      ],
+      "deadline": "2026-09-14",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
