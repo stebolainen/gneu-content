@@ -85,9 +85,9 @@
       "type": "threat_report",
       "publication_class": "B",
       "occurred_at": "2026-09-03T16:00:00Z",
-      "updated_at": "2026-09-11T18:10:23Z",
+      "updated_at": "2026-09-12T19:54:32Z",
       "title": "Microsoft ser nätfiske som döljer lockord med osynliga Unicode-tecken",
-      "summary": "Microsoft observerade en storskalig nätfiskekampanj där osynliga Unicode-taggar infogades i finansiella lockord för att försvåra e-postfiltrering. Aktiviteten ökade kraftigt den 9 februari 2026 och låg kvar på förhöjd nivå i omkring tre månader.",
+      "summary": "Microsoft observerade en storskalig nätfiskekampanj där osynliga Unicode-taggar infogades i finansiella lockord för att försvåra e-postfiltrering. Microsofts signaturträffar för denna teknik ökade kraftigt den 9 februari 2026 och låg kvar på förhöjd nivå i omkring tre månader.",
       "action": "Normalisera eller ta bort Unicode-taggar och andra osynliga tecken i ämnesrad och meddelandetext innan spam- och nätfiskesignaturer tillämpas, enligt Microsofts rekommendation.",
       "cves": [],
       "sources": [
