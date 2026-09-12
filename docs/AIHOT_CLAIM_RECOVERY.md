@@ -5,6 +5,10 @@ but no Hermes scheduler-agent execution owned it and no package or downstream
 state was created. It never covers a slow, active, completed, failed, or
 otherwise ambiguous generation.
 
+It is separate from the gate's automatic one-time pre-research fallback for an
+exact `usage_limit_reached`/HTTP 429 provider result. A failed Hermes execution
+must never be represented as an orphan or admitted through this operator path.
+
 ## Safety invariants
 
 - **Never delete, move, overwrite, or edit a generation claim to retry.**

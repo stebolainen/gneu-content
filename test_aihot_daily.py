@@ -8,7 +8,9 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 import shutil
+import sqlite3
 import subprocess
 import tempfile
 import threading
@@ -275,10 +277,131 @@ class DailyGateTests(unittest.TestCase):
         gate.STATE = root / "state"
         gate.OUTBOX = root / "outbox"
         gate.CLAIMS = gate.STATE / "generation"
+        gate.BASE_META = root / "missing-meta.json"
+        gate.SCHEDULER_CONFIG = root / "scheduler.json"
+        gate.EXECUTIONS_DB = root / "executions.db"
+        gate.CRON_OUTPUT = root / "output"
+        gate.REQUEST_DUMPS = root / "sessions"
+        gate.TRUSTED_UID = os.geteuid()
+        self.original_load_claim = gate.load_claim
+        self.original_load_canonical = gate.load_canonical
+        self.original_load_job_id = gate.load_job_id
+        self.original_create_immutable = gate.create_immutable
+
+        def test_load_canonical(path, keys, schema, code):
+            data = path.read_bytes()
+            value = json.loads(data)
+            if set(value) != keys or value.get("schema") != schema:
+                raise gate.ResumeError(code)
+            return value, data
+
+        def test_load_claim(paths, attempt):
+            return test_load_canonical(
+                paths.claims / f"{attempt}.json",
+                {"schema", "edition", "attempt", "package_id", "claimed_at"},
+                "gneu-aihot-generation-claim-v1",
+                "INVALID_CLAIM",
+            )
+
+        def test_create_immutable(path, value):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
+            path.chmod(0o600)
+            return hashlib.sha256(path.read_bytes()).hexdigest()
+
+        gate.load_claim = test_load_claim
+        gate.load_canonical = test_load_canonical
+        gate.load_job_id = lambda paths: "fbd796dbb875"
+        gate.create_immutable = test_create_immutable
         gate.OUTBOX.mkdir(parents=True)
+        gate.CRON_OUTPUT.mkdir()
+        gate.REQUEST_DUMPS.mkdir(mode=0o700)
+        contract = json.loads(
+            (ROOT / "runtime/aihot/generation/hermes-scheduler.json").read_text()
+        )
+        gate.SCHEDULER_CONFIG.write_text(json.dumps(contract))
+        with sqlite3.connect(gate.EXECUTIONS_DB) as connection:
+            connection.execute(
+                """CREATE TABLE executions (
+                id TEXT PRIMARY KEY, job_id TEXT NOT NULL, source TEXT NOT NULL,
+                process_id TEXT NOT NULL, pid INTEGER NOT NULL,
+                process_started_at INTEGER, status TEXT NOT NULL,
+                claimed_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
+                error TEXT)"""
+            )
 
     def tearDown(self) -> None:
+        gate.load_claim = self.original_load_claim
+        gate.load_canonical = self.original_load_canonical
+        gate.load_job_id = self.original_load_job_id
+        gate.create_immutable = self.original_create_immutable
         self.temporary.cleanup()
+
+    def execution(
+        self,
+        execution_id: str,
+        status: str,
+        when: dt.datetime,
+        error: str | None = None,
+        finished: dt.datetime | None = None,
+        source: str = "builtin",
+    ) -> None:
+        timestamp = when.isoformat()
+        finished_timestamp = (
+            (finished or when).isoformat()
+            if status in gate.TERMINAL_EXECUTION_STATUSES
+            else None
+        )
+        with sqlite3.connect(gate.EXECUTIONS_DB) as connection:
+            connection.execute(
+                "INSERT INTO executions VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    execution_id,
+                    "fbd796dbb875",
+                    source,
+                    execution_id,
+                    123,
+                    None,
+                    status,
+                    timestamp,
+                    timestamp,
+                    finished_timestamp,
+                    error,
+                ),
+            )
+
+    def primary_429(self, now: dt.datetime) -> None:
+        self.execution(
+            "1" * 32,
+            "failed",
+            now - dt.timedelta(seconds=1),
+            "RuntimeError: HTTP 429: The usage limit has been reached",
+            now + dt.timedelta(seconds=1),
+        )
+        self.provider_failure(now)
+
+    def provider_failure(self, now: dt.datetime, *, after_research: bool = False) -> None:
+        inputs = [{"role": "user", "content": "daily prompt"}]
+        if after_research:
+            inputs.append({"type": "function_call_output", "output": "research"})
+        value = {
+            "timestamp": now.replace(tzinfo=None).isoformat(),
+            "session_id": "cron_fbd796dbb875_20260904_050000",
+            "reason": "max_retries_exhausted",
+            "request": {"body": {"input": inputs}},
+            "error": {"type": "usage_limit_reached", "status_code": 429},
+        }
+        path = gate.REQUEST_DUMPS / (
+            "request_dump_cron_fbd796dbb875_20260904_050000_"
+            "20260904_050000_000000.json"
+        )
+        path.write_text(json.dumps(value))
+        path.chmod(0o600)
+        timestamp = now.timestamp()
+        os.utime(path, (timestamp, timestamp))
+
+    def fallback_execution(self, now: dt.datetime) -> None:
+        self.execution("2" * 32, "running", now)
 
     def test_summer_and_winter_resolve_to_0700_stockholm(self) -> None:
         summer = gate.evaluate(dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc))
@@ -287,6 +410,16 @@ class DailyGateTests(unittest.TestCase):
         self.setUp()
         winter = gate.evaluate(dt.datetime(2026, 12, 4, 6, 0, tzinfo=dt.timezone.utc))
         self.assertTrue(winter["wakeAgent"])
+
+    def test_winter_primary_429_has_0700_utc_fallback(self) -> None:
+        primary = dt.datetime(2026, 12, 4, 6, 0, tzinfo=dt.timezone.utc)
+        self.assertTrue(gate.evaluate(primary)["wakeAgent"])
+        self.primary_429(primary)
+        fallback = primary + dt.timedelta(hours=1)
+        self.fallback_execution(fallback)
+        result = gate.evaluate(fallback)
+        self.assertTrue(result["wakeAgent"])
+        self.assertEqual(result["context"]["reason"], "FALLBACK_RETRY")
 
     def test_pre_window_is_blocked(self) -> None:
         result = gate.evaluate(dt.datetime(2026, 12, 4, 5, 59, tzinfo=dt.timezone.utc))
@@ -299,6 +432,191 @@ class DailyGateTests(unittest.TestCase):
         duplicate = gate.evaluate(now + dt.timedelta(hours=1))
         self.assertFalse(duplicate["wakeAgent"])
         self.assertEqual(duplicate["context"]["reason"], "daily_attempt_already_claimed")
+
+    def test_primary_pre_research_429_admits_one_fallback(self) -> None:
+        primary = dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc)
+        self.execution(
+            "0" * 32,
+            "failed",
+            primary - dt.timedelta(days=1),
+            "old direct failure",
+            primary - dt.timedelta(days=1) + dt.timedelta(seconds=1),
+            source="direct",
+        )
+        self.assertTrue(gate.evaluate(primary)["wakeAgent"])
+        self.primary_429(primary)
+        inspection = gate.inspect(primary + dt.timedelta(minutes=30))
+        self.assertEqual(inspection["context"]["reason"], "PRIMARY_TRANSIENT_FAILURE")
+        fallback = primary + dt.timedelta(hours=1)
+        self.fallback_execution(fallback)
+        result = gate.evaluate(fallback)
+        self.assertTrue(result["wakeAgent"])
+        self.assertEqual(result["context"]["reason"], "FALLBACK_RETRY")
+        receipt = gate.fallback_path("2026-09-04")
+        self.assertTrue(receipt.is_file())
+        self.assertEqual(receipt.stat().st_mode & 0o777, 0o600)
+
+    def test_fallback_success_continues_normal_package_pipeline(self) -> None:
+        primary = dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc)
+        first = gate.evaluate(primary)
+        package_id = first["context"]["package_id"]
+        self.primary_429(primary)
+        fallback = primary + dt.timedelta(hours=1)
+        self.fallback_execution(fallback)
+        self.assertTrue(gate.evaluate(fallback)["wakeAgent"])
+        package = gate.OUTBOX / package_id
+        package.mkdir()
+        (package / "READY").write_text("ready\n")
+        terminal = gate.evaluate(fallback + dt.timedelta(hours=1))
+        self.assertFalse(terminal["wakeAgent"])
+        self.assertEqual(terminal["context"]["reason"], "daily_attempt_complete")
+
+    def test_second_429_is_terminal_and_never_admits_third_attempt(self) -> None:
+        primary = dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc)
+        gate.evaluate(primary)
+        self.primary_429(primary)
+        fallback = primary + dt.timedelta(hours=1)
+        self.fallback_execution(fallback)
+        self.assertTrue(gate.evaluate(fallback)["wakeAgent"])
+        with sqlite3.connect(gate.EXECUTIONS_DB) as connection:
+            connection.execute(
+                "UPDATE executions SET status='failed', finished_at=?, error=? WHERE id=?",
+                (
+                    (fallback + dt.timedelta(seconds=10)).isoformat(),
+                    "RuntimeError: HTTP 429: The usage limit has been reached",
+                    "2" * 32,
+                ),
+            )
+        third = fallback + dt.timedelta(hours=1)
+        self.execution("3" * 32, "running", third)
+        result = gate.evaluate(third)
+        self.assertFalse(result["wakeAgent"])
+        self.assertEqual(
+            result["context"]["reason"],
+            "FALLBACK_TRANSIENT_FAILURE_TERMINAL",
+        )
+
+    def test_package_or_publication_state_blocks_automatic_fallback(self) -> None:
+        cases = (
+            ("429_after_candidate", lambda package_id: self._package_files(package_id, "candidate.json")),
+            (
+                "validation_failure",
+                lambda package_id: self._package_files(
+                    package_id, "candidate.json", "handoff.json", "report.md"
+                ),
+            ),
+            (
+                "content_contract_failure",
+                lambda package_id: self._package_files(
+                    package_id, "candidate.json", "handoff.json", "report.md"
+                ),
+            ),
+            ("ready_failure", lambda package_id: self._state_file("failed", package_id)),
+            ("processed", lambda package_id: self._state_file("processed", package_id)),
+            (
+                "dispatch_failure",
+                lambda package_id: self._state_file("intake", package_id, ".transport.json"),
+            ),
+            (
+                "research_output",
+                lambda package_id: (
+                    gate.OUTBOX.parent / f"citations-{package_id}.json"
+                ).write_text("{}\n"),
+            ),
+        )
+        for stage, create_state in cases:
+            with self.subTest(stage=stage):
+                self.tearDown()
+                self.setUp()
+                primary = dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc)
+                first = gate.evaluate(primary)
+                self.primary_429(primary)
+                create_state(first["context"]["package_id"])
+                reason, _, _ = gate.classify_claimed_attempt(
+                    "2026-09-04", "2026-W36", first["context"]["package_id"],
+                    primary + dt.timedelta(hours=1),
+                )
+                self.assertEqual(reason, "daily_attempt_requires_operator")
+                self.assertFalse(gate.fallback_path("2026-09-04").exists())
+
+    def _state_file(self, directory: str, package_id: str, suffix: str = ".json") -> None:
+        target = gate.STATE / directory
+        target.mkdir(parents=True)
+        (target / f"{package_id}{suffix}").write_text("{}\n")
+
+    def _package_files(self, package_id: str, *names: str) -> None:
+        package = gate.OUTBOX / package_id
+        package.mkdir()
+        for name in names:
+            (package / name).write_text("{}\n")
+
+    def test_non_transient_provider_failure_is_terminal(self) -> None:
+        primary = dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc)
+        gate.evaluate(primary)
+        self.execution(
+            "1" * 32,
+            "failed",
+            primary - dt.timedelta(seconds=1),
+            "RuntimeError: provider authentication failed",
+            primary + dt.timedelta(seconds=1),
+        )
+        fallback = primary + dt.timedelta(hours=1)
+        self.fallback_execution(fallback)
+        result = gate.evaluate(fallback)
+        self.assertFalse(result["wakeAgent"])
+        self.assertEqual(result["context"]["reason"], "PRIMARY_FAILURE_TERMINAL")
+        self.assertFalse(gate.fallback_path("2026-09-04").exists())
+
+    def test_429_after_research_is_terminal(self) -> None:
+        primary = dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc)
+        gate.evaluate(primary)
+        self.execution(
+            "1" * 32,
+            "failed",
+            primary - dt.timedelta(seconds=1),
+            "RuntimeError: HTTP 429: The usage limit has been reached",
+            primary + dt.timedelta(seconds=1),
+        )
+        self.provider_failure(primary, after_research=True)
+        fallback = primary + dt.timedelta(hours=1)
+        self.fallback_execution(fallback)
+        result = gate.evaluate(fallback)
+        self.assertFalse(result["wakeAgent"])
+        self.assertEqual(result["context"]["reason"], "PRIMARY_FAILURE_TERMINAL")
+
+    def test_terminal_pre_research_state_stops_agent_without_third_attempt(self) -> None:
+        original = gate.evaluate
+        gate.evaluate = lambda: {
+            "wakeAgent": False,
+            "context": {"reason": "PRIMARY_TRANSIENT_FAILURE"},
+        }
+        try:
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(gate.main([]), 0)
+        finally:
+            gate.evaluate = original
+
+    def test_terminal_fallback_does_not_block_next_day(self) -> None:
+        primary = dt.datetime(2026, 9, 4, 5, 0, tzinfo=dt.timezone.utc)
+        gate.evaluate(primary)
+        self.primary_429(primary)
+        fallback = primary + dt.timedelta(hours=1)
+        self.fallback_execution(fallback)
+        gate.evaluate(fallback)
+        with sqlite3.connect(gate.EXECUTIONS_DB) as connection:
+            connection.execute(
+                "UPDATE executions SET status='failed', finished_at=?, error=? WHERE id=?",
+                (
+                    (fallback + dt.timedelta(seconds=10)).isoformat(),
+                    "RuntimeError: HTTP 429: The usage limit has been reached",
+                    "2" * 32,
+                ),
+            )
+        next_day = gate.evaluate(
+            dt.datetime(2026, 9, 5, 5, 0, tzinfo=dt.timezone.utc)
+        )
+        self.assertTrue(next_day["wakeAgent"])
+        self.assertEqual(next_day["context"]["package_id"], "2026-W36--2026-09-05")
 
     def test_missed_window_catches_up_once(self) -> None:
         late = dt.datetime(2026, 9, 4, 13, 0, tzinfo=dt.timezone.utc)
@@ -370,11 +688,11 @@ class FreshnessTests(unittest.TestCase):
 
 
 class SchedulerContractTests(unittest.TestCase):
-    def test_scheduler_contract_is_daily_dst_pair(self) -> None:
+    def test_scheduler_contract_has_dst_safe_fallback(self) -> None:
         value = json.loads(
             (ROOT / "runtime/aihot/generation/hermes-scheduler.json").read_text()
         )
-        self.assertEqual(value["schedule"], "0 5,6 * * *")
+        self.assertEqual(value["schedule"], "0 5,6,7 * * *")
         self.assertEqual(value["scheduler_timezone"], "Etc/UTC")
         self.assertEqual(value["operator_timezone"], "Europe/Stockholm")
         self.assertEqual(value["local_time"], "07:00")
@@ -404,9 +722,10 @@ class SchedulerContractTests(unittest.TestCase):
                     ]
                 )
             )
-            old_config, old_jobs, old_run, old_euid = (
+            old_config, old_jobs, old_gate, old_run, old_euid = (
                 scheduler.CONFIG,
                 scheduler.JOBS,
+                scheduler.GATE,
                 scheduler.subprocess.run,
                 scheduler.os.geteuid,
             )
@@ -416,24 +735,88 @@ class SchedulerContractTests(unittest.TestCase):
                 calls.append(argv)
                 if argv[0] == "timedatectl":
                     return subprocess.CompletedProcess(argv, 0, "Etc/UTC\n", "")
+                if argv[0] == scheduler.sys.executable:
+                    return subprocess.CompletedProcess(
+                        argv,
+                        0,
+                        json.dumps(
+                            {
+                                "status": "AIHOT_DAILY_GATE_INSPECT",
+                                "context": {"reason": "daily_attempt_unclaimed"},
+                            }
+                        ),
+                        "",
+                    )
                 self.assertEqual(argv[:4], [scheduler.HERMES, "cron", "edit", contract["job_id"]])
                 return subprocess.CompletedProcess(argv, 0, "", "")
 
-            scheduler.CONFIG, scheduler.JOBS, scheduler.subprocess.run = config, jobs, fake_run
+            scheduler.CONFIG, scheduler.JOBS, scheduler.GATE = config, jobs, temp / "gate.py"
+            scheduler.subprocess.run = fake_run
             scheduler.os.geteuid = lambda: 0
             try:
                 scheduler.check()
                 scheduler.install()
             finally:
-                scheduler.CONFIG, scheduler.JOBS, scheduler.subprocess.run, scheduler.os.geteuid = (
+                scheduler.CONFIG, scheduler.JOBS, scheduler.GATE, scheduler.subprocess.run, scheduler.os.geteuid = (
                     old_config,
                     old_jobs,
+                    old_gate,
                     old_run,
                     old_euid,
                 )
             hermes_calls = [call for call in calls if call[0] == scheduler.HERMES]
             self.assertEqual(len(hermes_calls), 1)
             self.assertIn(contract["schedule"], hermes_calls[0])
+
+    def test_reconciler_does_not_mask_primary_failure_with_raw_ok(self) -> None:
+        old_run = scheduler.subprocess.run
+
+        def fake_run(argv, **kwargs):
+            return subprocess.CompletedProcess(
+                argv,
+                0,
+                "Etc/UTC\n" if argv[0] == "timedatectl" else json.dumps(
+                    {
+                        "status": "AIHOT_DAILY_GATE_INSPECT",
+                        "context": {"reason": "PRIMARY_TRANSIENT_FAILURE"},
+                    }
+                ),
+                "",
+            )
+
+        scheduler.subprocess.run = fake_run
+        old_config, old_jobs = scheduler.CONFIG, scheduler.JOBS
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                contract = json.loads(
+                    (ROOT / "runtime/aihot/generation/hermes-scheduler.json").read_text()
+                )
+                scheduler.CONFIG = root / "scheduler.json"
+                scheduler.CONFIG.write_text(json.dumps(contract))
+                scheduler.JOBS = root / "jobs.json"
+                scheduler.JOBS.write_text(
+                    json.dumps(
+                        [{
+                            "id": contract["job_id"],
+                            "name": contract["name"],
+                            "enabled": True,
+                            "state": "scheduled",
+                            "last_status": "ok",
+                            "schedule": {"kind": "cron", "expr": contract["schedule"]},
+                            "script": contract["script"],
+                            "workdir": contract["workdir"],
+                            "prompt": contract["prompt"],
+                        }]
+                    )
+                )
+                with self.assertRaisesRegex(
+                    scheduler.SchedulerError, "PRIMARY_TRANSIENT_FAILURE"
+                ):
+                    scheduler.check()
+        finally:
+            scheduler.CONFIG, scheduler.JOBS = old_config, old_jobs
+            scheduler.subprocess.run = old_run
 
 
 class HandoffValidatorTests(unittest.TestCase):

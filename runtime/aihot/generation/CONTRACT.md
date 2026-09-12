@@ -34,8 +34,13 @@ processed or generation-claim state must never be deleted or overwritten.
 
 A generation claim is also immutable. An orphaned claim may be re-admitted
 only by the separately documented, append-only operator authorization. The
-ordinary scheduler gate verifies and consumes that authorization exactly once
-under the generation lock. There is no age- or timeout-based retry.
+only automatic exception is one same-day fallback after the trusted Hermes
+execution ledger records the primary invocation's exact
+`usage_limit_reached`/HTTP 429 provider failure before research or any package,
+intake or publication state exists. The gate binds that fallback to the claim
+and both execution IDs plus the initial provider-request evidence hash in a
+create-without-overwrite receipt before waking the agent. A second provider
+failure is terminal. There is no age-, timeout- or other failure-class retry.
 
 The content contract remains append-only. If the current edition is absent,
 mode `edition` adds exactly one edition and 1–6 articles. If the current

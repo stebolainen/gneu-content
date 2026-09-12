@@ -7,6 +7,11 @@ Run:
 
 `python3 /root/.hermes/profiles/gneu/scripts/gneu-aihot-base-refresh.py`
 
+Gate reason `FALLBACK_RETRY` is the single automatic same-day retry of the
+same revision-zero package after a verified transient provider failure before
+research or package state. Run the normal fresh daily cycle below; do not copy
+or recover content from the failed provider invocation.
+
 Research current AI- and cybersecurity sources, normally looking back seven
 days but selecting material not already represented in the public baseline.
 Every new article needs at least two independent sources and an appropriate
