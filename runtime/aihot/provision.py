@@ -62,6 +62,10 @@ INSTALL_SPECS = {
         RUNTIME_ROOT / "bin/aihot-content-schema.json",
         0o600,
     ),
+    "runtime/aihot/bin/aihot-primary-sources.json": (
+        RUNTIME_ROOT / "bin/aihot-primary-sources.json",
+        0o600,
+    ),
     "runtime/aihot/bin/build-intake-payload.py": (
         RUNTIME_ROOT / "bin/build-intake-payload.py",
         0o700,

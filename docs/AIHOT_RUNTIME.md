@@ -145,7 +145,7 @@ freshness.
 
 ## AI-hot content contract
 
-The machine-readable local article contract is
+The machine-readable local article contract is v2 in
 `runtime/aihot/bin/aihot-content-schema.json`. Its pinned provenance identifies
 the authoritative `stebolainen/gneu-se` validator ref, path, blob and SHA-256.
 The pure `aihot_content_contract.py` module has no network, credential or state
@@ -153,8 +153,11 @@ access and is used by both the pre-READY handoff validator and trusted local
 intake validator. This keeps the untrusted generation boundary fail-closed
 without duplicating article key sets or evidence rules.
 
-Adam authors mandatory `evidence` as part of the original candidate. The
-bridge transports the complete article object unchanged and never enriches it.
+Adam authors mandatory `evidence` as part of the original candidate, including
+explicit publication class, confidence and source-bound claims. AUTO-intended
+class A/verified claims use source-language verbatim excerpts grouped by stable
+claim ID across at least two sources. The bridge transports the complete article
+object unchanged and never enriches it.
 Any missing/extra field, invalid evidence or source shape, duplicate ID, or
 out-of-edition date is blocked before READY. When the authoritative gneu-se
 validator changes its article contract, the schema, Adam instructions, local

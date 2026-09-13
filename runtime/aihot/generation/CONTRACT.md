@@ -49,10 +49,12 @@ only when that edition is the latest trusted edition and the current ISO week in
 Europe/Stockholm. Its edition delta is empty; existing editions and articles
 remain byte/object-identical prefixes, and every appended article has a unique
 ID, points to that edition, and has a date in its ISO week. After the ISO week
-ends, this mode is rejected locally for that candidate. It is forwarded as a
-human-review shape; it does not authorize a merge. If there is no publishable
-new material, mode `no-change` contains no delta and the report still records
-that day's research. Top-level `generated` is never changed by Adam.
+ends, this mode is rejected locally for that candidate. The downstream trusted
+policy may classify this shape as AUTO only when every new article independently
+satisfies the explicit class A/verified and trusted-evidence requirements below;
+otherwise it remains REVIEW. If there is no publishable new material, mode
+`no-change` contains no delta and the report still records that day's research.
+Top-level `generated` is never changed by Adam.
 
 The canonical daily package identity is already `YYYY-Www--YYYY-MM-DD`.
 Handoff v2 binds its `edition` and `attempt`; the bridge transports that exact
@@ -63,11 +65,25 @@ Every new article must satisfy the complete machine-readable contract installed
 as `/root/gneu-aihot-bridge/bin/aihot-content-schema.json`. In particular, the
 article key set is exact and `evidence` is mandatory. Evidence is original
 content authored by Adam from the research: it records the allowed grade,
-verification method, a non-empty basis, and optional source-bound claims. Adam
-must create it before writing `candidate.json`. The bridge must never invent,
-derive, synthesize, backfill, or enrich evidence or any other article field.
-If adequate evidence cannot be authored, exclude the article; if no qualifying
-articles remain, create a strict `no-change` package.
+verification method, a non-empty basis, explicit `publication_class` (`A` or
+`B`), explicit `confidence` (`verified` or `corroborated`) and source-bound
+claims. Adam must create it before writing `candidate.json`. The bridge must never invent,
+derive, synthesize, backfill, or enrich evidence or any other
+article field. If adequate evidence cannot be authored, exclude the article;
+if no qualifying articles remain, create a strict `no-change` package.
+
+For an AUTO-eligible class A/verified article, each claim `value` is an exact,
+verbatim excerpt in the source's own language, not Adam's Swedish paraphrase.
+Use the same stable claim `id` for corroborating excerpts about the same fact
+from at least two distinct source URLs; at least one must be an accepted primary
+source. Every listed article source must have a claim row. The trusted release
+controller fetches and verifies these bytes itself. Sources outside its pinned
+registry, a missing corroborating excerpt, non-verbatim text, class B or any
+confidence other than `verified` remain REVIEW and can never become AUTO.
+Class A prose, including `why` and `action`, must remain faithful to explicit
+primary-source content. Independent consequence assessment, prioritisation or
+audience-specific advice makes the article class B even when individual facts
+are sourced.
 
 ## Reader-context check (pre-handoff only)
 

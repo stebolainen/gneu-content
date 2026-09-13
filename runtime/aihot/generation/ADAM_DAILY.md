@@ -23,17 +23,40 @@ to it. Do not create or edit an edition object in that mode: preserve all
 existing editions and articles exactly, append only the new article objects,
 and keep every new article's `edition` and date within the supplied ISO week.
 After the ISO week ends, do not use this mode. Use strict `no-change` whenever
-no eligible current-week article remains. Current-week append is sent for human
-review; it never grants autonomous publication.
+no eligible current-week article remains. Current-week append can be
+autopublish-eligible only for explicit class A/verified articles whose trusted
+evidence satisfies every downstream rule; the shape alone never grants AUTO.
 
 Before writing `candidate.json`, author every field required by the installed
 machine-readable AI-hot content contract. The article key set is exact.
 `evidence` is mandatory content, not bridge metadata: choose an allowed
-evidence grade and verification value, write a non-empty research basis, and
-bind any optional claims to URLs already present in that article's sources.
+evidence grade and verification value, write a non-empty research basis, set
+`publication_class` explicitly to `A` or `B`, set `confidence` explicitly to
+`verified` or `corroborated`, and bind mandatory claims to URLs already present
+in that article's sources.
 Never ask or rely on the bridge to invent, derive, synthesize, backfill, or
 enrich evidence. Exclude an article whose evidence cannot be supported; use
 strict `no-change` if no eligible article remains.
+
+When the article is class A with verified confidence and is intended for AUTO,
+read `/root/gneu-aihot-bridge/bin/aihot-primary-sources.json` and use only its
+exact host/path identities for claims intended for trusted attestation. Then
+write each claim `value` as an exact verbatim excerpt from that source in the
+source's own language. Never put a Swedish translation or paraphrase in
+`value`. Give excerpts that corroborate the same fact the same stable claim
+`id`, with at least two distinct source URLs and at least one accepted primary
+source. Cover every listed article source with a claim row. OX Security original
+research under `https://www.ox.security/blog/` is accepted primary; The Hacker
+News under `https://thehackernews.com/` is corroborating only and never
+satisfies the primary-source requirement by itself. If these AUTO conditions
+cannot be met, retain the truthful class/confidence and expect REVIEW; never
+misclassify or alter evidence merely to obtain AUTO.
+
+The Swedish `summary`, `body`, `why` and `action` of a class A article must be
+faithful extraction or summary of what the accepted primary source explicitly
+states. Do not add an independent consequence assessment, prioritisation or
+audience-specific recommendation merely to fill a field. If reader context
+requires such editorial synthesis, classify the article as B and expect REVIEW.
 
 Write for an intelligent professional Swedish reader who has not read the
 research report or previous AI-hot articles. Context before jargon, without

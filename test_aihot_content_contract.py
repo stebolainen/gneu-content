@@ -14,6 +14,7 @@ import unittest
 from contextlib import redirect_stdout
 from datetime import date, datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parent
@@ -46,7 +47,7 @@ def fixture(name: str) -> dict:
 
 
 def authoritative_simulation(article: object, edition: str = "2026-W36") -> None:
-    oracle = fixture("gneu-se-aihot-article-contract-4bb9ba39.json")
+    oracle = fixture("gneu-se-aihot-article-contract-782dbcf6.json")
     if not isinstance(article, dict):
         raise ValueError("article is not object")
     expected = set(oracle["article_keys"])
@@ -70,14 +71,17 @@ def authoritative_simulation(article: object, edition: str = "2026-W36") -> None
     evidence = article["evidence"]
     if not isinstance(evidence, dict):
         raise ValueError("evidence type")
-    required = set(oracle["evidence_required_keys"])
-    optional = set(oracle["evidence_optional_keys"])
-    if set(evidence) not in (required, required | optional):
+    allowed_keysets = {frozenset(keys) for keys in oracle["evidence_allowed_keysets"]}
+    if frozenset(evidence) not in allowed_keysets:
         raise ValueError("evidence keys")
     if evidence["grade"] not in oracle["grade_values"]:
         raise ValueError("evidence grade")
     if evidence["verification"] not in oracle["verification_values"]:
         raise ValueError("evidence verification")
+    if evidence["publication_class"] not in oracle["publication_class_values"]:
+        raise ValueError("evidence publication class")
+    if evidence["confidence"] not in oracle["confidence_values"]:
+        raise ValueError("evidence confidence")
     if not isinstance(evidence["basis"], str) or not evidence["basis"].strip():
         raise ValueError("evidence basis")
     if "claims" in evidence:
@@ -103,21 +107,19 @@ class PureContentContractTests(unittest.TestCase):
         )
 
     def test_schema_matches_pinned_authoritative_contract(self) -> None:
-        oracle = fixture("gneu-se-aihot-article-contract-4bb9ba39.json")
+        oracle = fixture("gneu-se-aihot-article-contract-782dbcf6.json")
         article = self.schema["article"]
         provenance = self.schema["provenance"]
         self.assertEqual(set(article["required_keys"]), set(oracle["article_keys"]))
         self.assertEqual(
             set(article["sources"]["required_keys"]), set(oracle["source_keys"])
         )
-        self.assertEqual(
-            set(article["evidence"]["required_keys"]),
-            set(oracle["evidence_required_keys"]),
+        generated_evidence_keys = set(article["evidence"]["required_keys"])
+        self.assertIn(
+            frozenset(generated_evidence_keys),
+            {frozenset(keys) for keys in oracle["evidence_allowed_keysets"]},
         )
-        self.assertEqual(
-            set(article["evidence"]["optional_keys"]),
-            set(oracle["evidence_optional_keys"]),
-        )
+        self.assertEqual(article["evidence"]["optional_keys"], [])
         self.assertEqual(
             set(article["evidence"]["claims"]["required_keys"]),
             set(oracle["claim_keys"]),
@@ -129,26 +131,84 @@ class PureContentContractTests(unittest.TestCase):
             set(article["evidence"]["verification_values"]),
             set(oracle["verification_values"]),
         )
+        self.assertEqual(
+            set(article["evidence"]["publication_class_values"]),
+            set(oracle["publication_class_values"]),
+        )
+        self.assertEqual(
+            set(article["evidence"]["confidence_values"]),
+            set(oracle["confidence_values"]),
+        )
         self.assertEqual(provenance["repository"], "stebolainen/gneu-se")
         self.assertEqual(provenance["ref"], oracle["source_ref"])
         self.assertEqual(provenance["validator_path"], oracle["source_path"])
         self.assertEqual(provenance["blob_sha"], oracle["source_blob_sha"])
         self.assertEqual(provenance["sha256"], oracle["source_sha256"])
+        registry_path = BIN / "aihot-primary-sources.json"
+        registry_raw = registry_path.read_bytes()
+        registry_provenance = provenance["source_registry"]
+        self.assertEqual(registry_provenance["path"], "scripts/aihot_primary_sources.json")
+        self.assertEqual(
+            hashlib.sha256(registry_raw).hexdigest(),
+            registry_provenance["sha256"],
+        )
+        self.assertEqual(
+            hashlib.sha1(
+                f"blob {len(registry_raw)}\0".encode("ascii") + registry_raw
+            ).hexdigest(),
+            registry_provenance["blob_sha"],
+        )
+        registry = json.loads(registry_raw)
+        self.assertEqual(registry["schema"], "gneu-aihot-primary-sources-v3")
+        self.assertTrue(any(row["accepted_primary"] for row in registry["sources"]))
+        self.assertTrue(any(not row["accepted_primary"] for row in registry["sources"]))
 
     def test_adam_contract_requires_original_evidence(self) -> None:
         generation_contract = (GENERATION / "CONTRACT.md").read_text(encoding="utf-8")
         adam_daily = (GENERATION / "ADAM_DAILY.md").read_text(encoding="utf-8")
         self.assertIn("aihot-content-schema.json", generation_contract)
         self.assertIn("`evidence` is mandatory", generation_contract)
+        self.assertIn("explicit `publication_class`", generation_contract)
+        self.assertIn("verbatim excerpt", generation_contract)
         self.assertIn("must never invent", generation_contract)
         self.assertIn("strict `no-change`", generation_contract)
         self.assertIn("`evidence` is mandatory content", adam_daily)
+        self.assertIn("`publication_class` explicitly", adam_daily)
+        self.assertIn("exact verbatim excerpt", adam_daily)
         self.assertIn("Never ask or rely on the bridge to invent", adam_daily)
         self.assertIn("strict `no-change`", adam_daily)
 
     def test_valid_fixture_passes_local_and_authoritative(self) -> None:
         self.assertEqual(self.validate(self.valid), self.valid["id"])
         authoritative_simulation(self.valid)
+
+    def test_auto_intended_fixture_matches_pinned_source_policy(self) -> None:
+        registry = json.loads((BIN / "aihot-primary-sources.json").read_text())
+        sources = {source["url"] for source in self.valid["sources"]}
+        claims_by_id: dict[str, set[str]] = {}
+        for claim in self.valid["evidence"]["claims"]:
+            claims_by_id.setdefault(claim["id"], set()).add(claim["source_url"])
+        self.assertEqual(
+            {claim["source_url"] for claim in self.valid["evidence"]["claims"]},
+            sources,
+        )
+
+        def registry_rows(url: str) -> list[dict]:
+            parsed = urlsplit(url)
+            return [
+                row for row in registry["sources"]
+                if parsed.hostname == row["host"]
+                and (parsed.path or "/").startswith(row["path_prefix"])
+            ]
+
+        for urls in claims_by_id.values():
+            self.assertGreaterEqual(len(urls), 2)
+            self.assertTrue(all(registry_rows(url) for url in urls))
+            self.assertTrue(any(
+                row["accepted_primary"]
+                for url in urls
+                for row in registry_rows(url)
+            ))
 
     def test_current_r1_shape_missing_evidence_is_blocked(self) -> None:
         invalid = fixture("invalid-missing-evidence.json")
@@ -184,6 +244,15 @@ class PureContentContractTests(unittest.TestCase):
         variants.append(value)
         value = copy.deepcopy(self.valid)
         value["evidence"]["verification"] = "assumed"
+        variants.append(value)
+        value = copy.deepcopy(self.valid)
+        value["evidence"]["publication_class"] = "C"
+        variants.append(value)
+        value = copy.deepcopy(self.valid)
+        value["evidence"]["confidence"] = "assumed"
+        variants.append(value)
+        value = copy.deepcopy(self.valid)
+        del value["evidence"]["claims"]
         variants.append(value)
         value = copy.deepcopy(self.valid)
         value["evidence"]["claims"][0]["source_url"] = "https://unknown.example/x"

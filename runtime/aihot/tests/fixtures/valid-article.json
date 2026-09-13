@@ -15,25 +15,32 @@
   "builds_on": [],
   "sources": [
     {
-      "publisher": "Example Authority",
+      "publisher": "CISA",
       "title": "Primary fixture source",
-      "url": "https://authority.example/aihot-primary"
+      "url": "https://www.cisa.gov/news-events/alerts/aihot-fixture"
     },
     {
-      "publisher": "Example Research",
+      "publisher": "The Hacker News",
       "title": "Independent fixture source",
-      "url": "https://research.example/aihot-independent"
+      "url": "https://thehackernews.com/2026/09/aihot-fixture.html"
     }
   ],
   "evidence": {
     "grade": "strong",
     "verification": "curl",
     "basis": "Två oberoende syntetiska fixtures med en explicit primär källa.",
+    "publication_class": "A",
+    "confidence": "verified",
     "claims": [
       {
         "id": "fixture-claim",
-        "value": "Detta är ett syntetiskt valideringspåstående.",
-        "source_url": "https://authority.example/aihot-primary"
+        "value": "The fixture advisory confirms version 2.0.1.",
+        "source_url": "https://www.cisa.gov/news-events/alerts/aihot-fixture"
+      },
+      {
+        "id": "fixture-claim",
+        "value": "Independent fixture analysis confirms version 2.0.1.",
+        "source_url": "https://thehackernews.com/2026/09/aihot-fixture.html"
       }
     ]
   }

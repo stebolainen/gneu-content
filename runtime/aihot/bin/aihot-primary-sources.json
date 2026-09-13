@@ -1,0 +1,18 @@
+{
+  "schema": "gneu-aihot-primary-sources-v3",
+  "sources": [
+    {"identity":"cisa","host":"cisa.gov","path_prefix":"/","accepted_primary":true},
+    {"identity":"cisa-www","host":"www.cisa.gov","path_prefix":"/","accepted_primary":true},
+    {"identity":"nist","host":"nist.gov","path_prefix":"/","accepted_primary":true},
+    {"identity":"nist-nvd","host":"nvd.nist.gov","path_prefix":"/","accepted_primary":true},
+    {"identity":"openai-index","host":"openai.com","path_prefix":"/index/","accepted_primary":true},
+    {"identity":"owasp","host":"owasp.org","path_prefix":"/","accepted_primary":true},
+    {"identity":"google-security-blog","host":"security.googleblog.com","path_prefix":"/","accepted_primary":true},
+    {"identity":"uk-ncsc","host":"ncsc.gov.uk","path_prefix":"/","accepted_primary":true},
+    {"identity":"gitlab-docs","host":"docs.gitlab.com","path_prefix":"/","accepted_primary":true},
+    {"identity":"google-cloud","host":"cloud.google.com","path_prefix":"/","accepted_primary":true},
+    {"identity":"aws","host":"aws.amazon.com","path_prefix":"/","accepted_primary":true},
+    {"identity":"ox-security-research","host":"www.ox.security","path_prefix":"/blog/","accepted_primary":true},
+    {"identity":"the-hacker-news","host":"thehackernews.com","path_prefix":"/","accepted_primary":false}
+  ]
+}

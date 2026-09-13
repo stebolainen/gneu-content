@@ -13,6 +13,8 @@ The deployable files listed in `manifest.sha256` map as follows:
 - `bin/*.py` -> `/root/gneu-aihot-bridge/bin/*.py`
 - `bin/aihot-content-schema.json` ->
   `/root/gneu-aihot-bridge/bin/aihot-content-schema.json`
+- `bin/aihot-primary-sources.json` ->
+  `/root/gneu-aihot-bridge/bin/aihot-primary-sources.json`
 - `generation/gneu-aihot-*.py` ->
   `/root/.hermes/profiles/gneu/scripts/gneu-aihot-*.py`
 - `generation/CONTRACT.md` and `generation/ADAM_DAILY.md` ->
