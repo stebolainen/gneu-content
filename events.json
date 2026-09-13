@@ -202,6 +202,66 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-75650-2026-09-08",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-08T00:00:00Z",
+      "updated_at": "2026-09-13T08:31:35Z",
+      "title": "CISA listar aktivt utnyttjad kodexekvering i Adobe Commerce och Magento",
+      "summary": "CISA har lagt till CVE-2026-75650 i KEV-katalogen. Sårbarheten i Adobe Commerce och Magento Open Source kan möjliggöra godtycklig kodexekvering.",
+      "action": "Om CVE-2026-75650 inte redan är åtgärdad: tillämpa Adobes åtgärder omedelbart, bedöm internetexponering och följ CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-75650"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-19490-2026-09-09",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-09T00:00:00Z",
+      "updated_at": "2026-09-13T08:31:35Z",
+      "title": "CISA listar aktivt utnyttjad autentiseringsbypass i NetScaler",
+      "summary": "CISA har lagt till CVE-2026-19490 i KEV-katalogen. Sårbarheten kan låta en oautentiserad fjärrangripare kringgå autentisering när NetScaler är konfigurerad som AAA-virtuell server eller Gateway.",
+      "action": "Om CVE-2026-19490 inte redan är åtgärdad: tillämpa Citrix åtgärder omedelbart, prioritera internetexponerade NetScaler-enheter och följ CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-19490"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-20079-2026-09-09",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-09T00:00:00Z",
+      "updated_at": "2026-09-13T08:31:35Z",
+      "title": "CISA listar aktivt utnyttjad autentiseringsbypass i Cisco FMC och SCC",
+      "summary": "CISA har lagt till CVE-2026-20079 i KEV-katalogen. Sårbarheten påverkar Cisco Secure FMC och SCC Firewall Management och kan låta en oautentiserad fjärrangripare kringgå autentisering, köra skript och få root-åtkomst.",
+      "action": "Om CVE-2026-20079 inte redan är åtgärdad: tillämpa Ciscos åtgärder omedelbart, prioritera internetexponerade FMC- och SCC-enheter och följ CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-20079"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
