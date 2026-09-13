@@ -1,11 +1,16 @@
 {
-  "schema": "gneu-aihot-content-contract-v1",
+  "schema": "gneu-aihot-content-contract-v2",
   "provenance": {
     "repository": "stebolainen/gneu-se",
     "validator_path": "scripts/aihot_intake_validate.py",
-    "ref": "4bb9ba39c74323a158460295ab04923c6d9fa53d",
-    "blob_sha": "ce117c31a25708bc16d17beacffe54cb0c7de409",
-    "sha256": "8202d226bbd548425ab3a1d8ea7ea22d09decc5704e7a39dd1c6617b0c033468"
+    "ref": "782dbcf64d2715bdf751118d9eb61d9f17431a08",
+    "blob_sha": "9164aacdcf078f6b1e295b5f59dce0ee283bbd57",
+    "sha256": "4bcda918885b6e7674eaf2972bf6173a14b8ee373c0ba8471245239854cbd2c4",
+    "source_registry": {
+      "path": "scripts/aihot_primary_sources.json",
+      "blob_sha": "0de327db759868297a1e40f938a2f02a382fbcf4",
+      "sha256": "714b3698a4f501097002bd2a02eac15a3009e8d59d13c7528dfbd8a754879c4a"
+    }
   },
   "article": {
     "required_keys": [
@@ -63,11 +68,12 @@
       "required_keys": [
         "grade",
         "verification",
-        "basis"
+        "basis",
+        "claims",
+        "publication_class",
+        "confidence"
       ],
-      "optional_keys": [
-        "claims"
-      ],
+      "optional_keys": [],
       "grade_values": [
         "strong",
         "moderate",
@@ -77,6 +83,14 @@
         "curl",
         "mixed",
         "search-only"
+      ],
+      "publication_class_values": [
+        "A",
+        "B"
+      ],
+      "confidence_values": [
+        "verified",
+        "corroborated"
       ],
       "basis_max_bytes": 20000,
       "claims": {

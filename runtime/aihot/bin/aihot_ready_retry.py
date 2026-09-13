@@ -394,7 +394,7 @@ def validator_fix_present(path: Path, schema_path: Path) -> bool:
     )
     return (
         imported
-        and schema.get("schema") == "gneu-aihot-content-contract-v1"
+        and schema.get("schema") == "gneu-aihot-content-contract-v2"
         and isinstance(required_keys, list)
         and "date" in required_keys
         and "evidence" in required_keys
