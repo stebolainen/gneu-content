@@ -36,7 +36,7 @@ def load_contract(path: Path = SCHEMA_PATH) -> dict:
         "article",
     }:
         fail("content contract root invalid")
-    if value.get("schema") != "gneu-aihot-content-contract-v1":
+    if value.get("schema") != "gneu-aihot-content-contract-v2":
         fail("content contract schema invalid")
     if not isinstance(value.get("provenance"), dict):
         fail("content contract provenance invalid")
@@ -161,9 +161,11 @@ def validate_evidence(article_id: str, value: object, rules: dict, source_urls: 
         fail(f"article {article_id}.evidence.grade invalid")
     if value.get("verification") not in rules["verification_values"]:
         fail(f"article {article_id}.evidence.verification invalid")
+    if value.get("publication_class") not in rules["publication_class_values"]:
+        fail(f"article {article_id}.evidence.publication_class invalid")
+    if value.get("confidence") not in rules["confidence_values"]:
+        fail(f"article {article_id}.evidence.confidence invalid")
     text(value.get("basis"), f"article {article_id}.evidence.basis", rules["basis_max_bytes"])
-    if "claims" not in value:
-        return
     claim_rules = rules["claims"]
     claims = value["claims"]
     if not isinstance(claims, list) or len(claims) < claim_rules["min_items"]:
