@@ -286,6 +286,27 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-76461-kev-2026-09-14",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-14T19:00:02Z",
+      "updated_at": "2026-09-14T22:10:13Z",
+      "title": "CISA lägger till CVE-2026-76461 för Cisco Secure Email Gateway i KEV",
+      "summary": "CISA har lagt till CVE-2026-76461 i KEV-katalogen. SQL-injektion i Cisco AsyncOS för Secure Email Gateway kan låta en oautentiserad fjärrangripare köra godtyckliga kommandon med root-behörighet.",
+      "action": "Tillämpa leverantörens åtgärder senast 17 september 2026. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-76461"
+      ],
+      "deadline": "2026-09-17",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
