@@ -266,6 +266,26 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-62721-missed-fix-2026-09-14",
+      "type": "patch",
+      "publication_class": "B",
+      "occurred_at": "2026-09-14T14:00:00Z",
+      "updated_at": "2026-09-14T14:00:00Z",
+      "title": "Microsoft korrigerar missad fix för CVE-2026-62721 i Windows 11",
+      "summary": "Microsoft har uppdaterat CVE-2026-62721 med säkerhetsuppdateringar för Windows 11 version 24H2, 25H2 och 26H1 efter en missad korrigering. Sårbarheten kan ge en lokal angripare SYSTEM-behörighet; Microsoft anger att den inte var känd som exploaterad vid den ursprungliga publiceringen.",
+      "action": "Installera de nya säkerhetsuppdateringarna för berörda Windows 11-versioner så snart som möjligt enligt Microsofts rekommendation.",
+      "cves": [
+        "CVE-2026-62721"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-62721"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
