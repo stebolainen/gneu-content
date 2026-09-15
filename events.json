@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 27,
+  "generation": 28,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -54,6 +54,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/news/cisa-releases-updated-insider-threat-guide-new-insights-mitigate-physical-and-cyber-threats"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:CVE-2026-76461-2026-09-15",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-15T13:00:00Z",
+      "updated_at": "2026-09-15T13:00:00Z",
+      "title": "CERT-SE varnar för aktivt utnyttjad sårbarhet i Cisco Secure Email Gateway",
+      "summary": "CERT-SE uppger att SQL-injektionssårbarheten CVE-2026-76461 i Cisco Secure Email Gateway utnyttjas aktivt. Framgångsrikt utnyttjande kan ge fjärrexekvering av kod med höga privilegier. Fysiska och virtuella installationer i version 16.5, 16.0 samt 15.5 och tidigare berörs.",
+      "action": "Uppgradera till version 16.5.0-780 så snart som möjligt, undersök egna system och följ leverantörens anvisningar.",
+      "cves": [
+        "CVE-2026-76461"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/09/kritisk-sarbarhet-i-cisco-secure-email-gateway-utnyttjas-aktivt.html"
         }
       ],
       "confidence": "verified"
