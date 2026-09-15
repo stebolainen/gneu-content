@@ -292,10 +292,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-14T19:00:02Z",
-      "updated_at": "2026-09-14T22:10:13Z",
+      "updated_at": "2026-09-15T17:48:03Z",
       "title": "CISA lägger till CVE-2026-76461 för Cisco Secure Email Gateway i KEV",
-      "summary": "CISA har lagt till CVE-2026-76461 i KEV-katalogen. SQL-injektion i Cisco AsyncOS för Secure Email Gateway kan låta en oautentiserad fjärrangripare köra godtyckliga kommandon med root-behörighet.",
-      "action": "Tillämpa leverantörens åtgärder senast 17 september 2026. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; sluta använda produkten om åtgärder saknas.",
+      "summary": "CISA har lagt till CVE-2026-76461 i KEV-katalogen. SQL-injektion i Cisco AsyncOS för Secure Email Gateway kan låta en oautentiserad fjärrangripare köra godtyckliga kommandon med root-behörighet. CERT-SE anger att fysiska och virtuella installationer i version 16.5, 16.0 samt 15.5 och tidigare berörs.",
+      "action": "Uppgradera berörda system till 16.5.0-780 snarast och undersök dem enligt CERT-SE. CISA anger 17 september 2026 som tidsfrist. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; sluta använda produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-76461"
       ],
@@ -304,6 +304,10 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/09/kritisk-sarbarhet-i-cisco-secure-email-gateway-utnyttjas-aktivt.html"
         }
       ],
       "confidence": "verified"
