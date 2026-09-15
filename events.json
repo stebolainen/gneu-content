@@ -124,10 +124,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-11T00:00:00Z",
-      "updated_at": "2026-09-12T22:48:18Z",
+      "updated_at": "2026-09-15T00:14:45Z",
       "title": "CISA lägger till aktivt utnyttjad ScreenConnect-sårbarhet i KEV-katalogen",
       "summary": "CISA har lagt till CVE-2026-84869 i KEV-katalogen. Sårbarheten i ConnectWise ScreenConnect kan medge obehörig filöverföring och körning via en aktiv fjärrsession utan auktorisering eller värdens bekräftelse.",
-      "action": "Identifiera berörda ScreenConnect-installationer och tillämpa leverantörens åtgärder. CISA anger 14 september 2026 som tidsfrist. Bedöm internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "action": "CISA:s tidsfrist var 14 september 2026 och har passerat. Om CVE-2026-84869 inte redan är åtgärdad: tillämpa leverantörens åtgärder omedelbart, bedöm internetexponering och följ tillämplig BOD 26-04-vägledning samt CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-84869"
       ],
@@ -145,10 +145,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-11T00:00:00Z",
-      "updated_at": "2026-09-12T22:48:18Z",
+      "updated_at": "2026-09-15T00:14:45Z",
       "title": "CISA lägger till aktivt utnyttjad GitLab-sårbarhet i KEV-katalogen",
       "summary": "CISA har lagt till CVE-2026-85706 i KEV-katalogen. Sårbarheten i GitLab Community Edition och Enterprise Edition kan låta en oautentiserad användare läsa godtyckliga filer via repository commits-API:t.",
-      "action": "Tillämpa leverantörens åtgärder. CISA anger 14 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering, följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
+      "action": "CISA:s tidsfrist 14 september 2026 har passerat. Om CVE-2026-85706 inte redan är åtgärdad: tillämpa leverantörens åtgärder omedelbart, bedöm tillgångarnas internetexponering och följ tillämplig BOD 26-04-vägledning samt CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-85706"
       ],
