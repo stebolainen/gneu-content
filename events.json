@@ -311,6 +311,31 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "msrc:edge-CVE-2026-69486-CVE-2026-85893",
+      "type": "patch",
+      "publication_class": "B",
+      "occurred_at": "2026-09-15T14:00:00Z",
+      "updated_at": "2026-09-15T14:00:00Z",
+      "title": "Microsoft rättar två sårbarheter i Edge 153.0.4234.32",
+      "summary": "Microsoft publicerade två Edge-sårbarheter med allvarlighetsgrad Important och CVSS 8,8. CVE-2026-69486 kan ge kodkörning via en skadlig Office-fil. CVE-2026-85893 kan höja privilegier efter interaktion med en angriparkontrollerad webbsida. Ingen var känd som utnyttjad vid publiceringen.",
+      "action": "Uppdatera Microsoft Edge till den korrigerade versionen 153.0.4234.32 eller senare.",
+      "cves": [
+        "CVE-2026-69486",
+        "CVE-2026-85893"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-69486"
+        },
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-85893"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
