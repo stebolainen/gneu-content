@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 27,
+  "generation": 28,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -54,6 +54,31 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/news/cisa-releases-updated-insider-threat-guide-new-insights-mitigate-physical-and-cyber-threats"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:edge-CVE-2026-69486-CVE-2026-85893",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-09-15T14:00:00Z",
+      "updated_at": "2026-09-15T14:00:00Z",
+      "title": "Microsoft rättar två allvarliga säkerhetsbrister i Edge 153.0.4234.32",
+      "summary": "Microsoft har publicerat två Edge-sårbarheter med allvarlighetsgrad Important och CVSS 8,8. CVE-2026-69486 kan ge kodkörning när en användare öppnar en skadlig Office-fil. CVE-2026-85893 kan höja privilegier från låg till medelhög integritetsnivå efter användarinteraktion.",
+      "action": "Uppdatera Microsoft Edge till version 153.0.4234.32 eller senare, som Microsoft anger som korrigerad version för båda sårbarheterna.",
+      "cves": [
+        "CVE-2026-69486",
+        "CVE-2026-85893"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-69486"
+        },
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-85893"
         }
       ],
       "confidence": "verified"
