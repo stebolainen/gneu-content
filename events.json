@@ -336,6 +336,27 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-76460-kev-2026-09-16",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-16T00:00:00Z",
+      "updated_at": "2026-09-17T20:19:52Z",
+      "title": "CISA lägger till aktivt utnyttjad Cisco ISE-sårbarhet i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2026-76460 i KEV-katalogen. Sårbarheten berör Cisco ISE och ISE-PIC och kan låta en oautentiserad fjärrangripare kringgå det webbaserade administrationsgränssnittet och få obehörig åtkomst.",
+      "action": "Tillämpa leverantörens åtgärder. CISA anger 19 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering och följ tillämplig BOD 26-04-vägledning samt CISA:s forensikkrav; sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-76460"
+      ],
+      "deadline": "2026-09-19",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
