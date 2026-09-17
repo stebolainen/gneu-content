@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 27,
+  "generation": 28,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -54,6 +54,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/news/cisa-releases-updated-insider-threat-guide-new-insights-mitigate-physical-and-cyber-threats"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-76460-kev-2026-09-16",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-16T18:47:50Z",
+      "updated_at": "2026-09-16T18:47:50Z",
+      "title": "CISA lägger till Cisco ISE-sårbarhet i KEV med tidsfrist 19 september",
+      "summary": "CISA har lagt till CVE-2026-76460 i KEV. Sårbarheten berör Cisco ISE och ISE-PIC och kan låta en oautentiserad fjärrangripare kringgå det webbaserade administrationsgränssnittet och få obehörig åtkomst.",
+      "action": "Tillämpa leverantörens åtgärder senast den 19 september 2026 enligt CISA. Följ tillämplig BOD 26-04-vägledning för molntjänster eller sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-76460"
+      ],
+      "deadline": "2026-09-19",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
