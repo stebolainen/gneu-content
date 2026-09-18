@@ -166,10 +166,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-11T00:00:00Z",
-      "updated_at": "2026-09-12T22:48:18Z",
+      "updated_at": "2026-09-18T05:13:23Z",
       "title": "CISA lägger till två aktivt utnyttjade sårbarheter i JFrog Artifactory",
       "summary": "CISA har lagt till CVE-2026-42016 och CVE-2026-42018 i KEV-katalogen. Bristerna i JFrog Artifactory kan medge privilegiehöjning genom felaktig tokenvalidering respektive exponering av interna token och känsliga resurser.",
-      "action": "Tillämpa leverantörens åtgärder. CISA anger 25 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering och följ tillämplig BOD 26-04-vägledning; avveckla produkten om åtgärder saknas.",
+      "action": "Tillämpa leverantörens åtgärder. CISA anger 25 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering och följ tillämplig BOD 26-04-vägledning samt CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-42016",
         "CVE-2026-42018"
@@ -188,10 +188,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-04T00:00:00Z",
-      "updated_at": "2026-09-12T23:47:33Z",
+      "updated_at": "2026-09-18T05:13:23Z",
       "title": "CISA lägger till aktivt utnyttjad Chromium V8-sårbarhet i KEV-katalogen",
       "summary": "CISA har lagt till CVE-2026-85046 för Chromium V8 i katalogen över kända utnyttjade sårbarheter. En preparerad HTML-sida kan låta en fjärrangripare köra godtycklig kod i sandlådan. Sårbarheten kan beröra bland annat Chrome, Edge och Opera.",
-      "action": "Tillämpa leverantörens åtgärder. CISA anger 18 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering och följ tillämplig BOD 26-04-vägledning; avveckla produkten om åtgärder saknas.",
+      "action": "Tillämpa leverantörens åtgärder. CISA anger 18 september 2026 som tidsfrist. Bedöm varje tillgångs internetexponering och följ tillämplig BOD 26-04-vägledning samt CISA:s forensikkrav; avveckla produkten om åtgärder saknas.",
       "cves": [
         "CVE-2026-85046"
       ],
