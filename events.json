@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 28,
+  "generation": 29,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -72,6 +72,28 @@
         {
           "id": "uk-ncsc",
           "url": "https://www.ncsc.gov.uk/news/iranian-cyber-targeting-of-dissidents-activists-and-journalists"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:linux-kernel-2026-09-18",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-18T13:49:41Z",
+      "updated_at": "2026-09-18T13:49:41Z",
+      "title": "CISA lägger till två aktivt utnyttjade sårbarheter i Linuxkärnan",
+      "summary": "CISA har lagt till CVE-2025-39964 och CVE-2026-53266 i KEV-katalogen. Den första gäller samtidiga skrivningar till samma AF_ALG-socket; den andra en skrivning utanför gränsen i ebtables SNAT-mål. CISA anger okänd användning i ransomwarekampanjer och kräver forensisk triage.",
+      "action": "Tillämpa leverantörens mitigeringar senast 21 september 2026 enligt CISA:s BOD 26-04-vägledning. Följ CISA:s krav på forensisk triage; avveckla produkten om mitigering saknas.",
+      "cves": [
+        "CVE-2025-39964",
+        "CVE-2026-53266"
+      ],
+      "deadline": "2026-09-21",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
