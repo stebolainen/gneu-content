@@ -61,9 +61,9 @@
     {
       "id": "uk-ncsc:chosen-brick-2026-09-15",
       "type": "threat_report",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-15T00:00:00Z",
-      "updated_at": "2026-09-15T00:00:00Z",
+      "updated_at": "2026-09-18T12:02:35Z",
       "title": "NCSC varnar för CHOSEN BRICK-angrepp mot journalister och aktivister",
       "summary": "NCSC, FBI och nederländska AIVD varnar för att iranska statliga aktörer använder CHOSEN BRICK mot bland andra journalister, aktivister och oppositionella. Skadlig kod för Windows levereras genom riktad social manipulation och kan stjäla meddelanden, ta skärmbilder och aktivera mikrofonen.",
       "action": "Följ NCSC:s skyddsråd: installera endast program från legitima källor, håll enheter och antivirus uppdaterade och använd nätfiskeresistent MFA. Organisationer bör använda applikationstillåtelselistor samt endpoint- och nätverksövervakning.",
