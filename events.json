@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 28,
+  "generation": 29,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -72,6 +72,29 @@
         {
           "id": "uk-ncsc",
           "url": "https://www.ncsc.gov.uk/news/iranian-cyber-targeting-of-dissidents-activists-and-journalists"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:linux-kernel-2026-09-18",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-18T19:00:05.0974Z",
+      "updated_at": "2026-09-18T19:00:05.0974Z",
+      "title": "CISA lägger till tre aktivt utnyttjade sårbarheter i Linuxkärnan",
+      "summary": "CISA har lagt till CVE-2025-39964, CVE-2026-53266 och CVE-2025-39682 i KEV-katalogen. Sårbarheterna gäller en kapplöpning i AF_ALG, en skrivning utanför gränsen i ebtables SNAT-mål och felaktig hantering av en nollängdspost i TLS-mottagning.",
+      "action": "Tillämpa leverantörens mitigeringar senast den 21 september 2026 enligt CISA:s BOD 26-04-vägledning och följ CISA:s krav på forensisk triage. Avveckla produkten om mitigeringar saknas.",
+      "cves": [
+        "CVE-2025-39964",
+        "CVE-2026-53266",
+        "CVE-2025-39682"
+      ],
+      "deadline": "2026-09-21",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
