@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 28,
+  "generation": 29,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -72,6 +72,26 @@
         {
           "id": "uk-ncsc",
           "url": "https://www.ncsc.gov.uk/news/iranian-cyber-targeting-of-dissidents-activists-and-journalists"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-85889-2026-09-17",
+      "type": "ai_security",
+      "publication_class": "A",
+      "occurred_at": "2026-09-17T14:00:00Z",
+      "updated_at": "2026-09-17T14:00:00Z",
+      "title": "Microsoft har åtgärdat kritisk sårbarhet i Azure AI Foundry",
+      "summary": "Microsoft uppger att bristande autentisering i Azure AI Foundry kunde låta en obehörig angripare höja privilegier via nätverket. CVE-2026-85889 har CVSS 10,0 och är enligt Microsoft fullt åtgärdad.",
+      "action": "Microsoft uppger att tjänsten redan är fullt åtgärdad och att användare inte behöver vidta någon åtgärd.",
+      "cves": [
+        "CVE-2026-85889"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-85889"
         }
       ],
       "confidence": "verified"
