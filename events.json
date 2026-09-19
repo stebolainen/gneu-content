@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 28,
+  "generation": 29,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -72,6 +72,29 @@
         {
           "id": "uk-ncsc",
           "url": "https://www.ncsc.gov.uk/news/iranian-cyber-targeting-of-dissidents-activists-and-journalists"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:linux-kernel-2026-09-18",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-18T19:00:05Z",
+      "updated_at": "2026-09-18T19:00:05Z",
+      "title": "CISA lägger till tre Linux-kärnsårbarheter i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2025-39682, CVE-2025-39964 och CVE-2026-53266 i katalogen över kända utnyttjade sårbarheter. Bristerna finns i Linux-kärnans TLS-mottagning, AF_ALG-socket och ebtables SNAT-hantering.",
+      "action": "Tillämpa leverantörens åtgärder enligt CISA:s instruktion. Amerikanska federala myndigheter ska åtgärda senast 21 september 2026; upphör med användning om åtgärder saknas.",
+      "cves": [
+        "CVE-2025-39682",
+        "CVE-2025-39964",
+        "CVE-2026-53266"
+      ],
+      "deadline": "2026-09-21",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
