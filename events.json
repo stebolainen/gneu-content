@@ -1,14 +1,14 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 29,
+  "generation": 30,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
       "type": "patch",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-08-24T14:00:00Z",
-      "updated_at": "2026-08-30T18:59:58Z",
-      "title": "Uppdatera VS Code-tillägget MSSQL till version 1.43.0 eller senare",
+      "updated_at": "2026-09-20T11:49:30Z",
+      "title": "Microsoft uppdaterar CVE-2026-47292 med korrigerad MSSQL-version",
       "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Versioner av Visual Studio Code-tillägget MSSQL från 1.0.0 men äldre än 1.43.0 anges som sårbara; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
       "action": "Uppdatera Visual Studio Code-tillägget MSSQL till version 1.43.0 eller senare enligt Microsofts angivna korrigerade version.",
       "cves": [
@@ -25,12 +25,12 @@
     {
       "id": "cisa:communicating-under-pressure-2026-09-02",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-02T12:34:45Z",
-      "updated_at": "2026-09-02T12:34:45Z",
+      "updated_at": "2026-09-20T11:49:30Z",
       "title": "Myndigheter publicerar vägledning för kommunikation vid it- och OT-driftstörningar",
-      "summary": "CISA, FBI och cybersäkerhetscenter i Australien, Kanada, Nya Zeeland och Storbritannien har publicerat vägledning för tjänsteleverantörers kommunikation vid it- och OT-driftstörningar, oavsett om orsaken är skadlig eller inte.",
-      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Kommunicera bekräftade fakta, osäkerheter och tidsstämplade uppdateringar utan spekulation eller marknadsföringsspråk.",
+      "summary": "CISA, FBI och partnerländernas cybersäkerhetsmyndigheter ger tjänsteleverantörer råd för kommunikation vid it- och OT-driftstörningar. Vid en aktiv cyberincident bör informationen begränsas så att upptäckt, utredning och inneslutning inte skadas och så att juridiska och regulatoriska krav följs.",
+      "action": "För tjänsteleverantörer: ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och roller. Kommunicera bekräftade fakta, men samordna med juridik, tillsyn och brottsbekämpning och begränsa detaljer som kan skada insatsen.",
       "cves": [],
       "sources": [
         {
@@ -43,9 +43,9 @@
     {
       "id": "cisa:insider-threat-guide-2026-09-09",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-09T00:00:00Z",
-      "updated_at": "2026-09-09T00:00:00Z",
+      "updated_at": "2026-09-20T11:49:30Z",
       "title": "CISA uppdaterar vägledning för program mot insiderhot",
       "summary": "CISA har uppdaterat Insider Threat Mitigation Guide med praktiska steg för att utveckla eller förbättra program mot insiderhot. 2026-versionen behandlar hybrid- och distansarbete, AI-baserad manipulation, åtkomstkontroll och risker vid avslut av anställningar.",
       "action": "Granska den uppdaterade vägledningen, bedöm organisationens befintliga program och genomför de rekommenderade stegen för att stärka hanteringen av insiderhot.",
@@ -61,9 +61,9 @@
     {
       "id": "uk-ncsc:chosen-brick-2026-09-15",
       "type": "threat_report",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-15T00:00:00Z",
-      "updated_at": "2026-09-15T00:00:00Z",
+      "updated_at": "2026-09-20T11:49:30Z",
       "title": "NCSC varnar för CHOSEN BRICK-angrepp mot journalister och aktivister",
       "summary": "NCSC, FBI och nederländska AIVD varnar för att iranska statliga aktörer använder CHOSEN BRICK mot bland andra journalister, aktivister och oppositionella. Skadlig kod för Windows levereras genom riktad social manipulation och kan stjäla meddelanden, ta skärmbilder och aktivera mikrofonen.",
       "action": "Följ NCSC:s skyddsråd: installera endast program från legitima källor, håll enheter och antivirus uppdaterade och använd nätfiskeresistent MFA. Organisationer bör använda applikationstillåtelselistor samt endpoint- och nätverksövervakning.",
@@ -79,9 +79,9 @@
     {
       "id": "cisa:cyber-decoys-2026-09-16",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-16T00:00:00Z",
-      "updated_at": "2026-09-16T00:00:00Z",
+      "updated_at": "2026-09-20T11:49:30Z",
       "title": "CISA publicerar vägledning om cyberlockbeten för detektering och respons",
       "summary": "CISA har publicerat vägledning för att hjälpa defensiva team planera och införa cyberlockbeten som stärker detektering och respons. Den beskriver bland annat tripwires, breadcrumbs och honeytokens samt praktiska steg med MITRE Engage och ATT&CK.",
       "action": "Granska CISA:s vägledning och planera, inför och förfina cyberlockbeten tillsammans med befintlig övervakning och Zero Trust. CISA anger att försvarare bör ha grundläggande kunskap om MITRE ATT&CK och vanliga säkerhetskontroller.",
@@ -90,6 +90,29 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/resources-tools/resources/using-cyber-decoys-strengthen-detection-and-response"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:linux-kernel-2026-09-18",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-18T19:00:05Z",
+      "updated_at": "2026-09-19T21:07:15Z",
+      "title": "CISA lägger till tre utnyttjade sårbarheter i Linuxkärnan",
+      "summary": "CISA har lagt till CVE-2025-39682, CVE-2025-39964 och CVE-2026-53266 i KEV-katalogen. Bristerna finns i Linuxkärnans TLS-mottagning, AF_ALG-socket respektive ebtables SNAT-hantering.",
+      "action": "Bedöm varje tillgångs internetexponering och tillämpa leverantörens åtgärder. Följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav. CISA sätter 21 september 2026 som tidsfrist; avveckla berörd produkt om åtgärder saknas.",
+      "cves": [
+        "CVE-2025-39682",
+        "CVE-2025-39964",
+        "CVE-2026-53266"
+      ],
+      "deadline": "2026-09-21",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
