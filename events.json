@@ -93,6 +93,29 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:linux-kernel-2026-09-18",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-18T19:00:05Z",
+      "updated_at": "2026-09-19T21:07:15Z",
+      "title": "CISA lägger till tre utnyttjade sårbarheter i Linuxkärnan",
+      "summary": "CISA har lagt till CVE-2025-39682, CVE-2025-39964 och CVE-2026-53266 i KEV-katalogen. Bristerna finns i Linuxkärnans TLS-mottagning, AF_ALG-socket respektive ebtables SNAT-hantering.",
+      "action": "Bedöm varje tillgångs internetexponering och tillämpa leverantörens åtgärder. Följ tillämplig BOD 26-04-vägledning och CISA:s forensikkrav. CISA sätter 21 september 2026 som tidsfrist; avveckla berörd produkt om åtgärder saknas.",
+      "cves": [
+        "CVE-2025-39682",
+        "CVE-2025-39964",
+        "CVE-2026-53266"
+      ],
+      "deadline": "2026-09-21",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
