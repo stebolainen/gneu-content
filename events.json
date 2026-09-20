@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 28,
+  "generation": 29,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -72,6 +72,24 @@
         {
           "id": "uk-ncsc",
           "url": "https://www.ncsc.gov.uk/news/iranian-cyber-targeting-of-dissidents-activists-and-journalists"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:cyber-decoys-2026-09-16",
+      "type": "advisory",
+      "publication_class": "A",
+      "occurred_at": "2026-09-16T00:00:00Z",
+      "updated_at": "2026-09-16T00:00:00Z",
+      "title": "CISA publicerar vägledning om cyberlockbeten för detektering och respons",
+      "summary": "CISA har publicerat vägledning för att hjälpa defensiva team planera och införa cyberlockbeten som stärker detektering och respons. Den beskriver bland annat tripwires, breadcrumbs och honeytokens samt praktiska steg med MITRE Engage och ATT&CK.",
+      "action": "Granska CISA:s vägledning och planera, inför och förfina cyberlockbeten tillsammans med befintlig övervakning och Zero Trust. CISA anger att försvarare bör ha grundläggande kunskap om MITRE ATT&CK och vanliga säkerhetskontroller.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/resources-tools/resources/using-cyber-decoys-strengthen-detection-and-response"
         }
       ],
       "confidence": "verified"
