@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 29,
+  "generation": 30,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -90,6 +90,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/resources-tools/resources/using-cyber-decoys-strengthen-detection-and-response"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:CVE-2026-7273-kev-2026-09-21",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-21T18:46:35Z",
+      "updated_at": "2026-09-21T18:46:35Z",
+      "title": "CISA lägger till aktivt utnyttjad sårbarhet i Zyxel GS1900-switchar",
+      "summary": "CISA har lagt till CVE-2026-7273 i KEV-katalogen. Sårbarheten i CGI-programmet för Zyxel GS1900 kan utnyttjas av en oautentiserad angripare på LAN för att potentiellt köra OS-kommandon via en särskilt utformad HTTP-begäran.",
+      "action": "Tillämpa leverantörens åtgärder senast 24 september 2026 enligt CISA:s tidsfrist. Följ även CISA:s krav för forensisk triage och BOD 26-04, eller sluta använda produkten om åtgärder saknas.",
+      "cves": [
+        "CVE-2026-7273"
+      ],
+      "deadline": "2026-09-24",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
