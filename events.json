@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 30,
+  "generation": 31,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -113,6 +113,28 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/22/cisa-adds-four-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:wso2-adobe-commerce-2026-09-24",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-24T19:00:55Z",
+      "updated_at": "2026-09-24T19:00:55Z",
+      "title": "CISA lägger till aktivt exploaterade sårbarheter i WSO2 och Adobe Commerce",
+      "summary": "CISA har lagt till CVE-2026-5430 i WSO2 API-produkter och CVE-2026-71362 i Adobe Commerce och Magento i KEV-katalogen. Den första kan möjliggöra obegränsad filuppladdning och kodkörning; den andra kan ge förhöjd åtkomst till känsliga resurser utan användarinteraktion.",
+      "action": "CISA anger 27 september 2026 som sista åtgärdsdag i katalogen och markerar båda posterna för forensisk triage. Tillämpa leverantörernas åtgärder.",
+      "cves": [
+        "CVE-2026-5430",
+        "CVE-2026-71362"
+      ],
+      "deadline": "2026-09-27",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
