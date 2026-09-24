@@ -116,6 +116,26 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-70125-disclosure-2026-09-23",
+      "type": "patch",
+      "publication_class": "B",
+      "occurred_at": "2026-09-23T14:00:00Z",
+      "updated_at": "2026-09-23T14:00:00Z",
+      "title": "Microsoft publicerar tidigare utelämnad Outlook-sårbarhet som redan åtgärdats",
+      "summary": "Microsoft har publicerat CVE-2026-70125 för fjärrkodskörning i Outlook. Sårbarheten berör Microsoft 365 Apps for Enterprise samt Office LTSC 2021 och 2024 och kräver att en användare öppnar en skadlig Office-fil. Microsoft bedömer exploatering som mindre sannolik och uppger ingen känd exploatering.",
+      "action": "Kontrollera att Microsofts säkerhetsuppdateringar från september 2026 är installerade. Microsoft anger att kunder som redan har installerat septemberuppdateringarna inte behöver göra något ytterligare.",
+      "cves": [
+        "CVE-2026-70125"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-70125"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
