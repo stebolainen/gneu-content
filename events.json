@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 30,
+  "generation": 31,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -113,6 +113,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/22/cisa-adds-four-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:wso2-adobe-commerce-2026-09-24",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-24T19:00:55Z",
+      "updated_at": "2026-09-24T19:00:55Z",
+      "title": "CISA lägger till CVE-2026-5430 och CVE-2026-71362 i KEV-katalogen",
+      "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering.",
+      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "cves": [
+        "CVE-2026-5430",
+        "CVE-2026-71362"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/24/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
