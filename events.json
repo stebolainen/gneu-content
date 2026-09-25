@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 32,
+  "generation": 33,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -156,6 +156,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:wordpress-core-2026-09-25",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-25T18:58:16Z",
+      "updated_at": "2026-09-25T18:58:16Z",
+      "title": "CISA lägger till aktivt exploaterad WordPress-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-87902 i WordPress Core i katalogen över kända exploaterade sårbarheter. Felet kan låta en obehörig angripare få sidmallshanteringen att inkludera en vald läsbar lokal PHP-fil utanför det aktiva temats kataloger, vilket kan leda till fjärrkörning av kod.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04-vägledning. CISA anger 28 september 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2026-87902"
+      ],
+      "deadline": "2026-09-28",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
