@@ -184,7 +184,7 @@
       "updated_at": "2026-09-25T16:24:43Z",
       "title": "CISA lägger till exploaterade SharePoint- och RouterOS-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering.",
-      "action": "Tillämpa leverantörernas åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04-vägledning. CISA anger 28 september 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04-vägledning. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
       "cves": [
         "CVE-2026-65660",
         "CVE-2026-67279"
