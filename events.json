@@ -1,14 +1,14 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 31,
+  "generation": 32,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
       "type": "patch",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-08-24T14:00:00Z",
-      "updated_at": "2026-08-30T18:59:58Z",
-      "title": "Uppdatera VS Code-tillägget MSSQL till version 1.43.0 eller senare",
+      "updated_at": "2026-09-22T20:57:14Z",
+      "title": "Microsoft uppdaterar CVE-2026-47292 med korrigerad MSSQL-version",
       "summary": "Microsoft har uppdaterat CVE-2026-47292 med ny paketinformation. Versioner av Visual Studio Code-tillägget MSSQL från 1.0.0 men äldre än 1.43.0 anges som sårbara; exploatering kräver att användaren öppnar en skadlig fil och kan ge SYSTEM-behörighet.",
       "action": "Uppdatera Visual Studio Code-tillägget MSSQL till version 1.43.0 eller senare enligt Microsofts angivna korrigerade version.",
       "cves": [
@@ -25,12 +25,12 @@
     {
       "id": "cisa:communicating-under-pressure-2026-09-02",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-02T12:34:45Z",
-      "updated_at": "2026-09-02T12:34:45Z",
+      "updated_at": "2026-09-22T20:57:14Z",
       "title": "Myndigheter publicerar vägledning för kommunikation vid it- och OT-driftstörningar",
-      "summary": "CISA, FBI och cybersäkerhetscenter i Australien, Kanada, Nya Zeeland och Storbritannien har publicerat vägledning för tjänsteleverantörers kommunikation vid it- och OT-driftstörningar, oavsett om orsaken är skadlig eller inte.",
-      "action": "Ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och tydliga roller. Kommunicera bekräftade fakta, osäkerheter och tidsstämplade uppdateringar utan spekulation eller marknadsföringsspråk.",
+      "summary": "CISA, FBI och partnerländernas cybersäkerhetsmyndigheter ger tjänsteleverantörer råd för kommunikation vid it- och OT-driftstörningar. Vid en aktiv cyberincident bör informationen begränsas så att upptäckt, utredning och inneslutning inte skadas och så att juridiska och regulatoriska krav följs.",
+      "action": "För tjänsteleverantörer: ta fram och öva en kommunikationsplan med incidenttrösklar, målgrupper, reservkanaler och roller. Kommunicera bekräftade fakta, men samordna med juridik, tillsyn och brottsbekämpning och begränsa detaljer som kan skada insatsen.",
       "cves": [],
       "sources": [
         {
@@ -43,9 +43,9 @@
     {
       "id": "cisa:insider-threat-guide-2026-09-09",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-09T00:00:00Z",
-      "updated_at": "2026-09-09T00:00:00Z",
+      "updated_at": "2026-09-22T20:57:14Z",
       "title": "CISA uppdaterar vägledning för program mot insiderhot",
       "summary": "CISA har uppdaterat Insider Threat Mitigation Guide med praktiska steg för att utveckla eller förbättra program mot insiderhot. 2026-versionen behandlar hybrid- och distansarbete, AI-baserad manipulation, åtkomstkontroll och risker vid avslut av anställningar.",
       "action": "Granska den uppdaterade vägledningen, bedöm organisationens befintliga program och genomför de rekommenderade stegen för att stärka hanteringen av insiderhot.",
@@ -61,9 +61,9 @@
     {
       "id": "uk-ncsc:chosen-brick-2026-09-15",
       "type": "threat_report",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-15T00:00:00Z",
-      "updated_at": "2026-09-15T00:00:00Z",
+      "updated_at": "2026-09-22T20:57:14Z",
       "title": "NCSC varnar för CHOSEN BRICK-angrepp mot journalister och aktivister",
       "summary": "NCSC, FBI och nederländska AIVD varnar för att iranska statliga aktörer använder CHOSEN BRICK mot bland andra journalister, aktivister och oppositionella. Skadlig kod för Windows levereras genom riktad social manipulation och kan stjäla meddelanden, ta skärmbilder och aktivera mikrofonen.",
       "action": "Följ NCSC:s skyddsråd: installera endast program från legitima källor, håll enheter och antivirus uppdaterade och använd nätfiskeresistent MFA. Organisationer bör använda applikationstillåtelselistor samt endpoint- och nätverksövervakning.",
@@ -79,9 +79,9 @@
     {
       "id": "cisa:cyber-decoys-2026-09-16",
       "type": "advisory",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-16T00:00:00Z",
-      "updated_at": "2026-09-16T00:00:00Z",
+      "updated_at": "2026-09-22T20:57:14Z",
       "title": "CISA publicerar vägledning om cyberlockbeten för detektering och respons",
       "summary": "CISA har publicerat vägledning för att hjälpa defensiva team planera och införa cyberlockbeten som stärker detektering och respons. Den beskriver bland annat tripwires, breadcrumbs och honeytokens samt praktiska steg med MITRE Engage och ATT&CK.",
       "action": "Granska CISA:s vägledning och planera, inför och förfina cyberlockbeten tillsammans med befintlig övervakning och Zero Trust. CISA anger att försvarare bör ha grundläggande kunskap om MITRE ATT&CK och vanliga säkerhetskontroller.",
@@ -99,10 +99,10 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-09-22T00:00:00Z",
-      "updated_at": "2026-09-22T00:00:00Z",
+      "updated_at": "2026-09-22T20:57:14Z",
       "title": "CISA lägger till fyra aktivt exploaterade sårbarheter i företagsprodukter",
       "summary": "CISA har lagt till CVE-2026-93952 i Arista VeloCloud Orchestrator, CVE-2026-94127 i F5 BIG-IP APM samt CVE-2026-93616 och CVE-2026-85102 i Check Point-produkter i katalogen över kända exploaterade sårbarheter.",
-      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-93952",
         "CVE-2026-94127",
@@ -122,10 +122,10 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-09-24T19:00:55Z",
-      "updated_at": "2026-09-24T19:00:55Z",
+      "updated_at": "2026-09-24T20:14:43Z",
       "title": "CISA lägger till CVE-2026-5430 och CVE-2026-71362 i KEV-katalogen",
       "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering.",
-      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-5430",
         "CVE-2026-71362"
@@ -134,6 +134,44 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/24/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-70125-disclosure-2026-09-23",
+      "type": "patch",
+      "publication_class": "B",
+      "occurred_at": "2026-09-23T14:00:00Z",
+      "updated_at": "2026-09-23T14:00:00Z",
+      "title": "Microsoft publicerar tidigare utelämnad Outlook-sårbarhet som redan åtgärdats",
+      "summary": "Microsoft har publicerat CVE-2026-70125 för fjärrkodskörning i Outlook. Sårbarheten berör Microsoft 365 Apps for Enterprise samt Office LTSC 2021 och 2024 och kräver att en användare öppnar en skadlig Office-fil. Microsoft bedömer exploatering som mindre sannolik och uppger ingen känd exploatering.",
+      "action": "Kontrollera att Microsofts säkerhetsuppdateringar från september 2026 är installerade. Microsoft anger att kunder som redan har installerat septemberuppdateringarna inte behöver göra något ytterligare.",
+      "cves": [
+        "CVE-2026-70125"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-70125"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:kontaktuppgifter-2026-09-22",
+      "type": "advisory",
+      "publication_class": "A",
+      "occurred_at": "2026-09-22T09:45:00+02:00",
+      "updated_at": "2026-09-22T09:45:00+02:00",
+      "title": "CERT-SE rekommenderar kontaktvägar för säkerhetsinformation",
+      "summary": "CERT-SE har publicerat samlade rekommendationer för hur svenska verksamheter bör tillgängliggöra kontaktvägar så att information om bland annat tekniska svagheter snabbt når rätt funktion.",
+      "action": "Ha en funktionsbrevlåda enligt RFC 2142, uppdatera kontaktuppgifter hos internetregistraren och publicera kontakt- och CVD-vägar i security.txt enligt RFC 9116. Tillverkare av produkter med digitala element ska också inrätta en gemensam kontaktpunkt enligt cyberresiliensakten.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/tema/dela-kontaktuppgifter/"
         }
       ],
       "confidence": "verified"
