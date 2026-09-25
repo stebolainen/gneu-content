@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 32,
+  "generation": 33,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -156,6 +156,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-100206-2026-09-25",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-25T14:00:00Z",
+      "updated_at": "2026-09-25T14:00:00Z",
+      "title": "Microsoft offentliggör redan åtgärdad Office-sårbarhet som kan exponera åtkomsttoken",
+      "summary": "Microsoft har publicerat CVE-2026-100206, en informationsläcka i Microsoft 365 Apps för företag samt Office LTSC 2021 och 2024. En behörig angripare kan över nätverk exponera en inloggningstoken för ett arbetskonto. Microsoft anger ingen känd exploatering.",
+      "action": "Installera Microsofts Office-säkerhetsuppdateringar från juli 2026. Microsoft anger att sårbarheten åtgärdades då och att kunder som redan installerat juliuppdateringarna inte behöver vidta fler åtgärder.",
+      "cves": [
+        "CVE-2026-100206"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-100206"
         }
       ],
       "confidence": "verified"
