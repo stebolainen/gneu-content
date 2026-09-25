@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 32,
+  "generation": 33,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -156,6 +156,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:wordpress-core-2026-09-25",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-25T00:00:00Z",
+      "updated_at": "2026-09-25T00:00:00Z",
+      "title": "CISA lägger till aktivt exploaterad WordPress-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-87902, en sårbarhet för fjärrinkludering av filer i WordPress Core, i katalogen över kända exploaterade sårbarheter baserat på belägg för aktiv exploatering.",
+      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "cves": [
+        "CVE-2026-87902"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-one-known-exploited-vulnerability-catalog"
         }
       ],
       "confidence": "verified"
