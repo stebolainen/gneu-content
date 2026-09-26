@@ -114,6 +114,10 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/22/cisa-adds-four-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
@@ -136,6 +140,10 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/24/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
