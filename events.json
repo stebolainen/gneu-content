@@ -143,9 +143,9 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T14:39:25Z",
-      "updated_at": "2026-09-25T16:24:43Z",
+      "updated_at": "2026-09-26T14:26:36Z",
       "title": "CISA lägger till exploaterade SharePoint- och RouterOS-sårbarheter i KEV",
-      "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering.",
+      "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering. Tidsfristen gäller amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
       "cves": [
         "CVE-2026-65660",
@@ -165,9 +165,9 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T18:58:16Z",
-      "updated_at": "2026-09-25T18:58:16Z",
+      "updated_at": "2026-09-26T14:26:36Z",
       "title": "CISA lägger till aktivt exploaterad WordPress-sårbarhet i KEV",
-      "summary": "CISA har lagt till CVE-2026-87902 i WordPress Core i katalogen över kända exploaterade sårbarheter. Felet kan låta en obehörig angripare få sidmallshanteringen att inkludera en vald läsbar lokal PHP-fil utanför det aktiva temats kataloger, vilket kan leda till fjärrkörning av kod.",
+      "summary": "CISA har lagt till CVE-2026-87902 i WordPress Core i katalogen över kända exploaterade sårbarheter. Felet kan låta en obehörig angripare inkludera en läsbar lokal PHP-fil och fjärrköra kod. Tidsfristen gäller amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
       "cves": [
         "CVE-2026-87902"
