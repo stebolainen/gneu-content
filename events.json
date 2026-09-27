@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 33,
+  "generation": 34,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -176,6 +176,33 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:citrix-netscaler-2026-09-27",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-27T16:09:00Z",
+      "updated_at": "2026-09-27T16:09:00Z",
+      "title": "CERT-SE varnar för kritiska sårbarheter i Citrix NetScaler",
+      "summary": "CERT-SE varnar för åtta allvarliga och kritiska sårbarheter i NetScaler ADC och NetScaler Gateway. Två bedöms utnyttjas aktivt. CVE-2026-88771 och CVE-2026-88772 har CVSS 9,5 och kan medge oautentiserad fjärrkodsexekvering.",
+      "action": "Följ skyndsamt Citrix anvisningar för uppdatering. Undersök systemen noggrant efter tecken på intrång och avvikande beteenden i produkten enligt CERT-SE:s rekommendation.",
+      "cves": [
+        "CVE-2026-88771",
+        "CVE-2026-88772",
+        "CVE-2026-88773",
+        "CVE-2026-88774",
+        "CVE-2026-88775",
+        "CVE-2026-88776",
+        "CVE-2026-88777",
+        "CVE-2026-88778"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/09/information-om-kritiska-sarbarheter-i-citrixnetscaler.html"
         }
       ],
       "confidence": "verified"
