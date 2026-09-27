@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 33,
+  "generation": 34,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -99,17 +99,22 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-09-22T00:00:00Z",
-      "updated_at": "2026-09-22T00:00:00Z",
+      "updated_at": "2026-09-27T00:51:09Z",
       "title": "CISA lägger till fyra aktivt exploaterade sårbarheter i företagsprodukter",
-      "summary": "CISA har lagt till CVE-2026-93952 i Arista VeloCloud Orchestrator, CVE-2026-94127 i F5 BIG-IP APM samt CVE-2026-93616 och CVE-2026-85102 i Check Point-produkter i katalogen över kända exploaterade sårbarheter.",
-      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "summary": "CISA har lagt till CVE-2026-93952 i Arista VeloCloud Orchestrator, CVE-2026-94127 i F5 BIG-IP APM samt CVE-2026-93616 och CVE-2026-85102 i Check Point-produkter i katalogen över kända exploaterade sårbarheter. Tidsfristen gällde amerikanska civila federala myndigheter.",
+      "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-93952",
         "CVE-2026-94127",
         "CVE-2026-93616",
         "CVE-2026-85102"
       ],
+      "deadline": "2026-09-25",
       "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/22/cisa-adds-four-known-exploited-vulnerabilities-catalog"
@@ -122,15 +127,20 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-09-24T19:00:55Z",
-      "updated_at": "2026-09-24T19:00:55Z",
+      "updated_at": "2026-09-27T00:51:09Z",
       "title": "CISA lägger till CVE-2026-5430 och CVE-2026-71362 i KEV-katalogen",
-      "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering.",
-      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering. Tidsfristen gäller amerikanska civila federala myndigheter.",
+      "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-5430",
         "CVE-2026-71362"
       ],
+      "deadline": "2026-09-27",
       "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/24/cisa-adds-two-known-exploited-vulnerabilities-catalog"
@@ -141,18 +151,22 @@
     {
       "id": "cisa-kev:sharepoint-routeros-2026-09-25",
       "type": "vulnerability",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-25T14:39:25Z",
-      "updated_at": "2026-09-25T14:39:25Z",
+      "updated_at": "2026-09-27T00:51:09Z",
       "title": "CISA lägger till exploaterade SharePoint- och RouterOS-sårbarheter i KEV",
-      "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering.",
-      "action": "Tillämpa leverantörernas åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04-vägledning. CISA anger 28 september 2026 som tidsfrist.",
+      "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering. Tidsfristen gäller amerikanska civila federala myndigheter.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04-vägledning. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
       "cves": [
         "CVE-2026-65660",
         "CVE-2026-67279"
       ],
       "deadline": "2026-09-28",
       "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-two-known-exploited-vulnerabilities-catalog"
@@ -165,14 +179,19 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-09-25T00:00:00Z",
-      "updated_at": "2026-09-25T00:00:00Z",
+      "updated_at": "2026-09-27T00:51:09Z",
       "title": "CISA lägger till aktivt exploaterad WordPress-sårbarhet i KEV",
-      "summary": "CISA har lagt till CVE-2026-87902, en sårbarhet för fjärrinkludering av filer i WordPress Core, i katalogen över kända exploaterade sårbarheter baserat på belägg för aktiv exploatering.",
-      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "summary": "CISA har lagt till CVE-2026-87902, en sårbarhet för fjärrinkludering av filer i WordPress Core, i katalogen över kända exploaterade sårbarheter baserat på belägg för aktiv exploatering. Tidsfristen gäller amerikanska civila federala myndigheter.",
+      "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-87902"
       ],
+      "deadline": "2026-09-28",
       "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-one-known-exploited-vulnerability-catalog"
