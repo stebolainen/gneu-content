@@ -99,9 +99,9 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-09-22T00:00:00Z",
-      "updated_at": "2026-09-26T15:26:49Z",
+      "updated_at": "2026-09-28T17:23:01Z",
       "title": "CISA lägger till fyra aktivt exploaterade sårbarheter i företagsprodukter",
-      "summary": "CISA har lagt till CVE-2026-93952 i Arista VeloCloud Orchestrator, CVE-2026-94127 i F5 BIG-IP APM samt CVE-2026-93616 och CVE-2026-85102 i Check Point-produkter i katalogen över kända exploaterade sårbarheter. Tidsfristen gällde amerikanska civila federala myndigheter.",
+      "summary": "CISA har lagt till CVE-2026-93952 i Arista VeloCloud Orchestrator, CVE-2026-94127 i F5 BIG-IP APM samt CVE-2026-93616 och CVE-2026-85102 i Check Point-produkter i katalogen över kända exploaterade sårbarheter. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-93952",
@@ -127,9 +127,9 @@
       "type": "vulnerability",
       "publication_class": "A",
       "occurred_at": "2026-09-24T19:00:55Z",
-      "updated_at": "2026-09-26T15:26:49Z",
+      "updated_at": "2026-09-28T17:23:01Z",
       "title": "CISA lägger till CVE-2026-5430 och CVE-2026-71362 i KEV-katalogen",
-      "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering. Tidsfristen gäller amerikanska civila federala myndigheter.",
+      "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-5430",
@@ -153,9 +153,9 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T14:39:25Z",
-      "updated_at": "2026-09-26T14:26:36Z",
+      "updated_at": "2026-09-28T17:23:01Z",
       "title": "CISA lägger till exploaterade SharePoint- och RouterOS-sårbarheter i KEV",
-      "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering. Tidsfristen gäller amerikanska civila federala myndigheter.",
+      "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
       "cves": [
         "CVE-2026-65660",
@@ -175,9 +175,9 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T18:58:16Z",
-      "updated_at": "2026-09-26T14:26:36Z",
+      "updated_at": "2026-09-28T17:23:01Z",
       "title": "CISA lägger till aktivt exploaterad WordPress-sårbarhet i KEV",
-      "summary": "CISA har lagt till CVE-2026-87902 i WordPress Core i katalogen över kända exploaterade sårbarheter. Felet kan låta en obehörig angripare inkludera en läsbar lokal PHP-fil och fjärrköra kod. Tidsfristen gäller amerikanska civila federala myndigheter.",
+      "summary": "CISA har lagt till CVE-2026-87902 i WordPress Core i katalogen över kända exploaterade sårbarheter. Felet kan låta en obehörig angripare inkludera en läsbar lokal PHP-fil och fjärrköra kod. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
       "cves": [
         "CVE-2026-87902"
