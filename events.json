@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 33,
+  "generation": 34,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -176,6 +176,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:citrix-netscaler-2026-09-27",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-09-27T12:00:00Z",
+      "updated_at": "2026-09-27T12:00:00Z",
+      "title": "CISA lägger till två aktivt exploaterade Citrix NetScaler-sårbarheter i KEV",
+      "summary": "CISA har lagt till CVE-2026-88771 och CVE-2026-88772 i Citrix NetScaler i KEV-katalogen baserat på belägg för aktiv exploatering. Sårbarheterna gäller bristande indatavalidering respektive otillräckliga gränskontroller i en minnesbuffert.",
+      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "cves": [
+        "CVE-2026-88771",
+        "CVE-2026-88772"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/27/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
