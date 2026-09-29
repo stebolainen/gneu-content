@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 35,
+  "generation": 36,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -218,6 +218,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/29/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-69522-update-2026-09-29",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-09-29T14:00:00Z",
+      "updated_at": "2026-09-29T14:00:00Z",
+      "title": "Microsoft uppdaterar patchtabell för CVE-2026-69522 i .NET och Visual Studio",
+      "summary": "Microsoft har uppdaterat säkerhetsuppdateringstabellen för CVE-2026-69522. Sårbarheten är ett heapbaserat buffertspill som kan ge kodkörning över nätverk när en användare öppnar en särskilt utformad fil.",
+      "action": "Installera de säkerhetsuppdateringar som Microsoft anger för berörda .NET-, .NET Framework- och Visual Studio-versioner.",
+      "cves": [
+        "CVE-2026-69522"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-69522"
         }
       ],
       "confidence": "verified"
