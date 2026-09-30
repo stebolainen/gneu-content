@@ -271,6 +271,27 @@
         }
       ],
       "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:cisco-sdwan-manager-2026-09-30",
+      "type": "vulnerability",
+      "publication_class": "B",
+      "occurred_at": "2026-09-30T00:00:00Z",
+      "updated_at": "2026-09-30T00:00:00Z",
+      "title": "CISA lägger till aktivt exploaterad Cisco SD-WAN-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-76504 i Cisco Catalyst SD-WAN Manager i KEV-katalogen. Sårbarheten kan låta en oautentiserad fjärrangripare få åtkomst till det berörda systemet med administratörsbehörighet.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 3 oktober 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2026-76504"
+      ],
+      "deadline": "2026-10-03",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        }
+      ],
+      "confidence": "verified"
     }
   ]
 }
