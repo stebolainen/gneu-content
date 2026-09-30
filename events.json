@@ -256,10 +256,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-29T13:51:33Z",
-      "updated_at": "2026-09-29T15:29:04Z",
+      "updated_at": "2026-09-30T09:13:14Z",
       "title": "CISA lägger till aktivt exploaterad Apple-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-86950 i Apple iOS, iPadOS och macOS i KEV-katalogen. CoreGraphics-felet är en skrivning utanför buffertgräns som kan ge godtycklig kodkörning. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm tillgångarnas internetexponering och följ relevant CISA BOD 26-04-vägledning. För amerikanska civila federala myndigheter anger CISA den 2 oktober 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm tillgångarnas internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. För amerikanska civila federala myndigheter anger CISA den 2 oktober 2026 som tidsfrist.",
       "cves": [
         "CVE-2026-86950"
       ],
