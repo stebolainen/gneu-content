@@ -223,22 +223,18 @@
       "confidence": "verified"
     },
     {
-      "id": "cert-se:CVE-2026-104286-2026-10-02",
+      "id": "cisa-kev:CVE-2026-104286-2026-10-01",
       "type": "vulnerability",
       "publication_class": "A",
-      "occurred_at": "2026-10-02T11:30:00Z",
-      "updated_at": "2026-10-02T11:30:00Z",
-      "title": "CERT-SE varnar för aktivt exploaterad kritisk sårbarhet i FortiMail",
-      "summary": "CERT-SE varnar för CVE-2026-104286 i FortiMail 8.0.0–8.0.1, 7.6.0–7.6.6, 7.4.0–7.4.8 och 7.2.0–7.2.9. En oautentiserad angripare kan skriva godtyckliga filer via HTTP eller HTTPS. CISA har lagt till sårbarheten i KEV-katalogen efter belägg för aktiv exploatering.",
-      "action": "Följ CERT-SE:s råd: tillämpa omgående leverantörens åtgärder, sök efter avvikande beteenden och granska produktloggar från de senaste tre månaderna samt cron-jobb med misstänkta skript.",
+      "occurred_at": "2026-10-01T00:00:00Z",
+      "updated_at": "2026-10-01T00:00:00Z",
+      "title": "CISA lägger till aktivt exploaterad FortiMail-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-104286, en sårbarhet för katalogtraversering i Fortinet FortiMail, i KEV-katalogen baserat på belägg för aktiv exploatering.",
+      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-104286"
       ],
       "sources": [
-        {
-          "id": "cert-se",
-          "url": "https://www.cert.se/2026/10/kritisk-sarbarhet-i-fortimail.html"
-        },
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/01/cisa-adds-one-known-exploited-vulnerability-catalog"
