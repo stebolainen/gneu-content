@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 35,
+  "generation": 36,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -218,6 +218,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/09/29/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-104286-2026-10-01",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-01T00:00:00Z",
+      "updated_at": "2026-10-01T00:00:00Z",
+      "title": "CISA lägger till aktivt exploaterad FortiMail-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-104286, en sårbarhet för katalogtraversering i Fortinet FortiMail, i KEV-katalogen baserat på belägg för aktiv exploatering.",
+      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "cves": [
+        "CVE-2026-104286"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/10/01/cisa-adds-one-known-exploited-vulnerability-catalog"
         }
       ],
       "confidence": "verified"
