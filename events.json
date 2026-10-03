@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 36,
+  "generation": 37,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -238,6 +238,28 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/01/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:zammad-2026-10-02",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-02T00:00:00Z",
+      "updated_at": "2026-10-02T00:00:00Z",
+      "title": "CISA lägger till två aktivt exploaterade Zammad-sårbarheter i KEV",
+      "summary": "CISA har lagt till CVE-2026-102489 och CVE-2026-102490 i Zammad i KEV-katalogen. Den första kan ge kodkörning som Zammad-användaren och kan kedjas med den andra för att eskalera lokala behörigheter till root.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. CISA anger 5 oktober 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2026-102489",
+        "CVE-2026-102490"
+      ],
+      "deadline": "2026-10-05",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/10/02/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
