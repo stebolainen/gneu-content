@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 36,
+  "generation": 37,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -238,6 +238,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/01/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-96940-2026-10-02",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-02T14:00:00Z",
+      "updated_at": "2026-10-02T14:00:00Z",
+      "title": "Microsoft rättar privilegiehöjning i Exchange Server",
+      "summary": "Microsoft har rättat CVE-2026-96940 i Exchange Server SE RTM, 2016 CU23 samt 2019 CU14 och CU15. En autentiserad angripare kan få obehörig åtkomst till andra användares postlådor i samma organisation och läsa meddelanden och bilagor. Microsoft anger att sårbarheten inte är exploaterad.",
+      "action": "Installera den tillämpliga säkerhetsuppdateringen för berörda lokala Exchange Server-installationer. Microsoft anger att Exchange Online redan har fått en tjänstesidig korrigering och att kunder där inte behöver agera.",
+      "cves": [
+        "CVE-2026-96940"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-96940"
         }
       ],
       "confidence": "verified"
