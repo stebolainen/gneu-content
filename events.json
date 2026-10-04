@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 37,
+  "generation": 38,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -260,6 +260,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/02/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-88779-2026-10-04",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-04T18:52:56Z",
+      "updated_at": "2026-10-04T18:52:56Z",
+      "title": "CISA lägger till aktivt exploaterad Citrix NetScaler-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-88779 i Citrix NetScaler ADC och NetScaler Gateway i KEV-katalogen. Sårbarheten gäller otillräcklig begränsning av åtgärder inom en minnesbuffert och kan leda till tjänstevägran.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. CISA anger 7 oktober 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2026-88779"
+      ],
+      "deadline": "2026-10-07",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
