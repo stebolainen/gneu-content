@@ -153,7 +153,7 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T14:39:25Z",
-      "updated_at": "2026-09-28T17:23:01Z",
+      "updated_at": "2026-10-05T23:19:00Z",
       "title": "CISA lägger till exploaterade SharePoint- och RouterOS-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
@@ -166,6 +166,10 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
@@ -175,7 +179,7 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T18:58:16Z",
-      "updated_at": "2026-09-28T17:23:01Z",
+      "updated_at": "2026-10-05T23:19:00Z",
       "title": "CISA lägger till aktivt exploaterad WordPress-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-87902 i WordPress Core i katalogen över kända exploaterade sårbarheter. Felet kan låta en obehörig angripare inkludera en läsbar lokal PHP-fil och fjärrköra kod. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
@@ -187,6 +191,10 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/25/cisa-adds-one-known-exploited-vulnerability-catalog"
         }
       ],
       "confidence": "verified"
@@ -234,7 +242,7 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-27T21:30:35Z",
-      "updated_at": "2026-09-28T23:12:29Z",
+      "updated_at": "2026-10-05T23:19:00Z",
       "title": "CISA lägger till två aktivt exploaterade Citrix NetScaler-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-88771 och CVE-2026-88772 i Citrix NetScaler ADC och NetScaler Gateway i KEV-katalogen. Den första kan möjliggöra oautentiserad kommandokörning; den andra fjärrkodsexekvering eller överbelastning. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 30 september 2026 som tidsfrist.",
@@ -247,6 +255,10 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/27/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
@@ -256,7 +268,7 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-29T13:51:33Z",
-      "updated_at": "2026-09-30T09:13:14Z",
+      "updated_at": "2026-10-05T23:19:00Z",
       "title": "CISA lägger till aktivt exploaterad Apple-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-86950 i Apple iOS, iPadOS och macOS i KEV-katalogen. CoreGraphics-felet är en skrivning utanför buffertgräns som kan ge godtycklig kodkörning. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
       "action": "Tillämpa leverantörens åtgärder, bedöm tillgångarnas internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. För amerikanska civila federala myndigheter anger CISA den 2 oktober 2026 som tidsfrist.",
@@ -268,6 +280,10 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/09/29/cisa-adds-one-known-exploited-vulnerability-catalog"
         }
       ],
       "confidence": "verified"
