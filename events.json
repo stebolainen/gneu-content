@@ -97,11 +97,11 @@
     {
       "id": "cisa-kev:enterprise-products-2026-09-22",
       "type": "vulnerability",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-22T00:00:00Z",
-      "updated_at": "2026-09-28T17:23:01Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till fyra aktivt exploaterade sårbarheter i företagsprodukter",
-      "summary": "CISA har lagt till CVE-2026-93952 i Arista VeloCloud Orchestrator, CVE-2026-94127 i F5 BIG-IP APM samt CVE-2026-93616 och CVE-2026-85102 i Check Point-produkter i katalogen över kända exploaterade sårbarheter. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
+      "summary": "CISA har lagt till CVE-2026-93952 i Arista VeloCloud Orchestrator, CVE-2026-94127 i F5 BIG-IP APM samt CVE-2026-93616 och CVE-2026-85102 i Check Point-produkter i katalogen över kända exploaterade sårbarheter. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 25 september 2026.",
       "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-93952",
@@ -125,11 +125,11 @@
     {
       "id": "cisa-kev:wso2-adobe-commerce-2026-09-24",
       "type": "vulnerability",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-09-24T19:00:55Z",
-      "updated_at": "2026-09-28T17:23:01Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till CVE-2026-5430 och CVE-2026-71362 i KEV-katalogen",
-      "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
+      "summary": "CISA har lagt till CVE-2026-5430 i flera WSO2-produkter och CVE-2026-71362 i Adobe Commerce och Magento i katalogen över kända exploaterade sårbarheter, baserat på belägg för aktiv exploatering. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 27 september 2026.",
       "action": "CISA rekommenderar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
       "cves": [
         "CVE-2026-5430",
@@ -153,10 +153,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T14:39:25Z",
-      "updated_at": "2026-10-05T23:19:00Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till exploaterade SharePoint- och RouterOS-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-65660 i Microsoft SharePoint och CVE-2026-67279 i MikroTik RouterOS i KEV-katalogen. SharePoint-felet kan låta en behörig angripare köra kod över nätverk; RouterOS-felet kan kedjas med CVE-2026-86060 för obehörig exploatering. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 28 september 2026.",
       "cves": [
         "CVE-2026-65660",
         "CVE-2026-67279"
@@ -179,10 +179,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-25T18:58:16Z",
-      "updated_at": "2026-10-05T23:19:00Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till aktivt exploaterad WordPress-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-87902 i WordPress Core i katalogen över kända exploaterade sårbarheter. Felet kan låta en obehörig angripare inkludera en läsbar lokal PHP-fil och fjärrköra kod. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 28 september 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 28 september 2026.",
       "cves": [
         "CVE-2026-87902"
       ],
@@ -242,10 +242,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-27T21:30:35Z",
-      "updated_at": "2026-10-05T23:19:00Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till två aktivt exploaterade Citrix NetScaler-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-88771 och CVE-2026-88772 i Citrix NetScaler ADC och NetScaler Gateway i KEV-katalogen. Den första kan möjliggöra oautentiserad kommandokörning; den andra fjärrkodsexekvering eller överbelastning. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 30 september 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 30 september 2026.",
       "cves": [
         "CVE-2026-88771",
         "CVE-2026-88772"
@@ -268,10 +268,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-29T13:51:33Z",
-      "updated_at": "2026-10-05T23:19:00Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till aktivt exploaterad Apple-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-86950 i Apple iOS, iPadOS och macOS i KEV-katalogen. CoreGraphics-felet är en skrivning utanför buffertgräns som kan ge godtycklig kodkörning. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm tillgångarnas internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. För amerikanska civila federala myndigheter anger CISA den 2 oktober 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm tillgångarnas internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 2 oktober 2026.",
       "cves": [
         "CVE-2026-86950"
       ],
@@ -293,10 +293,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-09-30T00:00:00Z",
-      "updated_at": "2026-10-01T01:39:58Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till aktivt exploaterad Cisco SD-WAN-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-76504 i Cisco Catalyst SD-WAN Manager i KEV-katalogen. Sårbarheten kan låta en oautentiserad fjärrangripare få åtkomst till det berörda systemet med administratörsbehörighet. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 3 oktober 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 3 oktober 2026.",
       "cves": [
         "CVE-2026-76504"
       ],
@@ -334,10 +334,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-01T00:00:00Z",
-      "updated_at": "2026-10-02T22:31:33Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till aktivt exploaterad FortiMail-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-104286, en sårbarhet för katalogtraversering i Fortinet FortiMail, i KEV-katalogen baserat på belägg för aktiv exploatering. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 4 oktober 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 4 oktober 2026.",
       "cves": [
         "CVE-2026-104286"
       ],
@@ -379,10 +379,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-02T00:00:00Z",
-      "updated_at": "2026-10-03T20:14:47Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till två aktivt exploaterade Zammad-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-102489 och CVE-2026-102490 i Zammad i KEV-katalogen. Den första kan ge kodkörning som Zammad-användaren och kan kedjas med den andra för att eskalera lokala behörigheter till root. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 5 oktober 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter passerade den 5 oktober 2026.",
       "cves": [
         "CVE-2026-102489",
         "CVE-2026-102490"
@@ -405,10 +405,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-04T18:52:56Z",
-      "updated_at": "2026-10-04T21:07:43Z",
+      "updated_at": "2026-10-06T14:58:11Z",
       "title": "CISA lägger till aktivt exploaterad Citrix NetScaler-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-88779 i Citrix NetScaler ADC och NetScaler Gateway i KEV-katalogen. Sårbarheten gäller otillräcklig begränsning av åtgärder inom en minnesbuffert och kan leda till tjänstevägran. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA den 7 oktober 2026 som tidsfrist.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA satte den 7 oktober 2026 som tidsfrist för amerikanska civila federala myndigheter.",
       "cves": [
         "CVE-2026-88779"
       ],
