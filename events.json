@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 38,
+  "generation": 39,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -281,6 +281,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/04/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:CVE-2026-85706-update-2026-10-06",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-06T10:00:00+02:00",
+      "updated_at": "2026-10-06T10:00:00+02:00",
+      "title": "CERT-SE kompletterar råd för aktivt exploaterad GitLab-sårbarhet",
+      "summary": "CERT-SE har uppdaterat sin varning om CVE-2026-85706 med kompletterande GitLab-information för detektering. Sårbarheten i GitLab CE och EE utnyttjas aktivt och kan låta en oautentiserad angripare läsa godtyckliga filer från GitLab-servern.",
+      "action": "Installera GitLabs säkerhetsuppdateringar skyndsamt. CERT-SE rekommenderar även att analysera loggar för eventuella intrång och hänvisar till GitLabs kompletterande detektionsinformation.",
+      "cves": [
+        "CVE-2026-85706"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/09/gitlab-rattar-kritiska-sarbarheter.html"
         }
       ],
       "confidence": "verified"
