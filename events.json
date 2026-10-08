@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 39,
+  "generation": 40,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -306,6 +306,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/08/cisa-adds-five-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-77900-2026-10-08",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-08T14:00:00Z",
+      "updated_at": "2026-10-08T14:00:00Z",
+      "title": "Microsoft har åtgärdat kritisk kodkörningssårbarhet i Azure App Service",
+      "summary": "Microsoft har publicerat CVE-2026-77900 i Azure App Service. Bristande autentisering kunde låta en obehörig angripare köra kod över nätverk. Microsoft klassar sårbarheten som kritisk med CVSS 9,8, uppger att den inte är känd som exploaterad och att den redan är helt åtgärdad.",
+      "action": "Microsoft uppger att sårbarheten redan är helt åtgärdad i tjänsten och att användare av Azure App Service inte behöver vidta någon åtgärd.",
+      "cves": [
+        "CVE-2026-77900"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-77900"
         }
       ],
       "confidence": "verified"
