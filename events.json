@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 38,
+  "generation": 39,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -281,6 +281,31 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/04/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:five-products-2026-10-08",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-08T17:20:54Z",
+      "updated_at": "2026-10-08T17:20:54Z",
+      "title": "CISA lägger till fem aktivt exploaterade sårbarheter i KEV",
+      "summary": "CISA har lagt till CVE-2015-5477 i ISC BIND, CVE-2016-3081 i Apache Struts, CVE-2023-22894 i Strapi, CVE-2021-3199 i ONLYOFFICE Docs och CVE-2015-3306 i ProFTPD i KEV-katalogen baserat på belägg för aktiv exploatering.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. CISA anger 11 oktober 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2015-5477",
+        "CVE-2016-3081",
+        "CVE-2023-22894",
+        "CVE-2021-3199",
+        "CVE-2015-3306"
+      ],
+      "deadline": "2026-10-11",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
