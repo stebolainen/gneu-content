@@ -359,7 +359,7 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-02T14:00:00Z",
-      "updated_at": "2026-10-03T05:15:44Z",
+      "updated_at": "2026-10-09T06:39:01Z",
       "title": "Microsoft rättar privilegiehöjning i Exchange Server",
       "summary": "Microsoft har rättat CVE-2026-96940 i Exchange Server SE RTM, 2016 CU23 och 2019 CU14–CU15. En autentiserad angripare kan, om en användare klickar på en preparerad länk, läsa andra användares meddelanden och bilagor inom organisationen. Felet var inte exploaterat men exploatering bedömdes som mer sannolik.",
       "action": "Installera den tillämpliga säkerhetsuppdateringen för berörda lokala Exchange Server-installationer. Exchange Online har redan fått en tjänstesidig korrigering och kunder där behöver enligt Microsoft inte agera.",
