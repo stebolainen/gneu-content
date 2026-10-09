@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 39,
+  "generation": 40,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -306,6 +306,24 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/08/cisa-adds-five-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:aa26-281a-2026-10-08",
+      "type": "threat_report",
+      "publication_class": "A",
+      "occurred_at": "2026-10-08T00:00:00Z",
+      "updated_at": "2026-10-08T00:00:00Z",
+      "title": "CISA varnar för Kina-kopplade aktörers datastöld med botnät och manuell exploatering",
+      "summary": "CISA och partner beskriver hur Kina-kopplade aktörer, med stöd av Integrity Technology Group, kombinerar automatiserad skanning, storskaliga botnät och manuell exploatering för att stjäla känsliga uppgifter globalt, även från amerikansk kritisk infrastruktur.",
+      "action": "Inaktivera oanvända tjänster och portar, sanera indata i webbapplikationer, inför identitets- och åtkomstpolicyer med MFA och installera säkerhetsuppdateringar i tid. Använd rådgivningens indikatorer för att söka efter kompromettering.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-281a"
         }
       ],
       "confidence": "verified"
