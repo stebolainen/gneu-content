@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 40,
+  "generation": 41,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -324,6 +324,24 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-281a"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:mddr-ai-security-2026",
+      "type": "ai_security",
+      "publication_class": "A",
+      "occurred_at": "2026-10-01T14:00:12Z",
+      "updated_at": "2026-10-02T20:04:57Z",
+      "title": "Microsoft beskriver fem riskområden för AI-agenter i Digital Defense Report 2026",
+      "summary": "Microsofts Digital Defense Report 2026 beskriver AI-system både som mål och verktyg i angrepp. För AI-agenter pekar rapporten ut prompt- och avsiktsmanipulation, dataexponering, identitets- och behörighetsintrång, överdriven handlingsförmåga samt manipulation av operativ integritet.",
+      "action": "Microsoft anger bland annat detektering av promptinjektion, avsiktsvalidering, DLP, avgränsade behörigheter, verktygstillåtelselistor, exekveringsgrindar, signerad konfiguration och attestering av leveranskedjan som skydd.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://www.microsoft.com/en-us/corporate-responsibility/topics/cybersecurity/reports/microsoft-digital-defense-report/"
         }
       ],
       "confidence": "verified"
