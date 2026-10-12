@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 40,
+  "generation": 41,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -324,6 +324,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-281a"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-96940-2026-10-02",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-02T07:00:00Z",
+      "updated_at": "2026-10-02T07:00:00Z",
+      "title": "Installera säkerhetsuppdateringar för CVE-2026-96940 i lokal Exchange Server",
+      "summary": "Microsoft anger att en autentiserad angripare kan utnyttja CVE-2026-96940 för obehörig åtkomst till andra användares postlådor inom samma organisation och läsa meddelanden och bilagor. Sårbarheten kräver att en användare klickar på en skadlig länk.",
+      "action": "Installera Microsofts tillämpliga säkerhetsuppdateringar för berörda lokala Exchange Server-versioner. Exchange Online har redan fått en tjänstekorrigering och kräver enligt Microsoft ingen kundåtgärd.",
+      "cves": [
+        "CVE-2026-96940"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-96940"
         }
       ],
       "confidence": "verified"
