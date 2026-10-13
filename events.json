@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 40,
+  "generation": 41,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -324,6 +324,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-281a"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:CVE-2026-97229-2026-10-13",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-13T09:50:00Z",
+      "updated_at": "2026-10-13T09:50:00Z",
+      "title": "GitLab rättar kritisk sårbarhet med risk för oautentiserad kodkörning",
+      "summary": "CVE-2026-97229 i GitLab CE och EE kan under vissa villkor låta en oautentiserad användare köra godtycklig kod på servern via ett särskilt utformat reguljärt uttryck i en CI/CD-konfiguration. Berörda versioner är 19.2 före 19.2.8, 19.3 före 19.3.5 och 19.4 före 19.4.2.",
+      "action": "Installera säkerhetsuppdateringarna skyndsamt, särskilt för publikt exponerade instanser, och analysera loggar för att utreda eventuella intrång enligt CERT-SE:s rekommendation.",
+      "cves": [
+        "CVE-2026-97229"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/10/gitlab-rattar-kritisk-sarbarhet.html"
         }
       ],
       "confidence": "verified"
