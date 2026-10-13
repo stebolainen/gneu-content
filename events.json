@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 40,
+  "generation": 41,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -324,6 +324,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-281a"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:CVE-2026-104935-2026-10-13",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-13T14:34:17Z",
+      "updated_at": "2026-10-13T14:34:17Z",
+      "title": "CISA lägger till aktivt exploaterad Ivanti Connect Secure-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-104935 i Ivanti Connect Secure i KEV-katalogen. Sårbarheten är en autentiseringsförbikoppling genom spoofing som låter en oautentiserad fjärrangripare köra godtyckliga kommandon.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04-vägledning. CISA anger 16 oktober 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2026-104935"
+      ],
+      "deadline": "2026-10-16",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
