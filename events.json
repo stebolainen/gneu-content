@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 42,
+  "generation": 43,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -369,6 +369,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/13/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:atlassian-products-2026-10-15",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-15T00:00:00Z",
+      "updated_at": "2026-10-15T00:00:00Z",
+      "title": "CISA lägger till exploaterad Atlassian-sårbarhet i KEV",
+      "summary": "CISA har lagt till CVE-2026-21589 i KEV-katalogen. Sårbarheten berör flera Atlassian-produkter och kan låta en oautentiserad angripare läsa specifika filer i webbapplikationens rotkatalog i berörda versioner.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. CISA anger 18 oktober 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2026-21589"
+      ],
+      "deadline": "2026-10-18",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       ],
       "confidence": "verified"
