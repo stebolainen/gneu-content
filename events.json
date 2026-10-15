@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 41,
+  "generation": 42,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -347,6 +347,28 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/14/cisa-adds-four-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:ivanti-windows-2026-10-13",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-13T00:00:00Z",
+      "updated_at": "2026-10-13T00:00:00Z",
+      "title": "CISA lägger till exploaterade Ivanti- och Windows-sårbarheter i KEV",
+      "summary": "CISA har lagt till CVE-2026-104935 i Ivanti Connect Secure och CVE-2026-96951 i Microsoft Windows i KEV-katalogen. Ivanti-felet låter en oautentiserad fjärrangripare köra godtyckliga kommandon; Windows-felet kan kringgå en säkerhetsfunktion över nätverk.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm varje tillgångs internetexponering och följ relevant CISA BOD 26-04- och forensikvägledning. CISA anger 16 oktober 2026 som tidsfrist.",
+      "cves": [
+        "CVE-2026-104935",
+        "CVE-2026-96951"
+      ],
+      "deadline": "2026-10-16",
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/10/13/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
