@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 41,
+  "generation": 42,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -347,6 +347,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/14/cisa-adds-four-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-32176-update-2026-10-14",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-10-14T14:00:00Z",
+      "updated_at": "2026-10-14T14:00:00Z",
+      "title": "Microsoft lägger till SQL Server-uppdateringar för CVE-2026-32176",
+      "summary": "Microsoft har utökat säkerhetsuppdateringstabellen för CVE-2026-32176 med SQL Server-programvara. Sårbarheten är en SQL-injektion där en behörig lokal angripare kan höja sin behörighet till SQL sysadmin; Microsoft anger att den inte är känd som utnyttjad.",
+      "action": "Uppdatera berörd och supporterad SQL Server-version med den tillämpliga säkerhetsuppdateringen från oktober 2026 enligt Microsofts tabell.",
+      "cves": [
+        "CVE-2026-32176"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-32176"
         }
       ],
       "confidence": "verified"
