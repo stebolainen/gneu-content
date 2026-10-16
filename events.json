@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 43,
+  "generation": 44,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -390,6 +390,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/15/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:CVE-2026-102764-2026-10-16",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-16T13:30:00Z",
+      "updated_at": "2026-10-16T13:30:00Z",
+      "title": "CERT-SE varnar för kritisk nolldagssårbarhet i BeyondTrust Remote Support",
+      "summary": "CERT-SE varnar för CVE-2026-102764 i BeyondTrust Remote Support. Alla versioner före 26.2.3 påverkas. Sårbarheten kan utnyttjas utan autentisering för att skriva kod till systemet och få kontroll över enheten.",
+      "action": "Följ leverantörens instruktioner och uppdatera skyndsamt. CERT-SE rekommenderar att internetexponerade instanser behandlas som komprometterade tills de undersökts; vid misstänkt intrång bör instansen återställas helt och systemen roteras.",
+      "cves": [
+        "CVE-2026-102764"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/10/beyondtrust-varnar-for-kritisk-nolldagssarbarhet.html"
         }
       ],
       "confidence": "verified"
