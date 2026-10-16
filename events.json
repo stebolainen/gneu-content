@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 43,
+  "generation": 44,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -390,6 +390,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/15/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-96202-2026-10-13",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-13T14:00:00Z",
+      "updated_at": "2026-10-13T14:00:00Z",
+      "title": "Microsoft rättar kritisk sårbarhet i Windows Raw Image Extension",
+      "summary": "Microsoft klassar CVE-2026-96202 som kritisk. Ett heapbaserat buffertspill i Windows Raw Image Extension kan låta en obehörig angripare köra kod över nätverk; användarinteraktion krävs och Microsoft anger ingen känd exploatering.",
+      "action": "Uppdatera Raw Image Extension via Microsoft Store till version 2.4.36.0 för Windows 10 eller 2.5.35.0 för Windows 11 enligt Microsofts säkerhetsinformation.",
+      "cves": [
+        "CVE-2026-96202"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-96202"
         }
       ],
       "confidence": "verified"
