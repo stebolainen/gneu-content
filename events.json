@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 43,
+  "generation": 44,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -390,6 +390,24 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/15/cisa-adds-one-known-exploited-vulnerability-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:storm-3119-storm-2990-2026-10-14",
+      "type": "threat_report",
+      "publication_class": "A",
+      "occurred_at": "2026-10-14T13:00:00Z",
+      "updated_at": "2026-10-14T13:39:24Z",
+      "title": "Microsoft beskriver och stör ett globalt ekosystem för storskaligt nätfiske",
+      "summary": "Microsoft beskriver ett kinesiskspråkigt ekosystem med nätfiskepaket och YAM Store-infrastruktur. Sedan januari 2026 har aktörerna bakom paketen möjliggjort över en miljard nätfiskemeddelanden till över 75 000 organisationer. Microsoft uppger att ekosystemets primära utvecklare och infrastruktur har störts.",
+      "action": "Microsoft rekommenderar att verifiera brådskande meddelanden med den påstådda avsändaren, utbilda användare om nätfiske, härda molnidentiteter med lösenordsfria metoder och MFA samt tillämpa minsta privilegium och Zero Trust.",
+      "cves": [],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://www.microsoft.com/en-us/security/blog/2026/10/14/the-hidden-network-inside-the-phishing-infrastructure-ecosystem-powering-global-cybercrime/"
         }
       ],
       "confidence": "verified"
