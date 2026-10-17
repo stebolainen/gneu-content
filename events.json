@@ -378,10 +378,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-14T00:00:00Z",
-      "updated_at": "2026-10-14T20:30:47Z",
+      "updated_at": "2026-10-17T02:54:13Z",
       "title": "CISA lägger till fyra aktivt exploaterade sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-105133 och CVE-2026-105134 i AhsayCBS, CVE-2026-76519 i Cisco Secure Email Gateway och CVE-2026-0322 i PAN-OS i katalogen över kända exploaterade sårbarheter. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter är den 17 oktober 2026.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA anger den 17 oktober 2026 som tidsfrist för amerikanska civila federala myndigheter.",
       "cves": [
         "CVE-2026-105133",
         "CVE-2026-105134",
