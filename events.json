@@ -406,10 +406,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-13T00:00:00Z",
-      "updated_at": "2026-10-15T15:37:38Z",
+      "updated_at": "2026-10-17T01:59:31Z",
       "title": "CISA lägger till exploaterade Ivanti- och Windows-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-104935 i Ivanti Connect Secure och CVE-2026-96951 i Microsoft Windows i KEV. Ivanti-felet möjliggör fjärrkörning av kommandon utan autentisering; Windows-felet kan kringgå en säkerhetsfunktion över nätverk. Tidsfristen gäller amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter är den 16 oktober 2026.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter var den 16 oktober 2026.",
       "cves": [
         "CVE-2026-104935",
         "CVE-2026-96951"
