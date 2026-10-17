@@ -432,10 +432,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-15T00:00:00Z",
-      "updated_at": "2026-10-15T18:21:44Z",
+      "updated_at": "2026-10-17T04:42:12Z",
       "title": "CISA lägger till exploaterad Atlassian-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-21589 i KEV-katalogen. Sårbarheten berör flera Atlassian-produkter och kan låta en oautentiserad angripare läsa specifika filer i webbapplikationens rotkatalog i berörda versioner. Tidsfristen gäller amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter är den 18 oktober 2026.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA anger den 18 oktober 2026 som tidsfrist för amerikanska civila federala myndigheter.",
       "cves": [
         "CVE-2026-21589"
       ],
