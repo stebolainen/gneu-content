@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 44,
+  "generation": 45,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -411,6 +411,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/16/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-80092-2026-10-19",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-10-15T14:00:00Z",
+      "updated_at": "2026-10-19T14:00:00Z",
+      "title": "Microsoft uppdaterar Microsoft Identity Web för CVE-2026-80092",
+      "summary": "Microsoft beskriver CVE-2026-80092 som en autentiseringsförbikoppling där en behörig nätverksangripare kan få en annan användares åtkomsttoken. Exploatering kräver delad tokencache och att målanvändaren har en aktiv token i cachen.",
+      "action": "Uppdatera Microsoft Identity Web v3 till 3.16.0 och v4 till 4.16.1, de korrigerade versioner som Microsoft anger.",
+      "cves": [
+        "CVE-2026-80092"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-80092"
         }
       ],
       "confidence": "verified"
