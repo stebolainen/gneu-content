@@ -378,10 +378,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-14T00:00:00Z",
-      "updated_at": "2026-10-17T02:54:13Z",
+      "updated_at": "2026-10-19T10:39:32Z",
       "title": "CISA lägger till fyra aktivt exploaterade sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-105133 och CVE-2026-105134 i AhsayCBS, CVE-2026-76519 i Cisco Secure Email Gateway och CVE-2026-0322 i PAN-OS i katalogen över kända exploaterade sårbarheter. CISA:s tidsfrist avser amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA anger den 17 oktober 2026 som tidsfrist för amerikanska civila federala myndigheter.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter var den 17 oktober 2026.",
       "cves": [
         "CVE-2026-105133",
         "CVE-2026-105134",
@@ -406,10 +406,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-13T00:00:00Z",
-      "updated_at": "2026-10-17T02:01:18Z",
+      "updated_at": "2026-10-19T10:39:32Z",
       "title": "CISA lägger till exploaterade Ivanti- och Windows-sårbarheter i KEV",
       "summary": "CISA har lagt till CVE-2026-104935 i Ivanti Connect Secure och CVE-2026-96951 i Microsoft Windows i KEV. Ivanti-felet möjliggör fjärrkörning av kommandon utan autentisering; Windows-felet kan kringgå en säkerhetsfunktion över nätverk. Tidsfristen gäller amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA anger den 16 oktober 2026 som tidsfrist för amerikanska civila federala myndigheter.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter var den 16 oktober 2026.",
       "cves": [
         "CVE-2026-104935",
         "CVE-2026-96951"
@@ -432,10 +432,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-15T00:00:00Z",
-      "updated_at": "2026-10-17T04:42:12Z",
+      "updated_at": "2026-10-19T10:39:32Z",
       "title": "CISA lägger till exploaterad Atlassian-sårbarhet i KEV",
       "summary": "CISA har lagt till CVE-2026-21589 i KEV-katalogen. Sårbarheten berör flera Atlassian-produkter och kan låta en oautentiserad angripare läsa specifika filer i webbapplikationens rotkatalog i berörda versioner. Tidsfristen gäller amerikanska civila federala myndigheter.",
-      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA anger den 18 oktober 2026 som tidsfrist för amerikanska civila federala myndigheter.",
+      "action": "Tillämpa leverantörens åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA:s tidsfrist för amerikanska civila federala myndigheter var den 18 oktober 2026.",
       "cves": [
         "CVE-2026-21589"
       ],
@@ -455,12 +455,12 @@
     {
       "id": "cisa-kev:beyondtrust-fortinet-2026-10-16",
       "type": "vulnerability",
-      "publication_class": "A",
+      "publication_class": "B",
       "occurred_at": "2026-10-16T00:00:00Z",
-      "updated_at": "2026-10-16T00:00:00Z",
+      "updated_at": "2026-10-19T10:39:32Z",
       "title": "CISA lägger till exploaterade BeyondTrust- och Fortinet-sårbarheter i KEV",
-      "summary": "CISA har lagt till CVE-2026-102764 i BeyondTrust Remote Support och CVE-2025-61624 i flera Fortinet-produkter i KEV-katalogen baserat på belägg för aktiv exploatering.",
-      "action": "CISA uppmanar alla organisationer att använda riskbaserad sårbarhetshantering och prioritera åtgärder för sårbarheter i KEV-katalogen.",
+      "summary": "CISA har lagt till CVE-2026-102764 i BeyondTrust Remote Support och CVE-2025-61624 i flera Fortinet-produkter i KEV-katalogen baserat på belägg för aktiv exploatering. Tidsfristen gäller amerikanska civila federala myndigheter.",
+      "action": "Tillämpa leverantörernas åtgärder, bedöm internetexponering och följ relevant BOD 26-04- och forensikvägledning; avveckla produkten om åtgärder saknas. CISA anger den 19 oktober 2026 som tidsfrist för amerikanska civila federala myndigheter.",
       "cves": [
         "CVE-2026-102764",
         "CVE-2025-61624"
@@ -468,10 +468,15 @@
       "sources": [
         {
           "id": "cisa-kev",
+          "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        {
+          "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/16/cisa-adds-two-known-exploited-vulnerabilities-catalog"
         }
       ],
-      "confidence": "verified"
+      "confidence": "verified",
+      "deadline": "2026-10-19"
     }
   ]
 }
