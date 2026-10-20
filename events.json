@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 44,
+  "generation": 45,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -411,6 +411,31 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/16/cisa-adds-two-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa-kev:siteguard-plex-siemens-2026-10-20",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-20T19:00:31Z",
+      "updated_at": "2026-10-20T19:00:31Z",
+      "title": "CISA lägger till sex aktivt exploaterade sårbarheter i SiteGuard, Plex och Siemens",
+      "summary": "CISA har lagt till CVE-2026-106931 i SiteGuard Server Edition, fyra kedjebara sårbarheter i Plex Media Server samt CVE-2026-110936 i Siemens Software Center i katalogen över kända exploaterade sårbarheter.",
+      "action": "Tillämpa leverantörernas åtgärder och följ relevant CISA BOD 26-04- och forensikvägledning. CISA anger 23 oktober 2026 för CVE-2026-106931, CVE-2026-96654 och CVE-2026-96656 samt 3 november för övriga.",
+      "cves": [
+        "CVE-2026-106931",
+        "CVE-2026-96652",
+        "CVE-2026-96654",
+        "CVE-2026-96655",
+        "CVE-2026-96656",
+        "CVE-2026-110936"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/alerts/2026/10/20/cisa-adds-six-known-exploited-vulnerabilities-catalog"
         }
       ],
       "confidence": "verified"
