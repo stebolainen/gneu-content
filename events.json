@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 45,
+  "generation": 46,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -436,6 +436,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/20/cisa-adds-six-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "msrc:CVE-2026-97783-update-2026-10-21",
+      "type": "patch",
+      "publication_class": "A",
+      "occurred_at": "2026-10-21T14:00:00Z",
+      "updated_at": "2026-10-21T14:00:00Z",
+      "title": "Microsoft kompletterar SharePoint-rättelse för CVE-2026-97783",
+      "summary": "Microsoft uppger att CVE-2026-97783 i SharePoint Server 2016, 2019 och Subscription Edition korrigerades i juli men av misstag inte togs med i den publiceringen. Sårbarheten kan möjliggöra skriptkörning i den aktuella användarens säkerhetskontext.",
+      "action": "Uppdatera SharePoint Server till den senaste versionen enligt Microsofts rekommendation.",
+      "cves": [
+        "CVE-2026-97783"
+      ],
+      "sources": [
+        {
+          "id": "msrc",
+          "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-97783"
         }
       ],
       "confidence": "verified"
