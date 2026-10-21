@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 45,
+  "generation": 46,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -436,6 +436,27 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/20/cisa-adds-six-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:php-critical-vulnerabilities-2026-10-21",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-21T12:00:00Z",
+      "updated_at": "2026-10-21T14:30:00Z",
+      "title": "CERT-SE varnar för kritiska PHP-sårbarheter med risk för fjärrkodkörning",
+      "summary": "CERT-SE varnar för CVE-2026-109618 och CVE-2026-109619 i PHP. Sårbarheterna kan utnyttjas för oautentiserad exekvering av skadlig kod och uppges påverka PHP 5 och senare versioner.",
+      "action": "Uppdatera till PHP 8.5.12, 8.4.27, 8.3.36 eller 8.2.35. CERT-SE rekommenderar även att undersöka system efter tecken på intrång och att isolera internetexponerade PHP-applikationer om uppdatering inte är möjlig.",
+      "cves": [
+        "CVE-2026-109618",
+        "CVE-2026-109619"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/10/kritiska-s%C3%A5rbarheter-i-php.html"
         }
       ],
       "confidence": "verified"
