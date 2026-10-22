@@ -1,6 +1,6 @@
 {
   "schema": "gneu-content-events-v1",
-  "generation": 45,
+  "generation": 46,
   "events": [
     {
       "id": "msrc:CVE-2026-47292-update-2026-08-24",
@@ -436,6 +436,26 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/20/cisa-adds-six-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cert-se:gitlab-cve-2026-110264",
+      "type": "vulnerability",
+      "publication_class": "A",
+      "occurred_at": "2026-10-22T13:30:00Z",
+      "updated_at": "2026-10-22T13:30:00Z",
+      "title": "CERT-SE varnar för kritisk sårbarhet i GitLab CE och EE",
+      "summary": "CVE-2026-110264 berör GitLab CE och EE från version 7.0 och har CVSS 10,0. En oautentiserad användare kan utnyttja sårbarheten för att köra godtycklig kod. GitLab har rättat den i version 19.5.1, 19.4.3, 19.3.6, 19.2.9, 19.1.9, 19.0.10 och 18.11.13.",
+      "action": "CERT-SE rekommenderar organisationer med GitLab att följa leverantörens instruktioner, uppgradera till senaste version snarast och söka efter avvikande beteenden enligt leverantörens anvisningar.",
+      "cves": [
+        "CVE-2026-110264"
+      ],
+      "sources": [
+        {
+          "id": "cert-se",
+          "url": "https://www.cert.se/2026/10/Kritisk-s%C3%A5rbarhet-i-GitLab-CE-och-EE.html"
         }
       ],
       "confidence": "verified"
