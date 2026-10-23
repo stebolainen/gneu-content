@@ -483,10 +483,10 @@
       "type": "vulnerability",
       "publication_class": "B",
       "occurred_at": "2026-10-20T19:00:31Z",
-      "updated_at": "2026-10-20T20:57:48Z",
+      "updated_at": "2026-10-23T13:14:22Z",
       "title": "CISA lägger till sex aktivt exploaterade sårbarheter i SiteGuard, Plex och Siemens",
       "summary": "CISA har lagt till CVE-2026-106931 i SiteGuard Server Edition, fyra kedjebara sårbarheter i Plex Media Server samt CVE-2026-110936 i Siemens Software Center i KEV-katalogen baserat på belägg för aktiv exploatering. Tidsfristerna avser amerikanska civila federala myndigheter.",
-      "action": "Följ leverantörsåtgärder, bedöm internetexponering och tillämpa BOD 26-04-/forensikvägledning; avveckla om åtgärder saknas. För amerikanska civila federala myndigheter är tidsfristen 23 oktober för CVE-2026-106931, CVE-2026-96654 och CVE-2026-96656; övriga 3 november 2026.",
+      "action": "Följ leverantörsåtgärder, bedöm internetexponering och tillämpa BOD 26-04-/forensikvägledning; avveckla om åtgärder saknas. För amerikanska civila federala myndigheter anger CISA 23 oktober för CVE-2026-106931, CVE-2026-96654 och CVE-2026-96656; övriga 3 november 2026.",
       "cves": [
         "CVE-2026-106931",
         "CVE-2026-96652",
@@ -503,6 +503,30 @@
         {
           "id": "cisa-kev",
           "url": "https://www.cisa.gov/news-events/alerts/2026/10/20/cisa-adds-six-known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "confidence": "verified"
+    },
+    {
+      "id": "cisa:aa26-293a-2026-10-20",
+      "type": "threat_report",
+      "publication_class": "A",
+      "occurred_at": "2026-10-20T00:00:00Z",
+      "updated_at": "2026-10-20T00:00:00Z",
+      "title": "CISA och partner varnar för utpressningsgruppen SafePay",
+      "summary": "CISA, FBI och partner i USA, Tyskland och Storbritannien varnar för SafePay, som sedan augusti 2024 har angripit företag och kritisk infrastruktur i flera världsdelar. Myndigheterna uppger att gruppen har drabbat minst 600 offer.",
+      "action": "Installera säkerhetsuppdateringar, särskilt för brandväggar och andra edge-enheter. Inför Zero Trust, begränsa administrativa verktyg och behörigheter samt stärk kontoåtkomst med identitets- och åtkomstpolicyer och MFA.",
+      "cves": [
+        "CVE-2020-3259",
+        "CVE-2023-20269",
+        "CVE-2023-27532",
+        "CVE-2024-40711",
+        "CVE-2024-40766"
+      ],
+      "sources": [
+        {
+          "id": "cisa-kev",
+          "url": "https://www.cisa.gov/news-events/cybersecurity-advisories/aa26-293a"
         }
       ],
       "confidence": "verified"
